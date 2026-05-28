@@ -1,0 +1,52 @@
+active_profile: production
+
+profiles:
+  production:
+    server:
+      base_url: https://plane.company.com
+      workspace_slug: acme
+      timeout_ms: 10000
+      headers:
+        X-Forwarded-Proto: https
+      tls:
+        reject_unauthorized: true
+
+    auth:
+      api_key_env: PLANE_API_KEY
+
+    defaults:
+      project: ENG
+
+    cache:
+      provider: sqlite
+      ttl: 300
+      redis:
+        url: redis://localhost:6379
+        key_prefix: plane-cli
+
+    views:
+      - name: "My open"
+        project: ENG
+        filters:
+          assignee: me
+          state_group: [unstarted, started]
+        sort: priority
+
+      - name: "Current sprint"
+        project: ENG
+        filters:
+          cycle: current
+          state_group: [started]
+
+      - name: "Critical bugs"
+        project: ENG
+        filters:
+          labels: [bug]
+          priority: [urgent, high]
+
+  staging:
+    server:
+      base_url: https://plane-staging.company.com
+      workspace_slug: acme-staging
+    auth:
+      api_key_env: PLANE_STAGING_API_KEY

@@ -1,0 +1,6 @@
+[tools]
+node = "24.16.0"
+"npm:pnpm" = "11.4.0"
+
+[env]
+PLANE_CLI_DEV = "1"
