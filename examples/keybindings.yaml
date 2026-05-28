@@ -1,0 +1,24 @@
+# ~/.config/plane-cli/keybindings.yaml
+#
+# Each entry maps an action id to a key spec. Action ids are stable strings;
+# the full list is shown inside the TUI when you press `?`.
+#
+# Key spec grammar:
+#   single character: "j", "G", "?"
+#   special key:      enter, escape, tab, space, backspace, delete,
+#                     up, down, left, right, pageUp, pageDown, home, end,
+#                     f1..f12
+#   modifiers:        ctrl+x, shift+f1, ctrl+shift+r
+#
+# Unknown action ids fail at startup so typos surface immediately.
+
+list.next: down
+list.prev: up
+list.page-down: pageDown
+list.page-up: pageUp
+list.top: g
+list.bottom: G
+list.refresh: r
+
+global.help: "?"
+global.quit: q
