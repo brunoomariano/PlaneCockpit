@@ -9,12 +9,19 @@ export function visibleWidth(text: string): number {
   return text.replace(ANSI_RE, "").length;
 }
 
+const RESET = "\x1b[0m";
+
 // wrapAnsiLine breaks a single logical line into chunks that fit `width` columns
-// without splitting ANSI escapes. Plain ASCII only — multi-byte width (CJK) is
-// out of scope. When width <= 0 the input is returned untouched in a single chunk.
+// without splitting ANSI escapes. When a chunk boundary lands inside an active
+// ANSI run, the chunk closes with a RESET and the next chunk reopens with the
+// same set of escapes — otherwise a highlight visible on line N would silently
+// drop on line N+1 (Plane descriptions hit this with long inline code spans).
+// Plain ASCII only; multi-byte width (CJK) is out of scope.
 export function wrapAnsiLine(line: string, width: number): string[] {
   if (width <= 0 || visibleWidth(line) <= width) return [line];
   const out: string[] = [];
+  // active is the stack of ANSI escapes currently in effect. RESET clears it.
+  const active: string[] = [];
   let buffer = "";
   let visible = 0;
   let i = 0;
@@ -22,6 +29,8 @@ export function wrapAnsiLine(line: string, width: number): string[] {
     const ansi = readAnsi(line, i);
     if (ansi) {
       buffer += ansi;
+      if (ansi === RESET) active.length = 0;
+      else active.push(ansi);
       i += ansi.length;
       continue;
     }
@@ -29,12 +38,14 @@ export function wrapAnsiLine(line: string, width: number): string[] {
     visible += 1;
     i += 1;
     if (visible >= width) {
-      out.push(buffer);
-      buffer = "";
+      out.push(active.length > 0 ? buffer + RESET : buffer);
+      buffer = active.join("");
       visible = 0;
     }
   }
-  if (buffer.length > 0) out.push(buffer);
+  // Drop the trailing chunk if it has no visible characters and only carries
+  // the re-opened style prefix (would render as an empty styled line).
+  if (visible > 0) out.push(buffer);
   return out;
 }
 

@@ -34,6 +34,26 @@ describe("wrapAnsiLine", () => {
     expect(visibleWidth(wrapped[2] ?? "")).toBe(2);
   });
 
+  it("re-applies open styles on the next chunk so highlights survive a wrap", () => {
+    const line = `plain ${RED}highlighted text${RESET} tail`;
+    const wrapped = wrapAnsiLine(line, 10);
+    for (const chunk of wrapped) {
+      // every chunk that contains styled glyphs must start with the style and
+      // end with RESET; otherwise the second half of the highlight renders bare.
+      if (chunk.includes("highlighted") || chunk.includes("text")) {
+        expect(chunk.startsWith(RED)).toBe(true);
+        expect(chunk.endsWith(RESET)).toBe(true);
+      }
+    }
+  });
+
+  it("does not re-open a style past its RESET", () => {
+    const line = `${RED}ab${RESET}cdefgh`;
+    const wrapped = wrapAnsiLine(line, 3);
+    const second = wrapped[1] ?? "";
+    expect(second.includes(RED)).toBe(false);
+  });
+
   it("returns input as-is for non-positive width", () => {
     expect(wrapAnsiLine("abc", 0)).toEqual(["abc"]);
   });
