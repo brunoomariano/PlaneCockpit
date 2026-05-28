@@ -104,37 +104,45 @@ export class PlaneApiClient {
 
   async request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     const url = this.buildUrl(path, opts.query);
-    const controller = new AbortController();
-    if (opts.signal) {
-      opts.signal.addEventListener("abort", () => controller.abort(opts.signal?.reason), {
-        once: true,
-      });
-    }
-    const timeout = setTimeout(() => controller.abort(new Error("timeout")), this.timeoutMs);
     const method = opts.method ?? "GET";
     let attempt = 0;
-    try {
-      return await retry(
-        async () => {
-          attempt += 1;
-          const init: RequestInit & { dispatcher?: unknown; agent?: unknown } = {
-            method,
-            headers: this.headers,
-            signal: controller.signal,
-          };
-          if (opts.body !== undefined) init.body = JSON.stringify(opts.body);
-          if (this.httpsAgent) init.agent = this.httpsAgent;
-          const started = Date.now();
+    return retry(
+      async () => {
+        attempt += 1;
+        // Per-attempt AbortController so the timeout resets on each retry and a
+        // slow first try does not poison the budget of the second.
+        const attemptController = new AbortController();
+        const onParentAbort = (): void => {
+          attemptController.abort(opts.signal?.reason ?? new Error("aborted"));
+        };
+        opts.signal?.addEventListener("abort", onParentAbort, { once: true });
+        const timeoutHandle = setTimeout(
+          () => attemptController.abort(new Error("timeout")),
+          this.timeoutMs,
+        );
+        const init: RequestInit & { dispatcher?: unknown; agent?: unknown } = {
+          method,
+          headers: this.headers,
+          signal: attemptController.signal,
+        };
+        if (opts.body !== undefined) init.body = JSON.stringify(opts.body);
+        if (this.httpsAgent) init.agent = this.httpsAgent;
+        const started = Date.now();
+        try {
           let res: Response;
           try {
             res = await this.fetchImpl(url, init);
           } catch (err) {
+            const message =
+              attemptController.signal.aborted && (err as Error).message?.includes("abort")
+                ? "timeout"
+                : (err as Error).message;
             this.onTrace?.({
               method,
               url,
               attempt,
               durationMs: Date.now() - started,
-              error: (err as Error).message,
+              error: message,
             });
             throw err;
           }
@@ -152,24 +160,29 @@ export class PlaneApiClient {
           }
           if (res.status === 204) return undefined as T;
           return (await res.json()) as T;
+        } finally {
+          clearTimeout(timeoutHandle);
+          opts.signal?.removeEventListener("abort", onParentAbort);
+        }
+      },
+      {
+        retries: this.retries,
+        baseDelayMs: 200,
+        shouldRetry: (err) => {
+          if (err instanceof AuthError) return false;
+          if (err instanceof ApiError) {
+            const status = err.status ?? 0;
+            return status >= 500 || status === 429;
+          }
+          // Network-level errors (DNS, ECONNRESET) are worth a retry; timeouts
+          // are not — they likely repeat and just add latency to the failure.
+          const msg = (err as Error).message ?? "";
+          if (msg.includes("timeout")) return false;
+          return true;
         },
-        {
-          retries: this.retries,
-          baseDelayMs: 200,
-          shouldRetry: (err) => {
-            if (err instanceof AuthError) return false;
-            if (err instanceof ApiError) {
-              const status = err.status ?? 0;
-              return status >= 500 || status === 429;
-            }
-            return true;
-          },
-          signal: controller.signal,
-        },
-      );
-    } finally {
-      clearTimeout(timeout);
-    }
+        signal: opts.signal,
+      },
+    );
   }
 
   workspacePath(...segments: string[]): string {
