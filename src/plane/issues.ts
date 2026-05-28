@@ -27,7 +27,10 @@ export class IssuesService {
     return this.workItems.retrieve(project, issueId);
   }
 
-  async create(projectIdentifier: string, input: Omit<CreateIssueParams, "project">): Promise<Issue> {
+  async create(
+    projectIdentifier: string,
+    input: Omit<CreateIssueParams, "project">,
+  ): Promise<Issue> {
     const project = await this.projects.findByIdentifier(projectIdentifier);
     return this.workItems.create({ project, ...input });
   }

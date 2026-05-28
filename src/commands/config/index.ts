@@ -20,6 +20,7 @@ export function registerConfig(program: Command): void {
         const p = profile as { auth?: { api_key?: string } };
         if (p.auth?.api_key) p.auth.api_key = "***";
       }
+      // hosts.yaml lives outside of `plane config show` — credentials are never printed.
       process.stdout.write(`# source: ${sourcePath}\n${YAML.stringify(masked)}`);
     });
 

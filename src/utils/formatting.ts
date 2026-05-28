@@ -4,10 +4,7 @@ import type { Issue, IssuePriority } from "../types/issue.js";
 
 export type OutputFormat = "table" | "json" | "yaml";
 
-export function pickOutputFormat(flags: {
-  json?: boolean;
-  yaml?: boolean;
-}): OutputFormat {
+export function pickOutputFormat(flags: { json?: boolean; yaml?: boolean }): OutputFormat {
   if (flags.json) return "json";
   if (flags.yaml) return "yaml";
   return "table";

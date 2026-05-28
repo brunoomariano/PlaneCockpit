@@ -9,6 +9,7 @@ const project: Project = { id: "p-eng", identifier: "ENG", name: "Engineering", 
 const issue: Issue = {
   id: "uuid-123",
   sequence_id: 123,
+  project_id: "p-eng",
   project_identifier: "ENG",
   key: "ENG-123",
   name: "Test",

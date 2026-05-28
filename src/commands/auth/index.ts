@@ -1,8 +1,46 @@
 import { Command } from "commander";
-import { withContext } from "../shared.js";
+import { password } from "@inquirer/prompts";
+import { mergeGlobalFlags, withContext } from "../shared.js";
+import { loadConfig } from "../../config/load-config.js";
+import { selectProfile } from "../../config/profiles.js";
+import { CredentialsStore, hostKey } from "../../config/credentials.js";
+import { AuthError } from "../../utils/errors.js";
 
 export function registerAuth(program: Command): void {
   const auth = program.command("auth").description("manage authentication against Plane");
+
+  auth
+    .command("login")
+    .description("store an API key for the active profile in ~/.config/plane-cli/hosts.yaml")
+    .option("--with-token", "read the api key from stdin instead of prompting")
+    .action(async function (this: Command, opts: { withToken?: boolean }) {
+      const flags = mergeGlobalFlags(this);
+      const { config } = await loadConfig({ path: flags.config });
+      const { name, profile } = selectProfile(config, flags.profile);
+      const token = opts.withToken ? await readAllStdin() : await promptForToken();
+      if (!token) throw new AuthError("empty api key");
+      const store = new CredentialsStore();
+      const host = hostKey(profile.server.base_url, profile.server.workspace_slug);
+      await store.set(host, name, { api_key: token });
+      process.stdout.write(`saved api key for profile ${name} at ${store.filePath}\n`);
+    });
+
+  auth
+    .command("logout")
+    .description("remove the stored API key for the active profile")
+    .action(async function (this: Command) {
+      const flags = mergeGlobalFlags(this);
+      const { config } = await loadConfig({ path: flags.config });
+      const { name, profile } = selectProfile(config, flags.profile);
+      const store = new CredentialsStore();
+      const host = hostKey(profile.server.base_url, profile.server.workspace_slug);
+      const removed = await store.delete(host, name);
+      process.stdout.write(
+        removed
+          ? `removed api key for profile ${name}\n`
+          : `no stored api key for profile ${name}\n`,
+      );
+    });
 
   auth
     .command("status")
@@ -15,21 +53,14 @@ export function registerAuth(program: Command): void {
         );
       });
     });
+}
 
-  auth
-    .command("login")
-    .description("print instructions to authenticate (api key based)")
-    .action(function () {
-      const env = "PLANE_API_KEY";
-      process.stdout.write(
-        `plane uses api key authentication.\nset the env var declared in your profile (default: ${env}) and re-run.\nexample:\n  export ${env}=plane_xxx\n`,
-      );
-    });
+async function promptForToken(): Promise<string> {
+  return password({ message: "Plane API key", mask: "*" });
+}
 
-  auth
-    .command("logout")
-    .description("clear cached credentials (no-op when using env vars)")
-    .action(function () {
-      process.stdout.write("nothing to clear: api key lives in your environment.\n");
-    });
+async function readAllStdin(): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+  return Buffer.concat(chunks).toString("utf8").trim();
 }

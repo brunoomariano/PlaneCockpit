@@ -38,6 +38,9 @@ export function buildIssueUrl(
   return `${workspaceRoot(server)}/projects/${pid}/issues/${issue.id}`;
 }
 
-export function buildCycleUrl(server: ServerConfig, cycle: Pick<Cycle, "id" | "project_id">): string {
+export function buildCycleUrl(
+  server: ServerConfig,
+  cycle: Pick<Cycle, "id" | "project_id">,
+): string {
   return `${workspaceRoot(server)}/projects/${cycle.project_id}/cycles/${cycle.id}`;
 }

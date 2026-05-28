@@ -5,7 +5,13 @@ interface RedisLike {
   set(key: string, value: string): Promise<unknown>;
   set(key: string, value: string, ex: "EX", ttl: number): Promise<unknown>;
   del(key: string): Promise<unknown>;
-  scan(cursor: string, match: "MATCH", pattern: string, count: "COUNT", n: number): Promise<[string, string[]]>;
+  scan(
+    cursor: string,
+    match: "MATCH",
+    pattern: string,
+    count: "COUNT",
+    n: number,
+  ): Promise<[string, string[]]>;
   dbsize(): Promise<number>;
   quit(): Promise<unknown>;
 }

@@ -9,7 +9,7 @@ export interface ServerConfig {
 }
 
 export interface AuthConfig {
-  api_key_env: string;
+  api_key_env?: string;
   api_key?: string;
 }
 
@@ -29,7 +29,7 @@ export interface CacheConfig {
 
 export interface ProfileConfig {
   server: ServerConfig;
-  auth: AuthConfig;
+  auth?: AuthConfig;
   defaults?: { project?: string };
   cache?: CacheConfig;
   views?: ViewDefinition[];

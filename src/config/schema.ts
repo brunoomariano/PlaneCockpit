@@ -33,8 +33,11 @@ const serverSchema = z.strictObject({
     .optional(),
 });
 
+// auth is optional: the recommended path is `plane auth login`, which writes to a
+// separate hosts.yaml. api_key_env stays as a backwards-compatible fallback for users
+// who prefer to drive the CLI purely from environment variables (CI).
 const authSchema = z.strictObject({
-  api_key_env: z.string().min(1),
+  api_key_env: z.string().min(1).optional(),
   api_key: z.string().min(1).optional(),
 });
 
@@ -52,7 +55,7 @@ const cacheSchema = z.strictObject({
 
 export const profileSchema = z.strictObject({
   server: serverSchema,
-  auth: authSchema,
+  auth: authSchema.optional(),
   defaults: z
     .strictObject({
       project: z.string().optional(),

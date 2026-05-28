@@ -5,6 +5,7 @@ import { registerIssue } from "./commands/issue/index.js";
 import { registerCache } from "./commands/cache/index.js";
 import { registerConfig } from "./commands/config/index.js";
 import { registerDash } from "./commands/dash/index.js";
+import { registerLog } from "./commands/log/index.js";
 import { handleError } from "./commands/shared.js";
 
 const program = new Command();
@@ -25,6 +26,7 @@ registerIssue(program);
 registerCache(program);
 registerConfig(program);
 registerDash(program);
+registerLog(program);
 
 program.parseAsync(process.argv).catch((err) => {
   const debug = program.opts().debug === true;

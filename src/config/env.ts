@@ -1,4 +1,6 @@
 import type { PlaneConfig, ProfileConfig } from "../types/config.js";
+import type { CredentialsStore } from "./credentials.js";
+import { hostKey } from "./credentials.js";
 
 export interface EnvOverrides {
   PLANE_BASE_URL?: string;
@@ -26,7 +28,7 @@ export function applyEnvOverrides(
     const parsed = Number.parseInt(env.PLANE_TIMEOUT_MS, 10);
     if (Number.isFinite(parsed) && parsed > 0) overridden.server.timeout_ms = parsed;
   }
-  if (env.PLANE_API_KEY) overridden.auth.api_key = env.PLANE_API_KEY;
+  if (env.PLANE_API_KEY) overridden.auth = { ...overridden.auth, api_key: env.PLANE_API_KEY };
 
   return {
     active_profile: activeName,
@@ -34,8 +36,29 @@ export function applyEnvOverrides(
   };
 }
 
-export function resolveApiKey(profile: ProfileConfig, env: NodeJS.ProcessEnv = process.env): string | undefined {
-  if (profile.auth.api_key) return profile.auth.api_key;
-  const fromEnv = env[profile.auth.api_key_env];
-  return fromEnv && fromEnv.length > 0 ? fromEnv : undefined;
+export interface ResolveApiKeyParams {
+  profileName: string;
+  profile: ProfileConfig;
+  env?: NodeJS.ProcessEnv;
+  credentials?: CredentialsStore;
+}
+
+// Resolution order (highest priority first):
+// 1. PLANE_API_KEY (already folded into profile.auth.api_key by applyEnvOverrides).
+// 2. hosts.yaml entry keyed by (base_url + workspace_slug, profile_name).
+// 3. auth.api_key_env from config — backwards-compatible env-var fallback.
+export async function resolveApiKey(params: ResolveApiKeyParams): Promise<string | undefined> {
+  const { profile, profileName, env = process.env, credentials } = params;
+  if (profile.auth?.api_key) return profile.auth.api_key;
+  if (credentials) {
+    const host = hostKey(profile.server.base_url, profile.server.workspace_slug);
+    const entry = await credentials.get(host, profileName);
+    if (entry?.api_key) return entry.api_key;
+  }
+  const envVarName = profile.auth?.api_key_env;
+  if (envVarName) {
+    const fromEnv = env[envVarName];
+    if (fromEnv && fromEnv.length > 0) return fromEnv;
+  }
+  return undefined;
 }

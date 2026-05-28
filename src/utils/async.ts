@@ -44,17 +44,31 @@ export interface Paginator<T> {
   fetchPage(cursor: string | null): Promise<{ items: T[]; nextCursor: string | null }>;
 }
 
+export interface CollectPagesOptions {
+  limit?: number;
+  maxPages?: number;
+}
+
+// collectPages walks paginated responses until one of:
+//   - limit is reached (results are trimmed);
+//   - nextCursor is null/absent;
+//   - the page came back empty (defensive against APIs that keep returning a cursor);
+//   - maxPages is reached (defensive against accidental infinite pagination).
 export async function collectPages<T>(
   paginator: Paginator<T>,
-  limit?: number,
+  options?: number | CollectPagesOptions,
 ): Promise<T[]> {
+  const limit = typeof options === "number" ? options : options?.limit;
+  const maxPages = (typeof options === "object" ? options?.maxPages : undefined) ?? 50;
   const out: T[] = [];
   let cursor: string | null = null;
-  while (true) {
+  for (let page = 0; page < maxPages; page++) {
     const { items, nextCursor } = await paginator.fetchPage(cursor);
     out.push(...items);
     if (limit !== undefined && out.length >= limit) return out.slice(0, limit);
     if (!nextCursor) return out;
+    if (items.length === 0) return out;
     cursor = nextCursor;
   }
+  return out;
 }

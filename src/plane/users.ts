@@ -35,9 +35,7 @@ export class UsersService {
   async resolveAssignee(spec: string): Promise<IssueUser> {
     if (spec === "me") return this.me();
     const users = await this.list();
-    const match = users.find(
-      (u) => u.display_name === spec || u.email === spec || u.id === spec,
-    );
+    const match = users.find((u) => u.display_name === spec || u.email === spec || u.id === spec);
     if (!match) throw new NotFoundError(`user not found: ${spec}`);
     return match;
   }

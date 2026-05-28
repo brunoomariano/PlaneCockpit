@@ -59,6 +59,34 @@ describe("collectPages", () => {
     );
     expect(items).toEqual([1, 2]);
   });
+
+  it("stops when a page returns no items (defensive against leaky cursors)", async () => {
+    let calls = 0;
+    const items = await collectPages<number>({
+      fetchPage: async () => {
+        calls++;
+        if (calls === 1) return { items: [1, 2], nextCursor: "a" };
+        return { items: [], nextCursor: "b" };
+      },
+    });
+    expect(items).toEqual([1, 2]);
+    expect(calls).toBe(2);
+  });
+
+  it("caps at maxPages to avoid infinite loops", async () => {
+    let calls = 0;
+    const items = await collectPages<number>(
+      {
+        fetchPage: async () => {
+          calls++;
+          return { items: [calls], nextCursor: "still-going" };
+        },
+      },
+      { maxPages: 3 },
+    );
+    expect(items).toEqual([1, 2, 3]);
+    expect(calls).toBe(3);
+  });
 });
 
 describe("sleep", () => {
@@ -72,5 +100,12 @@ describe("sleep", () => {
     const ctrl = new AbortController();
     ctrl.abort(new Error("x"));
     await expect(sleep(100, ctrl.signal)).rejects.toThrow();
+  });
+
+  it("rejects when the signal aborts mid-sleep", async () => {
+    const ctrl = new AbortController();
+    const promise = sleep(500, ctrl.signal);
+    setTimeout(() => ctrl.abort(new Error("late")), 10);
+    await expect(promise).rejects.toThrow("late");
   });
 });

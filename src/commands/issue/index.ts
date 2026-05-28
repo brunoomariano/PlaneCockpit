@@ -13,21 +13,28 @@ export function registerIssue(program: Command): void {
   issue
     .command("list")
     .description("list issues, optionally using a configured view")
-    .option("-p, --project <identifier>", "project identifier (defaults to profile defaults.project)")
+    .option(
+      "-p, --project <identifier>",
+      "project identifier (defaults to profile defaults.project)",
+    )
     .option("-v, --view <name>", "use a named view from the active profile")
     .option("--limit <n>", "limit results")
     .option("--json", "output as json")
     .option("--yaml", "output as yaml")
-    .action(async function (this: Command, opts: { project?: string; view?: string; limit?: string }) {
+    .action(async function (
+      this: Command,
+      opts: { project?: string; view?: string; limit?: string },
+    ) {
       await withContext(this, { ...this.opts(), ...opts }, async ({ ctx, format, limit }) => {
         const view = opts.view ? findView(ctx.runtime.profile, opts.view) : undefined;
         if (opts.view && !view) {
           throw new NotFoundError(`view not found in profile: ${opts.view}`);
         }
-        const projectId =
-          opts.project ?? view?.project ?? ctx.runtime.profile.defaults?.project;
+        const projectId = opts.project ?? view?.project ?? ctx.runtime.profile.defaults?.project;
         if (!projectId) {
-          throw new NotFoundError("project is required (pass --project or configure defaults.project)");
+          throw new NotFoundError(
+            "project is required (pass --project or configure defaults.project)",
+          );
         }
         const issues = await ctx.issues.list(projectId, view, limit ?? view?.limit);
         process.stdout.write(renderIssues(issues, format));
@@ -69,10 +76,7 @@ export function registerIssue(program: Command): void {
     .description("create a new issue interactively")
     .option("-p, --project <identifier>", "project identifier")
     .option("-t, --title <title>", "issue title")
-    .action(async function (
-      this: Command,
-      opts: { project?: string; title?: string },
-    ) {
+    .action(async function (this: Command, opts: { project?: string; title?: string }) {
       await withContext(this, { ...this.opts(), ...opts }, async ({ ctx, format }) => {
         const project = opts.project ?? ctx.runtime.profile.defaults?.project;
         if (!project) throw new NotFoundError("project is required (pass --project)");

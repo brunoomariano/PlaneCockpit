@@ -2,7 +2,10 @@ import type { Logger } from "pino";
 import { loadConfig } from "./config/load-config.js";
 import { selectProfile } from "./config/profiles.js";
 import { resolveApiKey } from "./config/env.js";
+import { CredentialsStore } from "./config/credentials.js";
 import { AuthError } from "./utils/errors.js";
+import { FileLogger } from "./utils/file-logger.js";
+import { resolveLogPath } from "./utils/log-paths.js";
 import { createCacheStore } from "./cache/factory.js";
 import { createLogger } from "./utils/logger.js";
 import { PlaneApiClient } from "./plane/client.js";
@@ -15,6 +18,7 @@ import { UsersService } from "./plane/users.js";
 import { CyclesService } from "./plane/cycles.js";
 import { ModulesService } from "./plane/modules.js";
 import { CommentsService } from "./plane/comments.js";
+import { loadKeybindings, type ResolvedBinding } from "./keybindings/load.js";
 import type { CacheStore } from "./cache/types.js";
 import type { ProfileConfig, RuntimeConfig } from "./types/config.js";
 
@@ -28,6 +32,7 @@ export interface GlobalFlags {
 export interface AppContext {
   runtime: RuntimeConfig;
   logger: Logger;
+  fileLogger: FileLogger;
   cache: CacheStore;
   api: PlaneApiClient;
   projects: ProjectsService;
@@ -39,22 +44,39 @@ export interface AppContext {
   cycles: CyclesService;
   modules: ModulesService;
   comments: CommentsService;
+  keybindings: ResolvedBinding[];
+  keybindingsSourcePath?: string;
   close(): Promise<void>;
 }
 
 export async function buildContext(flags: GlobalFlags): Promise<AppContext> {
   const { config } = await loadConfig({ path: flags.config });
   const { name, profile } = selectProfile(config, flags.profile);
-  const apiKey = resolveApiKey(profile);
+  const credentials = new CredentialsStore();
+  const apiKey = await resolveApiKey({ profileName: name, profile, credentials });
   if (!apiKey) {
-    throw new AuthError(`api key not found (expected env: ${profile.auth.api_key_env})`);
+    const hint = profile.auth?.api_key_env
+      ? ` (try \`plane auth login\` or set $${profile.auth.api_key_env})`
+      : " (try `plane auth login`)";
+    throw new AuthError(`api key not found for profile ${name}${hint}`);
   }
   const logger = createLogger({ debug: flags.debug, pretty: process.stdout.isTTY });
+  const fileLogger = new FileLogger({
+    path: resolveLogPath(),
+    level: flags.debug ? "debug" : "info",
+  });
   const cache = await createCacheStore({
     config: profile.cache,
     disabled: flags.noCache,
   });
-  const api = new PlaneApiClient({ server: profile.server, apiKey });
+  const api = new PlaneApiClient({
+    server: profile.server,
+    apiKey,
+    onTrace: (event) => {
+      const level = event.error || (event.status && event.status >= 400) ? "warn" : "debug";
+      fileLogger[level]("plane api", { ...event });
+    },
+  });
   const projects = new ProjectsService(api, cache);
   const workItems = new WorkItemsService(api, cache);
   const issues = new IssuesService(projects, workItems);
@@ -64,6 +86,7 @@ export async function buildContext(flags: GlobalFlags): Promise<AppContext> {
   const cycles = new CyclesService(api, cache);
   const modules = new ModulesService(api, cache);
   const comments = new CommentsService(api);
+  const { bindings: keybindings, sourcePath: keybindingsSourcePath } = await loadKeybindings();
   const runtime: RuntimeConfig = {
     profile_name: name,
     profile,
@@ -73,6 +96,7 @@ export async function buildContext(flags: GlobalFlags): Promise<AppContext> {
   return {
     runtime,
     logger,
+    fileLogger,
     cache,
     api,
     projects,
@@ -84,6 +108,8 @@ export async function buildContext(flags: GlobalFlags): Promise<AppContext> {
     cycles,
     modules,
     comments,
+    keybindings,
+    keybindingsSourcePath,
     async close() {
       if (cache.close) await cache.close();
     },

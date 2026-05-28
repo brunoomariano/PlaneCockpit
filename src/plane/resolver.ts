@@ -21,7 +21,10 @@ export class IssueResolver {
   parseKey(key: string): { identifier: string; sequence: number } {
     const match = ISSUE_KEY_PATTERN.exec(key.trim());
     if (!match) {
-      throw new PlaneCliError("INVALID_ISSUE_KEY", `invalid issue key: ${key} (expected like ENG-123)`);
+      throw new PlaneCliError(
+        "INVALID_ISSUE_KEY",
+        `invalid issue key: ${key} (expected like ENG-123)`,
+      );
     }
     const identifier = match[1] ?? "";
     const sequence = Number.parseInt(match[2] ?? "0", 10);

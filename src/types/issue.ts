@@ -2,12 +2,7 @@
 
 export type IssuePriority = "urgent" | "high" | "medium" | "low" | "none";
 
-export type IssueStateGroup =
-  | "backlog"
-  | "unstarted"
-  | "started"
-  | "completed"
-  | "cancelled";
+export type IssueStateGroup = "backlog" | "unstarted" | "started" | "completed" | "cancelled";
 
 export interface IssueState {
   id: string;
@@ -31,6 +26,7 @@ export interface IssueUser {
 export interface Issue {
   id: string;
   sequence_id: number;
+  project_id: string;
   project_identifier: string;
   key: string;
   name: string;

@@ -5,11 +5,23 @@ import type { ServerConfig } from "../types/config.js";
 import { normalizeBaseUrl } from "../utils/urls.js";
 import { DEFAULT_TIMEOUT_MS } from "../config/defaults.js";
 
+export interface PlaneApiTraceEvent {
+  method: string;
+  url: string;
+  status?: number;
+  durationMs: number;
+  attempt: number;
+  error?: string;
+}
+
+export type PlaneApiTrace = (event: PlaneApiTraceEvent) => void;
+
 export interface PlaneApiOptions {
   server: ServerConfig;
   apiKey: string;
   retries?: number;
   fetchImpl?: typeof fetch;
+  onTrace?: PlaneApiTrace;
 }
 
 export interface RequestOptions {
@@ -19,9 +31,29 @@ export interface RequestOptions {
   signal?: AbortSignal;
 }
 
+// Plane returns slightly different shapes across endpoints/versions; we accept either:
+//   { results, next_cursor }    (snake_case cursor; some self-hosted releases)
+//   { results, next_page_results, total_pages, next_cursor }  (cursor pagination)
+//   { results, next, previous }  (DRF default; some workspace endpoints)
+// The adapter normalizes via parseCursor().
 export interface PaginatedResponse<T> {
   results: T[];
-  next_cursor: string | null;
+  next_cursor?: string | null;
+  next?: string | null;
+  next_page_results?: boolean;
+  total_pages?: number;
+}
+
+// extractNextCursor returns null when there is no further page, regardless of which
+// pagination flavor the endpoint speaks. It deliberately trusts boolean flags over
+// the bare presence of a cursor — Plane sometimes leaks a non-null cursor on the
+// final page, which used to send the client into an infinite pagination loop.
+export function extractNextCursor<T>(res: PaginatedResponse<T>): string | null {
+  if (res.next_page_results === false) return null;
+  if (typeof res.total_pages === "number" && res.total_pages <= 1) return null;
+  if (res.next_cursor) return res.next_cursor;
+  if (res.next) return res.next;
+  return null;
 }
 
 // PlaneApiClient encapsulates HTTP access to the Plane API. The official SDK can wrap this
@@ -34,6 +66,7 @@ export class PlaneApiClient {
   private readonly retries: number;
   private readonly fetchImpl: typeof fetch;
   private readonly httpsAgent?: HttpsAgent;
+  private readonly onTrace?: PlaneApiTrace;
 
   constructor(opts: PlaneApiOptions) {
     if (!opts.apiKey) throw new AuthError("api key is required");
@@ -42,6 +75,7 @@ export class PlaneApiClient {
     this.timeoutMs = opts.server.timeout_ms ?? DEFAULT_TIMEOUT_MS;
     this.retries = opts.retries ?? 2;
     this.fetchImpl = opts.fetchImpl ?? fetch;
+    this.onTrace = opts.onTrace;
     this.headers = {
       "x-api-key": opts.apiKey,
       accept: "application/json",
@@ -77,17 +111,35 @@ export class PlaneApiClient {
       });
     }
     const timeout = setTimeout(() => controller.abort(new Error("timeout")), this.timeoutMs);
+    const method = opts.method ?? "GET";
+    let attempt = 0;
     try {
       return await retry(
         async () => {
+          attempt += 1;
           const init: RequestInit & { dispatcher?: unknown; agent?: unknown } = {
-            method: opts.method ?? "GET",
+            method,
             headers: this.headers,
             signal: controller.signal,
           };
           if (opts.body !== undefined) init.body = JSON.stringify(opts.body);
           if (this.httpsAgent) init.agent = this.httpsAgent;
-          const res = await this.fetchImpl(url, init);
+          const started = Date.now();
+          let res: Response;
+          try {
+            res = await this.fetchImpl(url, init);
+          } catch (err) {
+            this.onTrace?.({
+              method,
+              url,
+              attempt,
+              durationMs: Date.now() - started,
+              error: (err as Error).message,
+            });
+            throw err;
+          }
+          const durationMs = Date.now() - started;
+          this.onTrace?.({ method, url, status: res.status, attempt, durationMs });
           if (res.status === 401 || res.status === 403) {
             throw new AuthError(`unauthorized: ${res.status}`, { url });
           }

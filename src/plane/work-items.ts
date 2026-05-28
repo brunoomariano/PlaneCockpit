@@ -7,18 +7,29 @@ import { cacheKeys } from "../cache/keys.js";
 import type { ViewDefinition } from "../types/views.js";
 import { normalizeFilters, filtersFingerprint } from "./filters.js";
 import type { PlaneApiClient, PaginatedResponse } from "./client.js";
+import { extractNextCursor } from "./client.js";
 import { collectPages } from "../utils/async.js";
 import type { Project } from "../types/project.js";
+import { htmlToMarkdown } from "../utils/html-to-markdown.js";
+
+// Plane's list endpoint expands `state` only when `?expand=state` is set; otherwise
+// it returns a UUID string. Same with `assignees` and `labels` (UUID arrays).
+// The adapter normalizes both shapes so the domain model is consistent.
+type RawState = { id: string; name: string; group: IssueStateGroup; color?: string } | string;
+type RawAssignee = { id: string; display_name: string; email?: string } | string;
+type RawLabel = { id: string; name: string; color?: string } | string;
 
 interface RawWorkItem {
   id: string;
   sequence_id: number;
   name: string;
   description?: string;
-  priority: IssuePriority;
-  state: { id: string; name: string; group: IssueStateGroup; color?: string };
-  assignees?: { id: string; display_name: string; email?: string }[];
-  labels?: { id: string; name: string; color?: string }[];
+  description_html?: string;
+  description_stripped?: string;
+  priority?: IssuePriority | null;
+  state: RawState;
+  assignees?: RawAssignee[];
+  labels?: RawLabel[];
   created_at: string;
   updated_at: string;
   cycle_id?: string;
@@ -27,26 +38,49 @@ interface RawWorkItem {
   project_id?: string;
 }
 
-function toIssueState(raw: RawWorkItem["state"]): IssueState {
+// Plane stores descriptions as HTML (TipTap output). We convert to Markdown so the
+// TUI can render with marked-terminal — formatting survives (headings, lists, code,
+// links) and consumers that take description as plain text still get something
+// usable. description_stripped is preferred only if HTML is absent.
+function pickDescription(raw: RawWorkItem): string | undefined {
+  if (raw.description_html && raw.description_html.length > 0) {
+    return htmlToMarkdown(raw.description_html);
+  }
+  if (raw.description_stripped && raw.description_stripped.length > 0) {
+    return raw.description_stripped;
+  }
+  return raw.description;
+}
+
+function toIssueState(raw: RawState | undefined | null): IssueState {
+  if (raw == null) return { id: "", name: "—", group: "backlog" };
+  if (typeof raw === "string") {
+    return { id: raw, name: raw.slice(0, 8), group: "backlog" };
+  }
   return { id: raw.id, name: raw.name, group: raw.group, color: raw.color };
 }
 
-function toIssue(raw: RawWorkItem, projectIdentifier: string): Issue {
+function toIssue(raw: RawWorkItem, projectIdentifier: string, projectId: string): Issue {
   return {
     id: raw.id,
     sequence_id: raw.sequence_id,
+    project_id: projectId,
     project_identifier: projectIdentifier,
     key: `${projectIdentifier}-${raw.sequence_id}`,
-    name: raw.name,
-    description: raw.description,
+    name: raw.name ?? "",
+    description: pickDescription(raw),
     state: toIssueState(raw.state),
-    priority: raw.priority,
-    assignees: (raw.assignees ?? []).map((a) => ({
-      id: a.id,
-      display_name: a.display_name,
-      email: a.email,
-    })),
-    labels: (raw.labels ?? []).map((l) => ({ id: l.id, name: l.name, color: l.color })),
+    priority: raw.priority ?? "none",
+    assignees: (raw.assignees ?? []).map((a) =>
+      typeof a === "string"
+        ? { id: a, display_name: a.slice(0, 8) }
+        : { id: a.id, display_name: a.display_name, email: a.email },
+    ),
+    labels: (raw.labels ?? []).map((l) =>
+      typeof l === "string"
+        ? { id: l, name: l.slice(0, 8) }
+        : { id: l.id, name: l.name, color: l.color },
+    ),
     created_at: raw.created_at,
     updated_at: raw.updated_at,
     cycle_id: raw.cycle_id,
@@ -94,6 +128,9 @@ export class WorkItemsService {
     if (cached) return limit ? cached.slice(0, limit) : cached;
 
     const normalized = normalizeFilters(view?.filters);
+    // per_page caps the server-side page size; without it Plane defaults to 1000,
+    // which makes "give me the first 50" pay the cost of one giant page.
+    const perPage = limit && limit < 100 ? limit : 100;
     const query: Record<string, string | number | boolean | undefined> = {
       assignees: normalized.assignees?.join(","),
       state_group: normalized.state_groups?.join(","),
@@ -102,6 +139,9 @@ export class WorkItemsService {
       cycle: normalized.cycle,
       module: normalized.module,
       order_by: view?.sort,
+      per_page: perPage,
+      // Ask Plane to inline these relations so we don't get bare UUIDs in the response.
+      expand: "state,assignees,labels",
     };
 
     const issues = await collectPages<Issue>(
@@ -112,8 +152,8 @@ export class WorkItemsService {
             { query: { ...query, cursor: cursor ?? undefined }, signal },
           );
           return {
-            items: res.results.map((r) => toIssue(r, project.identifier)),
-            nextCursor: res.next_cursor,
+            items: res.results.map((r) => toIssue(r, project.identifier, project.id)),
+            nextCursor: extractNextCursor(res),
           };
         },
       },
@@ -125,10 +165,14 @@ export class WorkItemsService {
   }
 
   async retrieve(project: Project, issueId: string): Promise<Issue> {
+    // Plane's `fields=` parameter restricts the response to that list, so we cannot
+    // use it here — we need state/assignees/labels too. The retrieve endpoint already
+    // includes description_html by default.
     const raw = await this.api.request<RawWorkItem>(
       this.api.workspacePath("projects", project.id, "issues", issueId),
+      { query: { expand: "state,assignees,labels" } },
     );
-    return toIssue(raw, project.identifier);
+    return toIssue(raw, project.identifier, project.id);
   }
 
   async create(params: CreateIssueParams): Promise<Issue> {
@@ -146,7 +190,7 @@ export class WorkItemsService {
       },
     );
     await this.invalidateProjectIssues(params.project.id);
-    return toIssue(raw, params.project.identifier);
+    return toIssue(raw, params.project.identifier, params.project.id);
   }
 
   async update(params: UpdateIssueParams): Promise<Issue> {
@@ -155,7 +199,7 @@ export class WorkItemsService {
       { method: "PATCH", body: params.patch },
     );
     await this.invalidateProjectIssues(params.project.id);
-    return toIssue(raw, params.project.identifier);
+    return toIssue(raw, params.project.identifier, params.project.id);
   }
 
   async comment(project: Project, issueId: string, comment: string): Promise<void> {

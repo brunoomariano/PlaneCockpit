@@ -1,5 +1,9 @@
 active_profile: production
 
+# Credentials live in a separate file (~/.config/plane-cli/hosts.yaml) and are
+# managed with `plane auth login` / `plane auth logout`. This file is meant to
+# be safe to commit.
+
 profiles:
   production:
     server:
@@ -10,9 +14,6 @@ profiles:
         X-Forwarded-Proto: https
       tls:
         reject_unauthorized: true
-
-    auth:
-      api_key_env: PLANE_API_KEY
 
     defaults:
       project: ENG
@@ -48,5 +49,7 @@ profiles:
     server:
       base_url: https://plane-staging.company.com
       workspace_slug: acme-staging
+    # Legacy fallback: read the api key from a custom env var instead of hosts.yaml.
+    # Useful for CI where you do not want to bake `plane auth login` into the pipeline.
     auth:
       api_key_env: PLANE_STAGING_API_KEY

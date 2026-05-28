@@ -33,6 +33,7 @@ describe("truncate", () => {
 const issue: Issue = {
   id: "i1",
   sequence_id: 1,
+  project_id: "p1",
   project_identifier: "ENG",
   key: "ENG-1",
   name: "Hello",
@@ -59,5 +60,25 @@ describe("renderIssues", () => {
     const out = renderIssues([issue], "table");
     expect(out).toContain("ENG-1");
     expect(out).toContain("Hello");
+  });
+});
+
+import { renderAny } from "./formatting.js";
+
+describe("renderAny", () => {
+  it("returns strings as-is for table format", () => {
+    expect(renderAny("hello", "table")).toBe("hello");
+  });
+
+  it("falls back to json for non-string table values", () => {
+    expect(renderAny({ a: 1 }, "table")).toContain('"a": 1');
+  });
+
+  it("renders json", () => {
+    expect(renderAny({ a: 1 }, "json")).toBe('{\n  "a": 1\n}');
+  });
+
+  it("renders yaml", () => {
+    expect(renderAny({ a: 1 }, "yaml")).toContain("a: 1");
   });
 });
