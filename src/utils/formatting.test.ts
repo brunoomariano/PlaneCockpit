@@ -15,11 +15,11 @@ describe("pickOutputFormat", () => {
 });
 
 describe("priorityLabel", () => {
-  it("maps known priorities to lowercase words", () => {
-    expect(priorityLabel("urgent")).toBe("urgent");
-    expect(priorityLabel("high")).toBe("high");
-    expect(priorityLabel("medium")).toBe("medium");
-    expect(priorityLabel("low")).toBe("low");
+  it("maps known priorities to uppercase words", () => {
+    expect(priorityLabel("urgent")).toBe("URGENT");
+    expect(priorityLabel("high")).toBe("HIGH");
+    expect(priorityLabel("medium")).toBe("MEDIUM");
+    expect(priorityLabel("low")).toBe("LOW");
   });
   it("renders an em dash for none", () => {
     expect(priorityLabel("none")).toBe("—");

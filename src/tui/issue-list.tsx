@@ -70,7 +70,7 @@ export function IssueList(props: IssueListProps): React.ReactElement {
     <Box flexDirection="column" borderStyle="round" paddingX={1} flexGrow={1}>
       <Box>
         <Text bold>{padRight("KEY", 12)}</Text>
-        <Text bold>{padRight("PRIORITY", PRIORITY_COLUMN_WIDTH + 2)}</Text>
+        <Text bold>{padCenter("PRIORITY", PRIORITY_COLUMN_WIDTH + 4)}</Text>
         <Text bold>{padRight("STATE", 14)}</Text>
         <Text bold>TITLE</Text>
       </Box>
@@ -83,7 +83,7 @@ export function IssueList(props: IssueListProps): React.ReactElement {
             <Text color={isSelected ? "cyan" : undefined} inverse={isSelected}>
               {padRight(issue.key, 12)}
               <Text color={PRIORITY_COLOR[issue.priority]}>
-                {padRight(priorityLabel(issue.priority), PRIORITY_COLUMN_WIDTH + 2)}
+                {padCenter(priorityLabel(issue.priority), PRIORITY_COLUMN_WIDTH + 4)}
               </Text>
               {padRight(issue.state.name, 14)}
               {truncate(issue.name, 60)}
@@ -105,4 +105,12 @@ function padRight(value: string | undefined | null, width: number): string {
   const v = value ?? "";
   if (v.length >= width) return `${v.slice(0, width - 1)} `;
   return v + " ".repeat(width - v.length);
+}
+
+function padCenter(value: string | undefined | null, width: number): string {
+  const v = value ?? "";
+  if (v.length >= width) return v.slice(0, width);
+  const remaining = width - v.length;
+  const left = Math.floor(remaining / 2);
+  return " ".repeat(left) + v + " ".repeat(remaining - left);
 }

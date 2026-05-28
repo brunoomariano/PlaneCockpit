@@ -15,10 +15,10 @@ export function pickOutputFormat(flags: { json?: boolean; yaml?: boolean }): Out
 export const PRIORITY_COLUMN_WIDTH = 6;
 
 const PRIORITY_LABEL: Record<IssuePriority, string> = {
-  urgent: "urgent",
-  high: "high",
-  medium: "medium",
-  low: "low",
+  urgent: "URGENT",
+  high: "HIGH",
+  medium: "MEDIUM",
+  low: "LOW",
   none: "—",
 };
 
@@ -33,6 +33,7 @@ export function renderIssues(issues: Issue[], fmt: OutputFormat): string {
     head: ["KEY", "PRIORITY", "STATE", "TITLE", "ASSIGNEES"],
     style: { head: ["cyan"] },
     colWidths: [null, PRIORITY_COLUMN_WIDTH + 4, null, null, null],
+    colAligns: ["left", "center", "left", "left", "left"],
   });
   for (const issue of issues) {
     table.push([
