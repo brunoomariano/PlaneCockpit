@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import type { Issue } from "../types/issue.js";
-import { priorityMarker, truncate } from "../utils/formatting.js";
+import { priorityLabel, PRIORITY_COLUMN_WIDTH, truncate } from "../utils/formatting.js";
 import { SkeletonRows } from "./skeleton.js";
 
 export interface IssueListProps {
@@ -70,7 +70,7 @@ export function IssueList(props: IssueListProps): React.ReactElement {
     <Box flexDirection="column" borderStyle="round" paddingX={1} flexGrow={1}>
       <Box>
         <Text bold>{padRight("KEY", 12)}</Text>
-        <Text bold>{padRight("P", 3)}</Text>
+        <Text bold>{padRight("PRIORITY", PRIORITY_COLUMN_WIDTH + 2)}</Text>
         <Text bold>{padRight("STATE", 14)}</Text>
         <Text bold>TITLE</Text>
       </Box>
@@ -83,7 +83,7 @@ export function IssueList(props: IssueListProps): React.ReactElement {
             <Text color={isSelected ? "cyan" : undefined} inverse={isSelected}>
               {padRight(issue.key, 12)}
               <Text color={PRIORITY_COLOR[issue.priority]}>
-                {padRight(priorityMarker(issue.priority), 3)}
+                {padRight(priorityLabel(issue.priority), PRIORITY_COLUMN_WIDTH + 2)}
               </Text>
               {padRight(issue.state.name, 14)}
               {truncate(issue.name, 60)}

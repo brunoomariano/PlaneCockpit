@@ -10,29 +10,34 @@ export function pickOutputFormat(flags: { json?: boolean; yaml?: boolean }): Out
   return "table";
 }
 
-const PRIORITY_MARKER: Record<IssuePriority, string> = {
-  urgent: "!!",
-  high: "!",
-  medium: "=",
-  low: "-",
-  none: " ",
+// Width of the priority column. `urgent` is the longest label at 6 chars; `—`
+// for `none` keeps the column visually anchored when priority is missing.
+export const PRIORITY_COLUMN_WIDTH = 6;
+
+const PRIORITY_LABEL: Record<IssuePriority, string> = {
+  urgent: "urgent",
+  high: "high",
+  medium: "medium",
+  low: "low",
+  none: "—",
 };
 
-export function priorityMarker(p: IssuePriority): string {
-  return PRIORITY_MARKER[p];
+export function priorityLabel(p: IssuePriority): string {
+  return PRIORITY_LABEL[p];
 }
 
 export function renderIssues(issues: Issue[], fmt: OutputFormat): string {
   if (fmt === "json") return JSON.stringify(issues, null, 2);
   if (fmt === "yaml") return YAML.stringify(issues);
   const table = new Table({
-    head: ["KEY", "P", "STATE", "TITLE", "ASSIGNEES"],
+    head: ["KEY", "PRIORITY", "STATE", "TITLE", "ASSIGNEES"],
     style: { head: ["cyan"] },
+    colWidths: [null, PRIORITY_COLUMN_WIDTH + 4, null, null, null],
   });
   for (const issue of issues) {
     table.push([
       issue.key,
-      priorityMarker(issue.priority),
+      priorityLabel(issue.priority),
       issue.state.name,
       truncate(issue.name, 60),
       issue.assignees.map((a) => a.display_name).join(", "),

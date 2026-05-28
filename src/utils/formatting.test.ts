@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { pickOutputFormat, priorityMarker, renderIssues, truncate } from "./formatting.js";
+import { pickOutputFormat, priorityLabel, renderIssues, truncate } from "./formatting.js";
 import type { Issue } from "../types/issue.js";
 
 describe("pickOutputFormat", () => {
@@ -14,10 +14,15 @@ describe("pickOutputFormat", () => {
   });
 });
 
-describe("priorityMarker", () => {
-  it("maps known priorities to markers", () => {
-    expect(priorityMarker("urgent")).toBe("!!");
-    expect(priorityMarker("low")).toBe("-");
+describe("priorityLabel", () => {
+  it("maps known priorities to lowercase words", () => {
+    expect(priorityLabel("urgent")).toBe("urgent");
+    expect(priorityLabel("high")).toBe("high");
+    expect(priorityLabel("medium")).toBe("medium");
+    expect(priorityLabel("low")).toBe("low");
+  });
+  it("renders an em dash for none", () => {
+    expect(priorityLabel("none")).toBe("—");
   });
 });
 

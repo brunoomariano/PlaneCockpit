@@ -7,7 +7,7 @@ export interface SkeletonRowsProps {
   columnWidths?: [number, number, number, number];
 }
 
-const DEFAULT_WIDTHS: [number, number, number, number] = [12, 3, 14, 40];
+const DEFAULT_WIDTHS: [number, number, number, number] = [12, 8, 14, 40];
 const BLOCK = "▒";
 
 // useShimmerFrame returns a frame index that ticks ~3 times per second.
@@ -45,7 +45,7 @@ export function SkeletonRows(props: SkeletonRowsProps): React.ReactElement {
           {pad("KEY", widths[0])}
         </Text>
         <Text bold dimColor>
-          {pad("P", widths[1])}
+          {pad("PRIORITY", widths[1])}
         </Text>
         <Text bold dimColor>
           {pad("STATE", widths[2])}
