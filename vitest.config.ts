@@ -33,6 +33,7 @@ export default defineConfig({
         "src/config/schema.ts",
         "src/plane/filters.ts",
         "src/plane/resolver.ts",
+        "src/utils/ansi-lines.ts",
         "src/utils/async.ts",
         "src/utils/file-logger.ts",
         "src/utils/formatting.ts",

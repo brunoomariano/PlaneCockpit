@@ -13,16 +13,18 @@ describe("groupAndFilter", () => {
     expect(contexts).toContain("view");
     expect(contexts).toContain("filter");
     expect(contexts).toContain("help");
+    expect(contexts).toContain("detail");
   });
 
   it("filters by description substring", () => {
-    const groups = groupAndFilter(bindings, "browser");
+    const groups = groupAndFilter(bindings, "in browser");
     const flat = groups.flatMap((g) => g.bindings.map((b) => b.action.id));
-    expect(flat).toEqual(["list.open-browser"]);
+    expect(flat).toContain("list.open-browser");
+    expect(flat).toContain("detail.open-browser");
   });
 
   it("filters by action id", () => {
-    const groups = groupAndFilter(bindings, "page-down");
+    const groups = groupAndFilter(bindings, "list.page-down");
     const flat = groups.flatMap((g) => g.bindings.map((b) => b.action.id));
     expect(flat).toEqual(["list.page-down"]);
   });

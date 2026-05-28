@@ -178,8 +178,13 @@ Default bindings:
 | `/`                | textual filter                         |
 | `q`                | quit                                   |
 
-Issue descriptions are stored as HTML on Plane and rendered inline with
-Markdown formatting (headings, lists, code, links) by `marked-terminal`.
+Inside the detail modal, the same `j`/`k`/arrows/`PgUp`/`PgDn`/`g`/`G`
+bindings scroll the Markdown description; `o` opens the issue in the
+browser; `Esc` closes back to the list.
+
+Issue descriptions are stored as HTML on Plane and rendered inline as
+Markdown by a small custom renderer (headings, lists, code, links,
+blockquotes, strikethrough).
 
 ### Customizing keybindings
 

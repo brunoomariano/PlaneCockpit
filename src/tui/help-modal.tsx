@@ -14,6 +14,7 @@ const CONTEXT_TITLES: Record<ActionContext, string> = {
   view: "Views",
   filter: "Filter",
   help: "Help modal",
+  detail: "Issue detail",
 };
 
 interface Group {

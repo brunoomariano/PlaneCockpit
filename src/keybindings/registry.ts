@@ -2,7 +2,7 @@
 // vocabulary. Group prefix is also the help context. Adding an action requires
 // extending this list and the dashboard's handler map.
 
-export type ActionContext = "global" | "list" | "view" | "filter" | "help";
+export type ActionContext = "global" | "list" | "view" | "filter" | "help" | "detail";
 
 export interface ActionDescriptor {
   id: string;
@@ -65,6 +65,56 @@ export const ACTIONS: readonly ActionDescriptor[] = [
   },
   { id: "help.search", context: "help", description: "search inside help modal", defaultKey: "/" },
   { id: "help.close", context: "help", description: "close help modal", defaultKey: "escape" },
+  {
+    id: "detail.scroll-down",
+    context: "detail",
+    description: "scroll detail down",
+    defaultKey: "j",
+  },
+  { id: "detail.scroll-up", context: "detail", description: "scroll detail up", defaultKey: "k" },
+  {
+    id: "detail.scroll-down-alt",
+    context: "detail",
+    description: "scroll detail down (arrow)",
+    defaultKey: "down",
+  },
+  {
+    id: "detail.scroll-up-alt",
+    context: "detail",
+    description: "scroll detail up (arrow)",
+    defaultKey: "up",
+  },
+  {
+    id: "detail.page-down",
+    context: "detail",
+    description: "page down inside detail",
+    defaultKey: "pageDown",
+  },
+  {
+    id: "detail.page-up",
+    context: "detail",
+    description: "page up inside detail",
+    defaultKey: "pageUp",
+  },
+  { id: "detail.top", context: "detail", description: "jump to top of detail", defaultKey: "g" },
+  {
+    id: "detail.bottom",
+    context: "detail",
+    description: "jump to bottom of detail",
+    defaultKey: "G",
+  },
+  {
+    id: "detail.open-browser",
+    context: "detail",
+    description: "open in browser",
+    defaultKey: "o",
+  },
+  {
+    id: "detail.close",
+    context: "detail",
+    description: "close detail modal",
+    defaultKey: "escape",
+  },
 ] as const;
 
 export type ActionId = (typeof ACTIONS)[number]["id"];

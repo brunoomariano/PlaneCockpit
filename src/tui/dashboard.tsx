@@ -5,7 +5,7 @@ import type { AppContext } from "../app.js";
 import { StatusBar } from "./status-bar.js";
 import { ViewSelector } from "./view-selector.js";
 import { IssueList } from "./issue-list.js";
-import { IssueDetail } from "./issue-detail.js";
+import { IssueDetail, DETAIL_CHROME_ROWS } from "./issue-detail.js";
 import { FilterBox } from "./filter-box.js";
 import { HelpModal } from "./help-modal.js";
 import { buildIssueUrl } from "../utils/urls.js";
@@ -49,6 +49,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   // detail panel only shows one issue.
   const [detailed, setDetailed] = useState<Issue | undefined>();
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailScroll, setDetailScroll] = useState(0);
 
   const activeView = views[viewIdx];
 
@@ -110,6 +111,9 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
       setDetailed(undefined);
       return;
     }
+    // Each time a new issue's detail opens, reset the description scroll so the
+    // user starts at the top instead of carrying the previous scroll position.
+    setDetailScroll(0);
     let cancelled = false;
     setDetailLoading(true);
     const project = {
@@ -141,6 +145,10 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   // and the "↑ N more" / "↓ N more" hints (2). Keep a floor so the list never disappears.
   const reservedRows = 9 + (filtering ? 3 : 0) + (filter ? 1 : 0);
   const viewportRows = Math.max(3, terminalRows - reservedRows);
+
+  // Detail modal viewport: full terminal minus status bar (3) minus the detail's
+  // own chrome (header + meta block). Floor at 3 lines for tiny terminals.
+  const detailViewportRows = Math.max(3, terminalRows - DETAIL_CHROME_ROWS - 3);
 
   const openSelectedInBrowser = useCallback(() => {
     const issue = filtered[selected];
@@ -196,22 +204,23 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
       return;
     }
     if (panel === "detail") {
-      // Detail modal: Esc/q go back to the list; refresh/help still work as global.
-      if (key.escape) {
-        setPanel("list");
-        return;
-      }
-      dispatch(
-        ctx.keybindings,
-        ["global"],
-        {
-          "global.help": () => setHelpOpen((open) => !open),
-          "global.refresh": () => void load(),
-          "global.quit": () => setPanel("list"),
-        },
-        input,
-        key,
-      );
+      // Detail modal: scroll the description with j/k/PgUp/PgDn/g/G, leave on Esc.
+      const detailHandlers: Partial<Record<ActionId, () => void>> = {
+        "detail.close": () => setPanel("list"),
+        "detail.scroll-down": () => setDetailScroll((s) => s + 1),
+        "detail.scroll-down-alt": () => setDetailScroll((s) => s + 1),
+        "detail.scroll-up": () => setDetailScroll((s) => Math.max(0, s - 1)),
+        "detail.scroll-up-alt": () => setDetailScroll((s) => Math.max(0, s - 1)),
+        "detail.page-down": () => setDetailScroll((s) => s + detailViewportRows),
+        "detail.page-up": () => setDetailScroll((s) => Math.max(0, s - detailViewportRows)),
+        "detail.top": () => setDetailScroll(0),
+        "detail.bottom": () => setDetailScroll(Number.MAX_SAFE_INTEGER),
+        "detail.open-browser": openSelectedInBrowser,
+        "global.help": () => setHelpOpen((open) => !open),
+        "global.refresh": () => void load(),
+        "global.quit": () => setPanel("list"),
+      };
+      dispatch(ctx.keybindings, ["detail", "global"], detailHandlers, input, key);
       return;
     }
     if (filtering) {
@@ -255,7 +264,13 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     return (
       <Box flexDirection="column" height={terminalRows}>
         <Box flexGrow={1} justifyContent="center" alignItems="center">
-          <IssueDetail issue={current} loading={detailLoading} variant="modal" />
+          <IssueDetail
+            issue={current}
+            loading={detailLoading}
+            variant="modal"
+            scrollTop={detailScroll}
+            viewportRows={detailViewportRows}
+          />
         </Box>
         <StatusBar
           profile={ctx.runtime.profile_name}
