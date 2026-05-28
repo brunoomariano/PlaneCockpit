@@ -146,9 +146,12 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   const reservedRows = 9 + (filtering ? 3 : 0) + (filter ? 1 : 0);
   const viewportRows = Math.max(3, terminalRows - reservedRows);
 
-  // Detail modal viewport: full terminal minus status bar (3) minus the detail's
-  // own chrome (header + meta block). Floor at 3 lines for tiny terminals.
-  const detailViewportRows = Math.max(3, terminalRows - DETAIL_CHROME_ROWS - 3);
+  // Detail modal viewport. The modal box itself is sized to fill the terminal
+  // minus the status bar, and the description region inside it gets whatever is
+  // left after the chrome (header + meta + paddings + hints).
+  const STATUS_BAR_ROWS = 3;
+  const detailModalHeight = Math.max(DETAIL_CHROME_ROWS + 3, terminalRows - STATUS_BAR_ROWS);
+  const detailViewportRows = Math.max(3, detailModalHeight - DETAIL_CHROME_ROWS);
 
   const openSelectedInBrowser = useCallback(() => {
     const issue = filtered[selected];
@@ -263,13 +266,14 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   if (panel === "detail") {
     return (
       <Box flexDirection="column" height={terminalRows}>
-        <Box flexGrow={1} justifyContent="center" alignItems="center">
+        <Box flexGrow={1} justifyContent="center" alignItems="flex-start" overflow="hidden">
           <IssueDetail
             issue={current}
             loading={detailLoading}
             variant="modal"
             scrollTop={detailScroll}
             viewportRows={detailViewportRows}
+            height={detailModalHeight}
           />
         </Box>
         <StatusBar

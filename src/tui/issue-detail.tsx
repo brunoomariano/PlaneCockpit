@@ -11,20 +11,27 @@ export interface IssueDetailProps {
   // viewport controls the scrollable description region. Ignored in panel variant.
   scrollTop?: number;
   viewportRows?: number;
+  // Total height to lock the modal box into, so the description never spills
+  // past the status bar at the bottom of the terminal.
+  height?: number;
 }
 
 export const MODAL_WIDTH = 100;
 export const PANEL_WIDTH = 50;
-const INNER_PADDING = 2;
+// Chars of horizontal chrome subtracted from MODAL_WIDTH to get the printable
+// area: 2 for the double-border + 2 for paddingX=1 each side.
+const HORIZONTAL_CHROME = 4;
 
 // Rows consumed by header + meta block + paddings before the description region.
 // Used by the Dashboard to size the scroll viewport against the terminal height.
-export const DETAIL_CHROME_ROWS = 14;
+// 2 border + 2 paddingY + 1 header + 1 name + 1 margin + 5 meta rows + 1 margin
+// + 2 for the up/down hints = ~15. We round up a little to leave breathing room.
+export const DETAIL_CHROME_ROWS = 16;
 
 export function IssueDetail(props: IssueDetailProps): React.ReactElement {
   const variant = props.variant ?? "panel";
   const width = variant === "modal" ? MODAL_WIDTH : PANEL_WIDTH;
-  const contentWidth = width - INNER_PADDING;
+  const contentWidth = width - HORIZONTAL_CHROME;
 
   if (!props.issue) {
     return (
@@ -67,22 +74,27 @@ export function IssueDetail(props: IssueDetailProps): React.ReactElement {
       paddingX={1}
       paddingY={variant === "modal" ? 1 : 0}
       width={width}
+      height={props.height}
+      flexShrink={0}
+      overflow="hidden"
     >
-      <Box justifyContent="space-between">
+      <Box justifyContent="space-between" flexShrink={0}>
         <Text bold>{i.key}</Text>
         {variant === "modal" ? <Text dimColor>{closeHint}</Text> : null}
       </Box>
-      <Text>{i.name}</Text>
-      <Box marginTop={1} flexDirection="column">
+      <Text wrap="truncate">{i.name}</Text>
+      <Box marginTop={1} flexDirection="column" flexShrink={0}>
         <Text>
           state: <Text color="cyan">{i.state.name}</Text>
         </Text>
         <Text>priority: {i.priority}</Text>
-        <Text>assignees: {i.assignees.map((a) => a.display_name).join(", ") || "—"}</Text>
-        <Text>labels: {i.labels.map((l) => l.name).join(", ") || "—"}</Text>
+        <Text wrap="truncate">
+          assignees: {i.assignees.map((a) => a.display_name).join(", ") || "—"}
+        </Text>
+        <Text wrap="truncate">labels: {i.labels.map((l) => l.name).join(", ") || "—"}</Text>
         <Text dimColor>updated: {i.updated_at}</Text>
       </Box>
-      <Box marginTop={1} flexDirection="column">
+      <Box marginTop={1} flexDirection="column" overflow="hidden">
         {props.loading && !i.description ? (
           <Text dimColor>loading description…</Text>
         ) : lines.length === 0 ? (
@@ -91,7 +103,9 @@ export function IssueDetail(props: IssueDetailProps): React.ReactElement {
           <>
             {hiddenAbove > 0 ? <Text dimColor>↑ {hiddenAbove} more</Text> : null}
             {visible.map((line, idx) => (
-              <Text key={`${scrollTop}-${idx}`}>{line.length > 0 ? line : " "}</Text>
+              <Text key={`${scrollTop}-${idx}`} wrap="truncate">
+                {line.length > 0 ? line : " "}
+              </Text>
             ))}
             {hiddenBelow > 0 ? <Text dimColor>↓ {hiddenBelow} more</Text> : null}
           </>
