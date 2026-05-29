@@ -14,6 +14,7 @@ import type { FileLogger } from "../utils/file-logger.js";
 import { dispatch } from "../keybindings/dispatcher.js";
 import { resolveViewProjectsLenient, buildViewEntries } from "../config/resolve-view-projects.js";
 import type { ActionId } from "../keybindings/registry.js";
+import type { InkKey } from "../keybindings/key-spec.js";
 
 export interface DashboardProps {
   ctx: AppContext;
@@ -193,81 +194,98 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     }
   }, [filtered, selected, ctx, logger]);
 
+  const selectNext = (): void => setSelected((s) => Math.min(filtered.length - 1, s + 1));
+  const selectPrev = (): void => setSelected((s) => Math.max(0, s - 1));
+  const viewNext = (): void => setViewIdx((i) => Math.min(views.length - 1, i + 1));
+  const viewPrev = (): void => setViewIdx((i) => Math.max(0, i - 1));
+
   const handlers: Partial<Record<ActionId, () => void>> = {
     "global.quit": () => exit(),
     "global.refresh": () => void load(),
     "global.help": () => setHelpOpen((open) => !open),
-    "list.next": () => setSelected((s) => Math.min(filtered.length - 1, s + 1)),
-    "list.next-alt": () => setSelected((s) => Math.min(filtered.length - 1, s + 1)),
-    "list.prev": () => setSelected((s) => Math.max(0, s - 1)),
-    "list.prev-alt": () => setSelected((s) => Math.max(0, s - 1)),
+    "list.next": selectNext,
+    "list.next-alt": selectNext,
+    "list.prev": selectPrev,
+    "list.prev-alt": selectPrev,
     "list.page-down": () => setSelected((s) => Math.min(filtered.length - 1, s + viewportRows)),
     "list.page-up": () => setSelected((s) => Math.max(0, s - viewportRows)),
     "list.top": () => setSelected(0),
     "list.bottom": () => setSelected(Math.max(0, filtered.length - 1)),
     "list.open-detail": () => setPanel("detail"),
     "list.open-browser": openSelectedInBrowser,
-    "list.toggle-panel": () => setPanel((p) => (p === "list" ? "detail" : "list")),
-    "view.next": () => setViewIdx((i) => Math.min(views.length - 1, i + 1)),
-    "view.next-alt": () => setViewIdx((i) => Math.min(views.length - 1, i + 1)),
-    "view.prev": () => setViewIdx((i) => Math.max(0, i - 1)),
-    "view.prev-alt": () => setViewIdx((i) => Math.max(0, i - 1)),
+    "view.next": viewNext,
+    "view.next-alt": viewNext,
+    "view.prev": viewPrev,
+    "view.prev-alt": viewPrev,
     "filter.start": () => {
       setFilter("");
       setFiltering(true);
     },
   };
 
+  // Input routing is split per active context (help modal, detail modal, filter
+  // box, list) so each path stays small. Each handler consumes the keystroke for
+  // its context; the top-level callback just dispatches to the active one.
+  const handleHelpKey = (input: string, key: InkKey): void => {
+    const consumed = dispatch(
+      ctx.keybindings,
+      ["help"],
+      { "help.close": () => setHelpOpen(false) },
+      input,
+      key,
+    );
+    if (!consumed && (input === "q" || key.escape)) setHelpOpen(false);
+  };
+
+  const handleDetailKey = (input: string, key: InkKey): void => {
+    const scrollDown = (): void => setDetailScroll((s) => s + 1);
+    const scrollUp = (): void => setDetailScroll((s) => Math.max(0, s - 1));
+    const detailHandlers: Partial<Record<ActionId, () => void>> = {
+      "detail.close": () => setPanel("list"),
+      "detail.scroll-down": scrollDown,
+      "detail.scroll-down-alt": scrollDown,
+      "detail.scroll-up": scrollUp,
+      "detail.scroll-up-alt": scrollUp,
+      "detail.page-down": () => setDetailScroll((s) => s + detailViewportRows),
+      "detail.page-up": () => setDetailScroll((s) => Math.max(0, s - detailViewportRows)),
+      "detail.top": () => setDetailScroll(0),
+      "detail.bottom": () => setDetailScroll(Number.MAX_SAFE_INTEGER),
+      "detail.open-browser": openSelectedInBrowser,
+      "global.help": () => setHelpOpen((open) => !open),
+      "global.refresh": () => void load(),
+      "global.quit": () => setPanel("list"),
+    };
+    dispatch(ctx.keybindings, ["detail", "global"], detailHandlers, input, key);
+  };
+
+  const handleFilterKey = (input: string, key: InkKey): void => {
+    if (key.return || key.escape) {
+      setFiltering(false);
+    } else if (key.backspace || key.delete) {
+      setFilter((f) => f.slice(0, -1));
+    } else if (input && !key.ctrl && !key.meta) {
+      setFilter((f) => f + input);
+    }
+  };
+
   useInput((input, key) => {
-    if (helpOpen) {
-      // Help modal owns input until closed. close on the configured key or 'q'.
-      const consumed = dispatch(
-        ctx.keybindings,
-        ["help"],
-        { "help.close": () => setHelpOpen(false) },
-        input,
-        key,
-      );
-      if (consumed) return;
-      if (input === "q" || key.escape) setHelpOpen(false);
-      return;
-    }
-    if (panel === "detail") {
-      // Detail modal: scroll the description with j/k/PgUp/PgDn/g/G, leave on Esc.
-      const detailHandlers: Partial<Record<ActionId, () => void>> = {
-        "detail.close": () => setPanel("list"),
-        "detail.scroll-down": () => setDetailScroll((s) => s + 1),
-        "detail.scroll-down-alt": () => setDetailScroll((s) => s + 1),
-        "detail.scroll-up": () => setDetailScroll((s) => Math.max(0, s - 1)),
-        "detail.scroll-up-alt": () => setDetailScroll((s) => Math.max(0, s - 1)),
-        "detail.page-down": () => setDetailScroll((s) => s + detailViewportRows),
-        "detail.page-up": () => setDetailScroll((s) => Math.max(0, s - detailViewportRows)),
-        "detail.top": () => setDetailScroll(0),
-        "detail.bottom": () => setDetailScroll(Number.MAX_SAFE_INTEGER),
-        "detail.open-browser": openSelectedInBrowser,
-        "global.help": () => setHelpOpen((open) => !open),
-        "global.refresh": () => void load(),
-        "global.quit": () => setPanel("list"),
-      };
-      dispatch(ctx.keybindings, ["detail", "global"], detailHandlers, input, key);
-      return;
-    }
-    if (filtering) {
-      if (key.return || key.escape) {
-        setFiltering(false);
-        return;
-      }
-      if (key.backspace || key.delete) {
-        setFilter((f) => f.slice(0, -1));
-        return;
-      }
-      if (input && !key.ctrl && !key.meta) setFilter((f) => f + input);
-      return;
-    }
+    if (helpOpen) return handleHelpKey(input, key);
+    if (panel === "detail") return handleDetailKey(input, key);
+    if (filtering) return handleFilterKey(input, key);
     dispatch(ctx.keybindings, ["global", "list", "view", "filter"], handlers, input, key);
   });
 
   const current = detailed ?? currentSummary;
+
+  // Shared status-bar props. profile/workspace/view are identical across panels;
+  // loading and position vary slightly per panel and are passed at each call.
+  const statusBarBase = {
+    profile: ctx.runtime.profile_name,
+    workspace: ctx.runtime.profile.server.workspace_slug,
+    view: activeView?.name ?? "—",
+    message: error,
+  };
+  const listPosition = filtered.length > 0 ? `${selected + 1}/${filtered.length}` : undefined;
 
   if (helpOpen) {
     // Ink has no absolute positioning, so the modal effect is achieved by replacing
@@ -277,14 +295,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
         <Box flexGrow={1} justifyContent="center" alignItems="center">
           <HelpModal bindings={ctx.keybindings} onClose={() => setHelpOpen(false)} />
         </Box>
-        <StatusBar
-          profile={ctx.runtime.profile_name}
-          workspace={ctx.runtime.profile.server.workspace_slug}
-          view={activeView?.name ?? "—"}
-          loading={loading}
-          message={error}
-          position={filtered.length > 0 ? `${selected + 1}/${filtered.length}` : undefined}
-        />
+        <StatusBar {...statusBarBase} loading={loading} position={listPosition} />
       </Box>
     );
   }
@@ -303,12 +314,9 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
           />
         </Box>
         <StatusBar
-          profile={ctx.runtime.profile_name}
-          workspace={ctx.runtime.profile.server.workspace_slug}
-          view={activeView?.name ?? "—"}
+          {...statusBarBase}
           loading={detailLoading}
-          message={error}
-          position={current ? `${selected + 1}/${filtered.length}` : undefined}
+          position={current ? listPosition : undefined}
         />
       </Box>
     );
@@ -329,14 +337,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
           <FilterBox active={filtering} value={filter} />
         </Box>
       </Box>
-      <StatusBar
-        profile={ctx.runtime.profile_name}
-        workspace={ctx.runtime.profile.server.workspace_slug}
-        view={activeView?.name ?? "—"}
-        loading={loading}
-        message={error}
-        position={filtered.length > 0 ? `${selected + 1}/${filtered.length}` : undefined}
-      />
+      <StatusBar {...statusBarBase} loading={loading} position={listPosition} />
     </Box>
   );
 }

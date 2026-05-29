@@ -11,7 +11,10 @@ export interface ActionDescriptor {
   defaultKey: string;
 }
 
-export const ACTIONS: readonly ActionDescriptor[] = [
+// `satisfies` (not a type annotation) keeps each `id` as a string literal so
+// `ActionId` is a precise union — which makes the handler maps in the dashboard
+// reject typos and unknown action ids at compile time.
+export const ACTIONS = [
   { id: "global.quit", context: "global", description: "quit the dashboard", defaultKey: "q" },
   { id: "global.refresh", context: "global", description: "reload current view", defaultKey: "r" },
   { id: "global.help", context: "global", description: "toggle help modal", defaultKey: "?" },
@@ -35,12 +38,6 @@ export const ACTIONS: readonly ActionDescriptor[] = [
     defaultKey: "enter",
   },
   { id: "list.open-browser", context: "list", description: "open in browser", defaultKey: "o" },
-  {
-    id: "list.toggle-panel",
-    context: "list",
-    description: "toggle detail panel",
-    defaultKey: "tab",
-  },
   { id: "view.next", context: "view", description: "next configured view", defaultKey: "]" },
   { id: "view.prev", context: "view", description: "previous configured view", defaultKey: "[" },
   { id: "view.next-alt", context: "view", description: "next view (arrow)", defaultKey: "right" },
@@ -115,20 +112,10 @@ export const ACTIONS: readonly ActionDescriptor[] = [
     description: "close detail modal",
     defaultKey: "escape",
   },
-] as const;
+] as const satisfies readonly ActionDescriptor[];
 
 export type ActionId = (typeof ACTIONS)[number]["id"];
 
 export function isActionId(value: string): value is ActionId {
   return ACTIONS.some((a) => a.id === value);
-}
-
-export function actionDescriptor(id: ActionId): ActionDescriptor {
-  const found = ACTIONS.find((a) => a.id === id);
-  if (!found) throw new Error(`unknown action: ${id}`);
-  return found;
-}
-
-export function actionsByContext(context: ActionContext): ActionDescriptor[] {
-  return ACTIONS.filter((a) => a.context === context);
 }

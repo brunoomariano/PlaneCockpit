@@ -22,6 +22,9 @@ function toArray(value: string | string[] | undefined): string[] | undefined {
   return cleaned.length > 0 ? cleaned.sort() : undefined;
 }
 
+// One independent `if` per optional filter field; the branches are flat and
+// uniform, not nested logic worth extracting, so the complexity cap is waived.
+// eslint-disable-next-line complexity
 export function normalizeFilters(filters: ViewFilters | undefined): NormalizedFilters {
   if (!filters) return {};
   const out: NormalizedFilters = {};

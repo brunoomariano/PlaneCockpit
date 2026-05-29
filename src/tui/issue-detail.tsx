@@ -16,8 +16,8 @@ export interface IssueDetailProps {
   height?: number;
 }
 
-export const MODAL_WIDTH = 100;
-export const PANEL_WIDTH = 50;
+const MODAL_WIDTH = 100;
+const PANEL_WIDTH = 50;
 // Chars of horizontal chrome subtracted from MODAL_WIDTH to get the printable
 // area: 2 for the double-border + 2 for paddingX=1 each side.
 const HORIZONTAL_CHROME = 4;
@@ -28,10 +28,77 @@ const HORIZONTAL_CHROME = 4;
 // + 2 for the up/down hints = ~15. We round up a little to leave breathing room.
 export const DETAIL_CHROME_ROWS = 16;
 
+// The fixed metadata block (state, priority, assignees, labels, updated).
+function IssueMeta({ issue }: { issue: Issue }): React.ReactElement {
+  return (
+    <Box marginTop={1} flexDirection="column" flexShrink={0}>
+      <Text>
+        state: <Text color="cyan">{issue.state.name}</Text>
+      </Text>
+      <Text>priority: {issue.priority}</Text>
+      <Text wrap="truncate">
+        assignees: {issue.assignees.map((a) => a.display_name).join(", ") || "—"}
+      </Text>
+      <Text wrap="truncate">labels: {issue.labels.map((l) => l.name).join(", ") || "—"}</Text>
+      <Text dimColor>updated: {issue.updated_at}</Text>
+    </Box>
+  );
+}
+
+interface DescriptionBodyProps {
+  loading: boolean;
+  hasDescription: boolean;
+  visible: string[];
+  hiddenAbove: number;
+  hiddenBelow: number;
+  scrollTop: number;
+}
+
+// The scrollable description region with the "N more" hints above/below.
+function DescriptionBody(props: DescriptionBodyProps): React.ReactElement {
+  let content: React.ReactNode;
+  if (props.loading && !props.hasDescription) {
+    content = <Text dimColor>loading description…</Text>;
+  } else if (props.visible.length === 0 && props.hiddenAbove === 0 && props.hiddenBelow === 0) {
+    content = <Text dimColor>(no description)</Text>;
+  } else {
+    content = (
+      <>
+        {props.hiddenAbove > 0 ? <Text dimColor>↑ {props.hiddenAbove} more</Text> : null}
+        {props.visible.map((line, idx) => (
+          <Text key={`${props.scrollTop}-${idx}`} wrap="truncate">
+            {line.length > 0 ? line : " "}
+          </Text>
+        ))}
+        {props.hiddenBelow > 0 ? <Text dimColor>↓ {props.hiddenBelow} more</Text> : null}
+      </>
+    );
+  }
+  return (
+    <Box marginTop={1} flexDirection="column" overflow="hidden">
+      {content}
+    </Box>
+  );
+}
+
+function closeHintFor(scrollTop: number, viewportRows: number, total: number): string {
+  if (total <= viewportRows) return "esc to close";
+  const end = Math.min(scrollTop + viewportRows, total);
+  return `esc to close · ${scrollTop + 1}-${end}/${total}`;
+}
+
 export function IssueDetail(props: IssueDetailProps): React.ReactElement {
   const variant = props.variant ?? "panel";
   const width = variant === "modal" ? MODAL_WIDTH : PANEL_WIDTH;
   const contentWidth = width - HORIZONTAL_CHROME;
+  const description = props.issue?.description;
+
+  // Hooks must run unconditionally, so they precede the no-issue early return.
+  const rendered = useMemo(() => (description ? markdownToAnsi(description) : ""), [description]);
+  const lines = useMemo(
+    () => (rendered ? splitAnsiIntoLines(rendered, contentWidth) : []),
+    [rendered, contentWidth],
+  );
 
   if (!props.issue) {
     return (
@@ -42,29 +109,12 @@ export function IssueDetail(props: IssueDetailProps): React.ReactElement {
   }
   const i = props.issue;
 
-  const rendered = useMemo(
-    () => (i.description ? markdownToAnsi(i.description) : ""),
-    [i.description],
-  );
-
-  const lines = useMemo(
-    () => (rendered ? splitAnsiIntoLines(rendered, contentWidth) : []),
-    [rendered, contentWidth],
-  );
-
   const viewportRows = props.viewportRows ?? lines.length;
-  const maxScroll = Math.max(0, lines.length - viewportRows);
-  const scrollTop = Math.max(0, Math.min(props.scrollTop ?? 0, maxScroll));
+  const scrollTop = Math.max(
+    0,
+    Math.min(props.scrollTop ?? 0, Math.max(0, lines.length - viewportRows)),
+  );
   const visible = lines.slice(scrollTop, scrollTop + viewportRows);
-  const hiddenAbove = scrollTop;
-  const hiddenBelow = Math.max(0, lines.length - scrollTop - viewportRows);
-
-  const closeHint =
-    variant === "modal"
-      ? lines.length > viewportRows
-        ? `esc to close · ${scrollTop + 1}-${Math.min(scrollTop + viewportRows, lines.length)}/${lines.length}`
-        : "esc to close"
-      : "";
 
   return (
     <Box
@@ -80,37 +130,20 @@ export function IssueDetail(props: IssueDetailProps): React.ReactElement {
     >
       <Box justifyContent="space-between" flexShrink={0}>
         <Text bold>{i.key}</Text>
-        {variant === "modal" ? <Text dimColor>{closeHint}</Text> : null}
+        {variant === "modal" ? (
+          <Text dimColor>{closeHintFor(scrollTop, viewportRows, lines.length)}</Text>
+        ) : null}
       </Box>
       <Text wrap="truncate">{i.name}</Text>
-      <Box marginTop={1} flexDirection="column" flexShrink={0}>
-        <Text>
-          state: <Text color="cyan">{i.state.name}</Text>
-        </Text>
-        <Text>priority: {i.priority}</Text>
-        <Text wrap="truncate">
-          assignees: {i.assignees.map((a) => a.display_name).join(", ") || "—"}
-        </Text>
-        <Text wrap="truncate">labels: {i.labels.map((l) => l.name).join(", ") || "—"}</Text>
-        <Text dimColor>updated: {i.updated_at}</Text>
-      </Box>
-      <Box marginTop={1} flexDirection="column" overflow="hidden">
-        {props.loading && !i.description ? (
-          <Text dimColor>loading description…</Text>
-        ) : lines.length === 0 ? (
-          <Text dimColor>(no description)</Text>
-        ) : (
-          <>
-            {hiddenAbove > 0 ? <Text dimColor>↑ {hiddenAbove} more</Text> : null}
-            {visible.map((line, idx) => (
-              <Text key={`${scrollTop}-${idx}`} wrap="truncate">
-                {line.length > 0 ? line : " "}
-              </Text>
-            ))}
-            {hiddenBelow > 0 ? <Text dimColor>↓ {hiddenBelow} more</Text> : null}
-          </>
-        )}
-      </Box>
+      <IssueMeta issue={i} />
+      <DescriptionBody
+        loading={props.loading ?? false}
+        hasDescription={Boolean(i.description)}
+        visible={visible}
+        hiddenAbove={scrollTop}
+        hiddenBelow={Math.max(0, lines.length - scrollTop - viewportRows)}
+        scrollTop={scrollTop}
+      />
     </Box>
   );
 }

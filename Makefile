@@ -63,10 +63,24 @@ dev: ## run the cli in dev mode (forwards ARGS, e.g. `make dev ARGS="issue list"
 run: build ## build and run the compiled cli (`make run ARGS="dash"`)
 	$(NODE) dist/cli.js $(ARGS)
 
+# ----- quality & security -----
+
+.PHONY: audit
+audit: ## fail on high+ severity vulnerabilities in production deps
+	$(PNPM) run audit
+
+.PHONY: deadcode
+deadcode: ## report unused files and dependencies (knip)
+	$(PNPM) run deadcode
+
+.PHONY: quality
+quality: ## deeper scan: lint + unused exports/files/deps (knip strict), non-blocking extras
+	$(PNPM) run quality
+
 # ----- ci aggregates -----
 
 .PHONY: ci
-ci: ## full ci: format check, lint, typecheck, test-cov, build
+ci: ## full ci: format, lint, typecheck, test-cov, deadcode, audit, build
 	$(PNPM) run ci
 
 .PHONY: check

@@ -15,6 +15,17 @@ describe("normalizeFilters", () => {
     expect(normalizeFilters({ labels: [] })).toEqual({});
   });
 
+  it("drops an assignee list that is only blank strings", () => {
+    expect(normalizeFilters({ assignee: ["  ", ""] }).assignees).toBeUndefined();
+  });
+
+  it("keeps cycle and module when present", () => {
+    expect(normalizeFilters({ cycle: "current", module: "auth" })).toMatchObject({
+      cycle: "current",
+      module: "auth",
+    });
+  });
+
   it("sorts arrays so fingerprint is stable regardless of input order", () => {
     const a = filtersFingerprint({ state_group: ["started", "unstarted"] });
     const b = filtersFingerprint({ state_group: ["unstarted", "started"] });
@@ -37,5 +48,42 @@ describe("normalizeFilters", () => {
     const a = filtersFingerprint({ state_search: ["In Review", "Blocked"] });
     const b = filtersFingerprint({ state_search: ["Blocked", "In Review"] });
     expect(a).toBe(b);
+  });
+
+  it("normalizes project_state_search (sorts projects and their state names)", () => {
+    const out = normalizeFilters({
+      project_state_search: [
+        { name: "OPS", state_search: ["Done", "Blocked"] },
+        { name: "ENG", state_search: ["In Review"] },
+      ],
+    });
+    expect(out.project_state_search).toEqual([
+      { name: "ENG", state_search: ["In Review"] },
+      { name: "OPS", state_search: ["Blocked", "Done"] },
+    ]);
+  });
+
+  it("distinguishes views by project_state_search and is order-stable", () => {
+    const a = filtersFingerprint({
+      project_state_search: [{ name: "ENG", state_search: ["In Review"] }],
+    });
+    const b = filtersFingerprint({
+      project_state_search: [{ name: "ENG", state_search: ["Blocked"] }],
+    });
+    expect(a).not.toBe(b);
+
+    const c = filtersFingerprint({
+      project_state_search: [
+        { name: "ENG", state_search: ["In Review"] },
+        { name: "OPS", state_search: ["Done"] },
+      ],
+    });
+    const d = filtersFingerprint({
+      project_state_search: [
+        { name: "OPS", state_search: ["Done"] },
+        { name: "ENG", state_search: ["In Review"] },
+      ],
+    });
+    expect(c).toBe(d);
   });
 });

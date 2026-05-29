@@ -39,12 +39,12 @@ Respect the boundaries of existing modules. When a boundary does not yet exist, 
 ## Stack and architecture
 
 - The CLI and TUI must be built in TypeScript on Node.js.
-- Use the official Node SDK `@makeplane/plane-node-sdk` for Plane API access.
-- CLI framework: `commander` or `clipanion`. TUI: `ink`. YAML: `yaml`. Validation: `zod`. Build: `tsup`. Tests: `vitest`. Browser open: `open`. Logging: `pino`. Tables: `cli-table3`. Prompt/input: `inquirer`. Distribution: npm package with a `bin` field.
+- Plane API access goes through `PlaneApiClient` (`plane/client.ts`), a thin adapter over the native `fetch`. We do not depend on `@makeplane/plane-node-sdk`: it pulled a vulnerable `axios` transitively and was never used. If the SDK is adopted later, isolate it behind this same adapter layer and keep its transitive deps audited.
+- CLI framework: `commander` or `clipanion`. TUI: `ink`. YAML: `yaml`. Validation: `zod`. Build: `tsup`. Tests: `vitest`. Browser open: `open`. Logging: the in-house `FileLogger` (JSON Lines to the state dir; the TUI cannot write to stderr). Tables: `cli-table3`. Prompt/input: `inquirer`. Distribution: npm package with a `bin` field.
 - The product must support both Plane Cloud and Plane self-hosted, including reverse proxy, trailing slash normalization, configurable timeout, custom TLS, custom headers, multiple environments, and custom URLs.
-- Prefer an architecture with an isolated domain and adapters for input/output, such as HTTP, the Plane SDK, cache backends, filesystem, and browser.
-- The Plane SDK must be isolated behind a thin adapter layer (e.g. `plane/work-items.ts`, `plane/issues.ts`, `plane/client.ts`). Commands must never depend directly on the SDK.
-- The domain must not depend directly on the SDK, HTTP framework, cache driver, terminal renderer, or real clock.
+- Prefer an architecture with an isolated domain and adapters for input/output, such as HTTP, the Plane API client, cache backends, filesystem, and browser.
+- The Plane API client must stay isolated behind a thin adapter layer (e.g. `plane/work-items.ts`, `plane/issues.ts`, `plane/client.ts`). Commands must never depend directly on the HTTP transport.
+- The domain must not depend directly on the API client, HTTP framework, cache driver, terminal renderer, or real clock.
 - Cache must be optional and pluggable behind a `CacheStore` interface, with at least `MemoryCacheStore`, `SqliteCacheStore`, `RedisCacheStore`, and `NoopCacheStore`. The CLI must work fully without Redis.
 - Configuration is YAML-first and read from a single path, `~/.config/plane-cli/config.yaml` (overridable with `--config`). Credentials live in `~/.config/plane-cli/hosts.yaml` (written by `plc auth login`). There are no environment variable overrides; everything comes from `config.yaml` or `hosts.yaml`.
 - Long-running flows, timers, cancellations, and concurrent flows must use `AbortController`/`AbortSignal` explicitly; do not rely on implicit cancellation.

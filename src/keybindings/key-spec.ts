@@ -47,6 +47,10 @@ const NORMALIZE: Record<string, string> = {
   esc: "escape",
 };
 
+// Parsing modifiers + key + casing rules is a flat sequence of guards; keeping
+// it in one place reads better than threading state through extracted helpers,
+// so the complexity cap is waived.
+// eslint-disable-next-line complexity
 export function parseKeySpec(raw: string): KeySpec {
   const value = raw.trim();
   if (value.length === 0) throw new ConfigError("empty key spec");

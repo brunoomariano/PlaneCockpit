@@ -106,5 +106,3 @@ export const planeConfigSchema = z
     message: "active_profile must reference an existing profile",
     path: ["active_profile"],
   });
-
-export type PlaneConfigSchema = z.infer<typeof planeConfigSchema>;
