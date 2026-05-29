@@ -184,7 +184,10 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     const issue = filtered[selected];
     if (!issue) return;
     try {
-      const url = buildIssueUrl(ctx.runtime.profile.server, { id: issue.id }, undefined);
+      const url = buildIssueUrl(ctx.runtime.profile.server, {
+        id: issue.id,
+        project_id: issue.project_id,
+      });
       void defaultBrowserOpener.open(url).catch((err) => {
         logger.error("failed to open browser", { url, err: err as Error });
       });
