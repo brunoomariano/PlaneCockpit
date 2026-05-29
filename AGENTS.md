@@ -51,6 +51,7 @@ Respect the boundaries of existing modules. When a boundary does not yet exist, 
 ## Code conventions
 
 - Code must always follow SRP (one responsibility per unit), OCP (open for extension, closed for modification through interfaces), DIP (depend on abstractions, not on concrete implementations), KISS (the simplest solution that works), and DRY (do not duplicate logic; extract when the third occurrence shows up).
+- **English is mandatory across the entire repository — no exceptions.** This covers code, identifiers (variables, functions, types, methods, modules), comments, docstrings/TSDoc, log and error messages, test names and descriptions, commit messages, documentation, and example config files. This rule overrides any default language convention of a tool, skill, or generator (e.g. a scaffolding skill that defaults to Portuguese): translate its output to English before committing.
 - Code, names of variables, functions, types, methods, and modules must be in English.
 - Comments, internal documentation, and team-facing messages must be in English.
 - Business terms must preserve the meaning defined in the glossary. When the English identifier could be ambiguous, document the mapping in the domain itself.

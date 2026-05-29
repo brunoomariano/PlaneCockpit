@@ -137,21 +137,38 @@ plc cache clear --prefix plc:acme:project
 
 ## Views
 
-Declare views in YAML and reference them from the CLI or TUI:
+Declare the universe of projects once under `defaults.projects`, then declare
+views in YAML and reference them from the CLI or TUI:
 
 ```yaml
+defaults:
+  # The universe of projects this profile can reach. The TUI scans all of them
+  # by default; the CLI (`plc issue list` without `--project`) uses the first.
+  projects: ["ENG", "OPS", "DESIGN"]
+
 views:
-  - name: "My open"
-    project: ENG
+  - name: "My open" # no `projects` => scans every project above
     filters:
       assignee: me
       state_group: [unstarted, started]
     sort: priority
+
+  - name: "Eng sprint"
+    projects: ["ENG"] # restricts to a subset of defaults.projects
+    filters:
+      cycle: current # cycle/module are only allowed on single-project views
+      state_group: [started]
 ```
 
 ```bash
 plc issue list --view "My open"
 ```
+
+A view without `projects` inherits the full `defaults.projects` set and
+aggregates issues across all of them, reordered by the view's `sort`. A view
+with `projects` restricts to that subset, which must be contained in
+`defaults.projects`. Because `cycle` and `module` identify a single project,
+they may only be used on views that resolve to exactly one project.
 
 ## TUI usage
 

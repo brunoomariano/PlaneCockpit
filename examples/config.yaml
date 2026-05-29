@@ -16,31 +16,37 @@ profiles:
         reject_unauthorized: true
 
     defaults:
-      project: ENG
+      # This profile's project universe. The TUI scans all of them by default;
+      # the CLI (plc issue list without --project) uses the first one.
+      projects: ["ENG", "OPS", "DESIGN"]
 
     cache:
       provider: sqlite
       ttl: 300
       redis:
         url: redis://localhost:6379
-        key_prefix: plane-cli
+        key_prefix: plc
 
     views:
+      # No `projects`: inherits defaults.projects and aggregates issues from all
+      # of them, reordered by the view's `sort`.
       - name: "My open"
-        project: ENG
         filters:
           assignee: me
           state_group: [unstarted, started]
         sort: priority
 
+      # `projects` restricts to a subset of defaults.projects. cycle/module are
+      # only allowed when the view resolves to a single project.
       - name: "Current sprint"
-        project: ENG
+        projects: ["ENG"]
         filters:
           cycle: current
           state_group: [started]
 
+      # Multi-project view: aggregates critical bugs from ENG and OPS into one set.
       - name: "Critical bugs"
-        project: ENG
+        projects: ["ENG", "OPS"]
         filters:
           labels: [bug]
           priority: [urgent, high]

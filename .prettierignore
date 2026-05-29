@@ -3,4 +3,3 @@ dist
 coverage
 pnpm-lock.yaml
 *.tsbuildinfo
-PROMPT.md
