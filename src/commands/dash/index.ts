@@ -20,8 +20,35 @@ export function registerDash(program: Command): void {
         });
         const dashboard = React.createElement(Dashboard, { ctx, logger });
         const tree = React.createElement(ErrorBoundary, { logger, children: dashboard });
+
+        // Enter the terminal's alternate screen buffer so the TUI renders on a
+        // throwaway screen. On exit the terminal restores the previous contents
+        // and nothing the dashboard drew is left in the scrollback (like gh dash).
+        const enterAltScreen = "\x1b[?1049h";
+        const leaveAltScreen = "\x1b[?1049l";
+        const usesAltScreen = process.stdout.isTTY === true;
+
+        let restored = false;
+        const restoreScreen = (): void => {
+          if (restored || !usesAltScreen) return;
+          restored = true;
+          process.stdout.write(leaveAltScreen);
+        };
+
+        // Guard against the process being torn down (Ctrl+C / kill) before the
+        // finally block runs, which would otherwise leave the terminal stuck on
+        // the alternate screen.
+        if (usesAltScreen) {
+          process.stdout.write(enterAltScreen);
+          process.once("exit", restoreScreen);
+        }
+
         const instance = render(tree);
-        await instance.waitUntilExit();
+        try {
+          await instance.waitUntilExit();
+        } finally {
+          restoreScreen();
+        }
       });
     });
 }
