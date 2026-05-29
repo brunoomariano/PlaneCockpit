@@ -58,3 +58,25 @@ export function renderAny(value: unknown, fmt: OutputFormat): string {
   if (typeof value === "string") return value;
   return JSON.stringify(value, null, 2);
 }
+
+// A single entity cannot be a table, so render it as yaml in table mode. Use for
+// command output that returns one object rather than a list.
+export function renderObject(value: unknown, fmt: OutputFormat): string {
+  return renderAny(value, fmt === "table" ? "yaml" : fmt);
+}
+
+// Pads `value` to `width`, truncating with a trailing space when it overflows.
+export function padRight(value: string | undefined | null, width: number): string {
+  const v = value ?? "";
+  if (v.length >= width) return `${v.slice(0, width - 1)} `;
+  return v + " ".repeat(width - v.length);
+}
+
+// Centers `value` within `width`, truncating (no ellipsis) when it overflows.
+export function padCenter(value: string | undefined | null, width: number): string {
+  const v = value ?? "";
+  if (v.length >= width) return v.slice(0, width);
+  const remaining = width - v.length;
+  const left = Math.floor(remaining / 2);
+  return " ".repeat(left) + v + " ".repeat(remaining - left);
+}

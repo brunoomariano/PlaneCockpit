@@ -1,7 +1,7 @@
 import type { IssuePriority, IssueStateGroup } from "./issue.js";
 
 // Per-project state name search: refine a single project's issues by state name.
-export interface ProjectStateSearch {
+interface ProjectStateSearch {
   name: string;
   state_search: string[];
 }

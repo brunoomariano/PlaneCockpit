@@ -38,7 +38,7 @@ export class RedisCacheStore implements CacheStore {
     if (opts.client) return new RedisCacheStore(opts.client, opts);
     const mod = await import("ioredis");
     const Redis = mod.default;
-    const client = new Redis(opts.url) as unknown as RedisLike;
+    const client = new Redis(opts.url) as RedisLike;
     return new RedisCacheStore(client, opts);
   }
 

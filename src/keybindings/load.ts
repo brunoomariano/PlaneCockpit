@@ -3,15 +3,14 @@
 // a startup error rather than silent ignore — typos are easier to debug that way.
 
 import { readFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { resolve } from "node:path";
 import YAML from "yaml";
 import { z } from "zod";
 import { ConfigError } from "../utils/errors.js";
+import { expandHome } from "../utils/paths.js";
 import { ACTIONS, isActionId, type ActionDescriptor, type ActionId } from "./registry.js";
 import { parseKeySpec, type KeySpec } from "./key-spec.js";
 
-export const DEFAULT_KEYBINDINGS_PATH = "~/.config/plane-cli/keybindings.yaml";
+const DEFAULT_KEYBINDINGS_PATH = "~/.config/plane-cli/keybindings.yaml";
 
 const overridesSchema = z.record(z.string(), z.string());
 
@@ -28,12 +27,6 @@ export interface LoadKeybindingsOptions {
 export interface LoadedKeybindings {
   bindings: ResolvedBinding[];
   sourcePath?: string;
-}
-
-function expandHome(p: string): string {
-  if (p.startsWith("~/")) return resolve(homedir(), p.slice(2));
-  if (p === "~") return homedir();
-  return p;
 }
 
 export async function loadKeybindings(

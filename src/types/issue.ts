@@ -11,7 +11,7 @@ export interface IssueState {
   color?: string;
 }
 
-export interface IssueLabel {
+interface IssueLabel {
   id: string;
   name: string;
   color?: string;

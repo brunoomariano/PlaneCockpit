@@ -7,7 +7,6 @@ export interface StatusBarProps {
   workspace: string;
   view: string;
   loading: boolean;
-  cacheHit?: boolean;
   message?: string;
   position?: string;
 }
@@ -34,7 +33,6 @@ export function StatusBar(props: StatusBarProps): React.ReactElement {
       </Text>
       <Text>
         {props.loading ? <Text color="yellow">loading… </Text> : null}
-        {props.cacheHit ? <Text color="green">cache </Text> : null}
         {props.message ? <Text color="red">{props.message} </Text> : null}
         <Text dimColor>j/k · g/G · PgUp/PgDn · enter · o · r · / · q</Text>
       </Text>

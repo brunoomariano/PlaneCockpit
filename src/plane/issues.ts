@@ -36,16 +36,9 @@ export class IssuesService {
     view?: ViewDefinition,
     queryLimit?: number,
   ): Promise<Issue[]> {
-    // Single-project: direct path, no extra sort/merge cost.
-    if (projectIdentifiers.length === 1) {
-      const project = await this.projects.findByIdentifier(projectIdentifiers[0]!);
-      const fetched = await this.workItems.list({ project, view, limit: queryLimit });
-      return refineByStateSearch(fetched, view?.filters);
-    }
-
-    // Multi-project: query each project in parallel. Promise.all rejects on the
-    // first error, propagating the partial failure instead of silently
-    // returning an incomplete set.
+    // Query each project in parallel. Promise.all rejects on the first error,
+    // propagating the partial failure instead of silently returning an
+    // incomplete set.
     const perProject = await Promise.all(
       projectIdentifiers.map(async (identifier) => {
         const project = await this.projects.findByIdentifier(identifier);
@@ -53,6 +46,9 @@ export class IssuesService {
       }),
     );
 
+    // Merge, refine client-side by state_search, and reorder. For a single
+    // project the server already returns the view's sort order, so the
+    // client-side sort is a no-op there.
     const refined = refineByStateSearch(perProject.flat(), view?.filters);
     return sortIssues(refined, view?.sort);
   }

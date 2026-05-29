@@ -1,5 +1,4 @@
 import type { Issue } from "../types/issue.js";
-import type { Cycle, Project } from "../types/project.js";
 import type { ServerConfig } from "../types/config.js";
 import { ConfigError } from "./errors.js";
 
@@ -24,10 +23,6 @@ function workspaceRoot(server: ServerConfig): string {
   return `${normalizeBaseUrl(server.base_url)}/${server.workspace_slug}`;
 }
 
-export function buildProjectUrl(server: ServerConfig, project: Pick<Project, "id">): string {
-  return `${workspaceRoot(server)}/projects/${project.id}/issues`;
-}
-
 export function buildIssueUrl(
   server: ServerConfig,
   issue: Pick<Issue, "id"> & { project_id?: string },
@@ -36,11 +31,4 @@ export function buildIssueUrl(
   const pid = projectId ?? issue.project_id;
   if (!pid) throw new ConfigError("project id is required to build issue url");
   return `${workspaceRoot(server)}/projects/${pid}/issues/${issue.id}`;
-}
-
-export function buildCycleUrl(
-  server: ServerConfig,
-  cycle: Pick<Cycle, "id" | "project_id">,
-): string {
-  return `${workspaceRoot(server)}/projects/${cycle.project_id}/cycles/${cycle.id}`;
 }

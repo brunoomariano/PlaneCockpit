@@ -28,7 +28,7 @@ async function defaultDriver(path: string): Promise<SqliteDb> {
   // Dynamic import keeps better-sqlite3 optional at runtime.
   const mod = await import("better-sqlite3");
   const Database = mod.default;
-  return new Database(path) as unknown as SqliteDb;
+  return new Database(path) as SqliteDb;
 }
 
 export class SqliteCacheStore implements CacheStore {

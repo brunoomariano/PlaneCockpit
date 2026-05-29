@@ -3,11 +3,11 @@
 // (profile name). Stored at 0600 so other users on the box cannot read it.
 
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { dirname, resolve } from "node:path";
+import { dirname } from "node:path";
 import YAML from "yaml";
 import { z } from "zod";
 import { ConfigError } from "../utils/errors.js";
+import { expandHome } from "../utils/paths.js";
 
 export interface HostEntry {
   api_key: string;
@@ -27,13 +27,7 @@ const hostsFileSchema = z.strictObject({
   hosts: z.record(z.string(), z.record(z.string(), hostEntrySchema)),
 });
 
-export const DEFAULT_CREDENTIALS_PATH = "~/.config/plane-cli/hosts.yaml";
-
-export function expandHome(p: string): string {
-  if (p.startsWith("~/")) return resolve(homedir(), p.slice(2));
-  if (p === "~") return homedir();
-  return p;
-}
+const DEFAULT_CREDENTIALS_PATH = "~/.config/plane-cli/hosts.yaml";
 
 // hostKey identifies a Plane deployment. Two profiles pointing at the same base_url and
 // workspace share the same credential entry — that matches how a user thinks about it.

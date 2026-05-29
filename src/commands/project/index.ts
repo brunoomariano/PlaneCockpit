@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { withContext } from "../shared.js";
-import { renderAny } from "../../utils/formatting.js";
+import { renderAny, renderObject } from "../../utils/formatting.js";
 import Table from "cli-table3";
 
 export function registerProject(program: Command): void {
@@ -33,7 +33,7 @@ export function registerProject(program: Command): void {
     .action(async function (this: Command, identifier: string) {
       await withContext(this, this.opts(), async ({ ctx, format }) => {
         const p = await ctx.projects.findByIdentifier(identifier);
-        process.stdout.write(renderAny(p, format === "table" ? "yaml" : format));
+        process.stdout.write(renderObject(p, format));
         process.stdout.write("\n");
       });
     });

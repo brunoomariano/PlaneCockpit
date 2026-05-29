@@ -8,16 +8,16 @@ export interface ServerConfig {
   tls?: { reject_unauthorized?: boolean };
 }
 
-export interface AuthConfig {
+interface AuthConfig {
   api_key?: string;
 }
 
-export interface RedisConfig {
+interface RedisConfig {
   url: string;
   key_prefix?: string;
 }
 
-export type CacheProvider = "memory" | "sqlite" | "redis" | "noop";
+type CacheProvider = "memory" | "sqlite" | "redis" | "noop";
 
 export interface CacheConfig {
   provider: CacheProvider;

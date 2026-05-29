@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 
-export interface ViewEntry {
+interface ViewEntry {
   name: string;
   // Marker '#': the view restricts projects (declares its own subset instead of
   // using the defaults.projects globals).

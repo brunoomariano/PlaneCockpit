@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { input, select } from "@inquirer/prompts";
 import { withContext } from "../shared.js";
-import { renderAny, renderIssues } from "../../utils/formatting.js";
+import { renderObject, renderIssues } from "../../utils/formatting.js";
 import { findView } from "../../app.js";
 import { resolveViewProjects, firstDefaultProject } from "../../config/resolve-view-projects.js";
 import { buildIssueUrl } from "../../utils/urls.js";
@@ -63,7 +63,7 @@ export function registerIssue(program: Command): void {
     .action(async function (this: Command, key: string) {
       await withContext(this, this.opts(), async ({ ctx, format }) => {
         const issue = await ctx.issues.view(key);
-        process.stdout.write(renderAny(issue, format === "table" ? "yaml" : format));
+        process.stdout.write(renderObject(issue, format));
         process.stdout.write("\n");
       });
     });
@@ -111,7 +111,7 @@ export function registerIssue(program: Command): void {
           description: description || undefined,
           priority,
         });
-        process.stdout.write(renderAny(created, format === "table" ? "yaml" : format));
+        process.stdout.write(renderObject(created, format));
         process.stdout.write("\n");
       });
     });
@@ -133,7 +133,7 @@ export function registerIssue(program: Command): void {
         if (opts.description) patch.description = opts.description;
         if (opts.priority) patch.priority = opts.priority;
         const updated = await ctx.issues.update(key, patch);
-        process.stdout.write(renderAny(updated, format === "table" ? "yaml" : format));
+        process.stdout.write(renderObject(updated, format));
         process.stdout.write("\n");
       });
     });

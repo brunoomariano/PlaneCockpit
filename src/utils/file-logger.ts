@@ -23,7 +23,7 @@ export interface FileLoggerOptions {
   now?: () => Date;
 }
 
-export interface LogEntry {
+interface LogEntry {
   ts: string;
   level: LogLevel;
   msg: string;

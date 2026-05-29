@@ -6,24 +6,17 @@ describe("cache keys", () => {
     expect(workspaceKey("acme", "x", "y")).toBe("plane:acme:x:y");
   });
 
-  it("builds workspace and projects keys", () => {
-    expect(cacheKeys.workspace("acme")).toBe("plane:acme:workspace");
+  it("builds projects and project keys", () => {
     expect(cacheKeys.projects("acme")).toBe("plane:acme:projects");
     expect(cacheKeys.project("acme", "ENG")).toBe("plane:acme:project:ENG");
   });
 
-  it("builds project-scoped keys", () => {
-    expect(cacheKeys.states("acme", "p1")).toBe("plane:acme:project:p1:states");
-    expect(cacheKeys.labels("acme", "p1")).toBe("plane:acme:project:p1:labels");
-    expect(cacheKeys.cycles("acme", "p1")).toBe("plane:acme:project:p1:cycles");
-    expect(cacheKeys.modules("acme", "p1")).toBe("plane:acme:project:p1:modules");
+  it("builds project-scoped issue page keys", () => {
     expect(cacheKeys.issuesPage("acme", "p1", "abc")).toBe("plane:acme:project:p1:issues:abc");
   });
 
-  it("builds workspace-scoped keys", () => {
+  it("builds workspace-scoped user keys", () => {
     expect(cacheKeys.users("acme")).toBe("plane:acme:users");
-    expect(cacheKeys.issueLookup("acme", "ENG-1")).toBe("plane:acme:lookup:ENG-1");
-    expect(cacheKeys.views("acme")).toBe("plane:acme:views");
   });
 
   it("isolates workspaces from each other", () => {

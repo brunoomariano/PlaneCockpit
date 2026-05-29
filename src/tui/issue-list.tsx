@@ -1,7 +1,13 @@
 import React from "react";
 import { Box, Text } from "ink";
 import type { Issue } from "../types/issue.js";
-import { priorityLabel, PRIORITY_COLUMN_WIDTH, truncate } from "../utils/formatting.js";
+import {
+  priorityLabel,
+  PRIORITY_COLUMN_WIDTH,
+  truncate,
+  padRight,
+  padCenter,
+} from "../utils/formatting.js";
 import { SkeletonRows } from "./skeleton.js";
 
 export interface IssueListProps {
@@ -99,18 +105,4 @@ export function IssueList(props: IssueListProps): React.ReactElement {
       ) : null}
     </Box>
   );
-}
-
-function padRight(value: string | undefined | null, width: number): string {
-  const v = value ?? "";
-  if (v.length >= width) return `${v.slice(0, width - 1)} `;
-  return v + " ".repeat(width - v.length);
-}
-
-function padCenter(value: string | undefined | null, width: number): string {
-  const v = value ?? "";
-  if (v.length >= width) return v.slice(0, width);
-  const remaining = width - v.length;
-  const left = Math.floor(remaining / 2);
-  return " ".repeat(left) + v + " ".repeat(remaining - left);
 }

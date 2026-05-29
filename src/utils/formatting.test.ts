@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { pickOutputFormat, priorityLabel, renderIssues, truncate } from "./formatting.js";
+import {
+  pickOutputFormat,
+  priorityLabel,
+  renderIssues,
+  renderAny,
+  renderObject,
+  truncate,
+  padRight,
+  padCenter,
+} from "./formatting.js";
 import type { Issue } from "../types/issue.js";
 
 describe("pickOutputFormat", () => {
@@ -68,8 +77,6 @@ describe("renderIssues", () => {
   });
 });
 
-import { renderAny } from "./formatting.js";
-
 describe("renderAny", () => {
   it("returns strings as-is for table format", () => {
     expect(renderAny("hello", "table")).toBe("hello");
@@ -85,5 +92,44 @@ describe("renderAny", () => {
 
   it("renders yaml", () => {
     expect(renderAny({ a: 1 }, "yaml")).toContain("a: 1");
+  });
+});
+
+describe("renderObject", () => {
+  it("renders a single object as yaml in table mode (a table needs no single row)", () => {
+    expect(renderObject({ a: 1 }, "table")).toContain("a: 1");
+  });
+
+  it("passes json/yaml through unchanged", () => {
+    expect(renderObject({ a: 1 }, "json")).toBe('{\n  "a": 1\n}');
+    expect(renderObject({ a: 1 }, "yaml")).toContain("a: 1");
+  });
+});
+
+describe("padRight", () => {
+  it("pads a short value to the requested width", () => {
+    expect(padRight("ab", 5)).toBe("ab   ");
+  });
+  it("truncates an overflowing value, leaving a trailing space", () => {
+    expect(padRight("abcdef", 4)).toBe("abc ");
+  });
+  it("treats null/undefined as an empty string", () => {
+    expect(padRight(undefined, 3)).toBe("   ");
+    expect(padRight(null, 2)).toBe("  ");
+  });
+});
+
+describe("padCenter", () => {
+  it("centers a short value within the width", () => {
+    expect(padCenter("ab", 6)).toBe("  ab  ");
+  });
+  it("biases the extra space to the right for odd padding", () => {
+    expect(padCenter("ab", 5)).toBe(" ab  ");
+  });
+  it("truncates an overflowing value without an ellipsis", () => {
+    expect(padCenter("abcdef", 4)).toBe("abcd");
+  });
+  it("treats null/undefined as an empty string", () => {
+    expect(padCenter(undefined, 2)).toBe("  ");
   });
 });
