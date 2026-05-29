@@ -6,6 +6,7 @@ Guide for humans and LLM agents working in the **Plane Cockpit** repository.
 
 - The documentation under `docs/` is the functional source of truth for Plane Cockpit (distributed as the `plc` CLI/TUI binary) while the project is being built.
 - Domain language, command surface, configuration shape, and architectural decisions must follow what is documented in `docs/`.
+- The configuration surface (profiles, server, auth, defaults, cache, and views with their filters and sort) is documented in [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md), mirroring the Zod schema in `src/config/schema.ts`. Keep the two in sync when either changes.
 - Transport details, payloads, and technical contracts that are not yet closed in the docs must not be invented as definitive. Record the decision or update the corresponding documentation first.
 - When code and documentation diverge, treat it as an inconsistency to resolve; do not silently change behavior.
 

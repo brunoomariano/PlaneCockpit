@@ -1,7 +1,9 @@
+# Full configuration reference: docs/CONFIGURATION.md
+
 active_profile: production
 
 # Credentials live in a separate file (~/.config/plane-cli/hosts.yaml) and are
-# managed with `plane auth login` / `plane auth logout`. This file is meant to
+# managed with `plc auth login` / `plc auth logout`. This file is meant to
 # be safe to commit.
 
 profiles:

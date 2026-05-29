@@ -56,6 +56,9 @@ Plane Cockpit keeps two files apart, modeled after `gh`:
 The config file is YAML-first and validated with `zod`; invalid configs fail at
 startup with the offending path.
 
+For the complete list of options — server, auth, defaults, cache, and every view
+filter and its accepted values — see [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md).
+
 Search order for `config.yaml`:
 
 1. `--config <path>` flag
@@ -169,6 +172,10 @@ aggregates issues across all of them, reordered by the view's `sort`. A view
 with `projects` restricts to that subset, which must be contained in
 `defaults.projects`. Because `cycle` and `module` identify a single project,
 they may only be used on views that resolve to exactly one project.
+
+The full list of filters (`assignee`, `state_group`, `labels`, `priority`,
+`cycle`, `module`) and their accepted values is documented in
+[`docs/CONFIGURATION.md`](docs/CONFIGURATION.md#filters).
 
 ## TUI usage
 

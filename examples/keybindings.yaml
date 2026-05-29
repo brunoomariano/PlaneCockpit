@@ -1,5 +1,7 @@
 # ~/.config/plane-cli/keybindings.yaml
 #
+# Configuration reference (config.yaml, profiles, views): docs/CONFIGURATION.md
+#
 # Each entry maps an action id to a key spec. Action ids are stable strings;
 # the full list is shown inside the TUI when you press `?`.
 #
