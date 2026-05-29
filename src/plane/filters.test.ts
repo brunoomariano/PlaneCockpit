@@ -26,4 +26,16 @@ describe("normalizeFilters", () => {
     const b = filtersFingerprint({ priority: ["high"] });
     expect(a).not.toBe(b);
   });
+
+  it("distinguishes views by state_search so they do not collide in cache", () => {
+    const a = filtersFingerprint({ state_group: ["started"], state_search: ["In Review"] });
+    const b = filtersFingerprint({ state_group: ["started"], state_search: ["Blocked"] });
+    expect(a).not.toBe(b);
+  });
+
+  it("produces a stable fingerprint for equal state_search regardless of order", () => {
+    const a = filtersFingerprint({ state_search: ["In Review", "Blocked"] });
+    const b = filtersFingerprint({ state_search: ["Blocked", "In Review"] });
+    expect(a).toBe(b);
+  });
 });

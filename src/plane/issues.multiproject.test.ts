@@ -90,13 +90,22 @@ describe("multi-project aggregation", () => {
     expect(out.map((i) => i.key)).toEqual(["OPS-1", "ENG-1"]);
   });
 
-  it("should apply limit to the aggregated total, not per project", async () => {
-    const svc = makeService({
-      ENG: [issue("ENG-1", "ENG"), issue("ENG-2", "ENG")],
-      OPS: [issue("OPS-1", "OPS"), issue("OPS-2", "OPS")],
-    });
-    const out = await svc.list(["ENG", "OPS"], { name: "Cross", projects: ["ENG", "OPS"] }, 3);
-    expect(out).toHaveLength(3);
+  it("should forward queryLimit to each project's fetch", async () => {
+    const limits: (number | undefined)[] = [];
+    const projects = {
+      findByIdentifier: vi.fn(async (identifier: string) => project(identifier)),
+    } as unknown as ProjectsService;
+    const workItems = {
+      list: vi.fn(async ({ project: p, limit }: { project: Project; limit?: number }) => {
+        limits.push(limit);
+        return [issue(`${p.identifier}-1`, p.identifier)];
+      }),
+    } as unknown as WorkItemsService;
+    const svc = new IssuesService(projects, workItems);
+
+    await svc.list(["ENG", "OPS"], { name: "Cross", projects: ["ENG", "OPS"] }, 3);
+    // queryLimit caps the API fetch per project; it is not an aggregate slice.
+    expect(limits).toEqual([3, 3]);
   });
 
   it("should propagate the error when one project fetch fails", async () => {

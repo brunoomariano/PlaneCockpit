@@ -4,6 +4,11 @@ const priorityEnum = z.enum(["urgent", "high", "medium", "low", "none"]);
 const stateGroupEnum = z.enum(["backlog", "unstarted", "started", "completed", "cancelled"]);
 const sortEnum = z.enum(["priority", "updated_at", "created_at", "name"]);
 
+const projectStateSearchSchema = z.strictObject({
+  name: z.string().min(1),
+  state_search: z.array(z.string().min(1)),
+});
+
 const viewFiltersSchema = z.strictObject({
   assignee: z.union([z.string(), z.array(z.string())]).optional(),
   state_group: z.array(stateGroupEnum).optional(),
@@ -11,6 +16,10 @@ const viewFiltersSchema = z.strictObject({
   priority: z.array(priorityEnum).optional(),
   cycle: z.string().optional(),
   module: z.string().optional(),
+  // Client-side state-name refinement; combine by union. Allowed on
+  // multi-project views (unlike cycle/module) because matching is by name.
+  state_search: z.array(z.string().min(1)).optional(),
+  project_state_search: z.array(projectStateSearchSchema).optional(),
 });
 
 const viewSchema = z
@@ -21,7 +30,8 @@ const viewSchema = z
     projects: z.array(z.string().min(1)).optional(),
     filters: viewFiltersSchema.optional(),
     sort: sortEnum.optional(),
-    limit: z.number().int().positive().optional(),
+    // Caps the API fetch per project, not the client-side state_search refinement.
+    query_limit: z.number().int().positive().optional(),
   })
   // cycle and module identify a specific project, so they make no sense when the
   // view resolves to more than one project.

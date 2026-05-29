@@ -92,7 +92,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
         return;
       }
       logger.debug("loading view", { view: activeView.name, projects });
-      const data = await ctx.issues.list(projects, activeView, activeView.limit ?? 100);
+      const data = await ctx.issues.list(projects, activeView, activeView.query_limit ?? 100);
       setIssues(data);
       setSelected(0);
       logger.debug("view loaded", { view: activeView.name, count: data.length });

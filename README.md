@@ -166,7 +166,8 @@ with `projects` restricts to that subset, which must be contained in
 they may only be used on views that resolve to exactly one project.
 
 The full list of filters (`assignee`, `state_group`, `labels`, `priority`,
-`cycle`, `module`) and their accepted values is documented in
+`cycle`, `module`, plus client-side `state_search` / `project_state_search`) and
+their accepted values is documented in
 [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md#filters).
 
 ## TUI usage

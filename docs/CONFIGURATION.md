@@ -133,13 +133,13 @@ cache:
 A list of named views. Each view selects a set of issues across one or more
 projects.
 
-| Field      | Type                                                 | Required | Notes                                                     |
-| ---------- | ---------------------------------------------------- | -------- | --------------------------------------------------------- |
-| `name`     | non-empty string                                     | yes      | shown in the TUI navbar and used by `--view`              |
-| `projects` | list of strings                                      | no       | absent ⇒ inherits `defaults.projects`; present ⇒ a subset |
-| `filters`  | **Filters** (see below)                              | no       | narrows the issue set                                     |
-| `sort`     | `priority` \| `updated_at` \| `created_at` \| `name` | no       | server-side per project; merged set re-sorted client-side |
-| `limit`    | positive integer                                     | no       | max issues; applied to the aggregated total               |
+| Field         | Type                                                 | Required | Notes                                                                    |
+| ------------- | ---------------------------------------------------- | -------- | ------------------------------------------------------------------------ |
+| `name`        | non-empty string                                     | yes      | shown in the TUI navbar and used by `--view`                             |
+| `projects`    | list of strings                                      | no       | absent ⇒ inherits `defaults.projects`; present ⇒ a subset                |
+| `filters`     | **Filters** (see below)                              | no       | narrows the issue set                                                    |
+| `sort`        | `priority` \| `updated_at` \| `created_at` \| `name` | no       | server-side per project; merged set re-sorted client-side                |
+| `query_limit` | positive integer                                     | no       | caps the API fetch per project; does **not** cap state_search refinement |
 
 A view with `projects` must reference identifiers that exist in
 `defaults.projects`. In the CLI this is a hard error; in the TUI invalid
@@ -149,17 +149,32 @@ projects are ignored and the view is flagged with a red `*`.
 
 All filter fields are optional and combine with AND.
 
-| Filter        | Type            | Accepted values                                             |
-| ------------- | --------------- | ----------------------------------------------------------- |
-| `assignee`    | string or list  | user identifier(s); `me` for the current user               |
-| `state_group` | list            | `backlog`, `unstarted`, `started`, `completed`, `cancelled` |
-| `labels`      | list of strings | label names                                                 |
-| `priority`    | list            | `urgent`, `high`, `medium`, `low`, `none`                   |
-| `cycle`       | string          | cycle identifier — **single-project views only**            |
-| `module`      | string          | module identifier — **single-project views only**           |
+| Filter                 | Type                             | Accepted values                                             |
+| ---------------------- | -------------------------------- | ----------------------------------------------------------- |
+| `assignee`             | string or list                   | user identifier(s); `me` for the current user               |
+| `state_group`          | list                             | `backlog`, `unstarted`, `started`, `completed`, `cancelled` |
+| `labels`               | list of strings                  | label names                                                 |
+| `priority`             | list                             | `urgent`, `high`, `medium`, `low`, `none`                   |
+| `cycle`                | string                           | cycle identifier — **single-project views only**            |
+| `module`               | string                           | module identifier — **single-project views only**           |
+| `state_search`         | list of strings                  | state names matched by slug; refines all projects           |
+| `project_state_search` | list of `{ name, state_search }` | per-project state-name search                               |
 
 `cycle` and `module` identify a single project, so they are rejected on a view
 that resolves to more than one project.
+
+##### State search
+
+`state_search` and `project_state_search` refine results **client-side** by
+state name — the Plane API only filters by `state_group`, so these run over the
+issues already fetched. Names are matched by slug (lowercased, whitespace
+removed), so `"In Review"`, `"in review"`, and `"InReview"` are equivalent.
+
+They combine by **union**: an issue from a project listed in
+`project_state_search` is kept if its state matches the global `state_search`
+**or** that project's list. An issue from a project not listed falls back to the
+global list only (and passes through untouched if there is no global list).
+Unlike `cycle`/`module`, these are allowed on multi-project views.
 
 ```yaml
 views:
@@ -177,13 +192,17 @@ views:
       cycle: current
       state_group: [started]
 
-  # Multi-project view.
+  # Multi-project view with client-side state refinement.
   - name: "Critical bugs"
     projects: ["ENG", "OPS"]
     filters:
       labels: [bug]
       priority: [urgent, high]
-    limit: 50
+      state_search: ["In Review"] # applies to ENG and OPS
+      project_state_search:
+        - name: ENG
+          state_search: ["Blocked"] # ENG also keeps "Blocked"
+    query_limit: 50
 ```
 
 ## Validation

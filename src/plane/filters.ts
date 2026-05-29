@@ -8,6 +8,11 @@ export interface NormalizedFilters {
   priorities?: string[];
   cycle?: string;
   module?: string;
+  // state_search / project_state_search never become API query params (they are
+  // refined client-side), but they must be part of the cache fingerprint so two
+  // views differing only by state search do not share a cache entry.
+  state_search?: string[];
+  project_state_search?: { name: string; state_search: string[] }[];
 }
 
 function toArray(value: string | string[] | undefined): string[] | undefined {
@@ -27,6 +32,12 @@ export function normalizeFilters(filters: ViewFilters | undefined): NormalizedFi
   if (filters.priority?.length) out.priorities = [...filters.priority].sort();
   if (filters.cycle) out.cycle = filters.cycle;
   if (filters.module) out.module = filters.module;
+  if (filters.state_search?.length) out.state_search = [...filters.state_search].sort();
+  if (filters.project_state_search?.length) {
+    out.project_state_search = filters.project_state_search
+      .map((p) => ({ name: p.name, state_search: [...p.state_search].sort() }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
   return out;
 }
 
