@@ -13,8 +13,8 @@ export interface IssueListProps {
 }
 
 const PRIORITY_COLOR = {
-  urgent: "redBright",
-  high: "red",
+  urgent: "red",
+  high: "#ff8700", // orange (Ink maps hex to the nearest terminal color)
   medium: "yellow",
   low: "green",
   none: "gray",
