@@ -46,7 +46,7 @@ Respect the boundaries of existing modules. When a boundary does not yet exist, 
 - The Plane SDK must be isolated behind a thin adapter layer (e.g. `plane/work-items.ts`, `plane/issues.ts`, `plane/client.ts`). Commands must never depend directly on the SDK.
 - The domain must not depend directly on the SDK, HTTP framework, cache driver, terminal renderer, or real clock.
 - Cache must be optional and pluggable behind a `CacheStore` interface, with at least `MemoryCacheStore`, `SqliteCacheStore`, `RedisCacheStore`, and `NoopCacheStore`. The CLI must work fully without Redis.
-- Configuration is YAML-first at `~/.config/plc/config.yaml` (and `~/.plc/config.yaml`), with environment variable overrides (`PLANE_BASE_URL`, `PLANE_WORKSPACE_SLUG`, `PLANE_API_KEY`, `PLANE_TIMEOUT_MS`, `PLANE_PROFILE`).
+- Configuration is YAML-first and read from a single path, `~/.config/plane-cli/config.yaml` (overridable with `--config`). Credentials live in `~/.config/plane-cli/hosts.yaml` (written by `plc auth login`). There are no environment variable overrides; everything comes from `config.yaml` or `hosts.yaml`.
 - Long-running flows, timers, cancellations, and concurrent flows must use `AbortController`/`AbortSignal` explicitly; do not rely on implicit cancellation.
 
 ## Code conventions

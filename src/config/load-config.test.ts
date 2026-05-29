@@ -9,8 +9,6 @@ profiles:
     server:
       base_url: https://plane.example.com
       workspace_slug: acme
-    auth:
-      api_key_env: PLANE_API_KEY
 `;
 
 describe("parseConfig", () => {
@@ -28,8 +26,6 @@ profiles:
     server:
       base_url: https://plane.example.com
       workspace_slug: acme
-    auth:
-      api_key_env: PLANE_API_KEY
 `;
     expect(() => parseConfig(bad)).toThrow(ConfigError);
   });
@@ -42,8 +38,6 @@ profiles:
     server:
       base_url: not-a-url
       workspace_slug: acme
-    auth:
-      api_key_env: PLANE_API_KEY
 `;
     expect(() => parseConfig(bad)).toThrow(ConfigError);
   });

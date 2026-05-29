@@ -29,21 +29,13 @@ there is no ambiguity about which file is loaded.
 `hosts.yaml` is read from `~/.config/plane-cli/hosts.yaml` (written by
 `plc auth login`).
 
+All configuration lives in these two files — there are **no environment variable
+overrides**. The only runtime selector is the `--profile` flag, which picks the
+active profile for a single invocation.
+
 > **Note:** the on-disk directory is `plane-cli` (not `plc`), kept for stability
 > while the binary rename settles. State and cache live elsewhere
 > (`~/.local/state/plane-cli/`, `~/.cache/plane-cli/`).
-
-## Environment variable overrides
-
-When present, these override the YAML of the active profile:
-
-| Variable               | Effect                                       |
-| ---------------------- | -------------------------------------------- |
-| `PLANE_PROFILE`        | selects the active profile                   |
-| `PLANE_BASE_URL`       | overrides `server.base_url`                  |
-| `PLANE_WORKSPACE_SLUG` | overrides `server.workspace_slug`            |
-| `PLANE_TIMEOUT_MS`     | overrides `server.timeout_ms`                |
-| `PLANE_API_KEY`        | overrides the resolved API key (CI-friendly) |
 
 ## Top-level structure
 
@@ -92,17 +84,15 @@ server:
 
 ### `auth` (optional)
 
-The recommended path is `plc auth login`, which writes to `hosts.yaml`. `auth`
-is a backwards-compatible fallback for driving the CLI purely from environment
-variables (e.g. CI).
+The recommended path is `plc auth login`, which writes the key to `hosts.yaml`.
+The only `auth` field is an inline key, for cases where a private config file
+holds the key directly.
 
-| Field         | Type   | Notes                                                  |
-| ------------- | ------ | ------------------------------------------------------ |
-| `api_key_env` | string | name of an env var holding the API key                 |
-| `api_key`     | string | the API key inline (avoid; prefer `hosts.yaml` or env) |
+| Field     | Type   | Notes                                                         |
+| --------- | ------ | ------------------------------------------------------------- |
+| `api_key` | string | the API key inline (prefer `hosts.yaml` via `plc auth login`) |
 
-API key resolution order: `PLANE_API_KEY` → `hosts.yaml` entry →
-`auth.api_key_env` → `auth.api_key`.
+API key resolution order: `auth.api_key` (inline) → `hosts.yaml` entry.
 
 ### `defaults` (optional)
 

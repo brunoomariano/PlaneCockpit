@@ -5,7 +5,6 @@ import YAML from "yaml";
 import { ConfigError } from "../utils/errors.js";
 import { planeConfigSchema } from "./schema.js";
 import type { PlaneConfig } from "../types/config.js";
-import { applyEnvOverrides } from "./env.js";
 import { DEFAULT_CONFIG_PATHS } from "./defaults.js";
 
 export function expandHome(p: string): string {
@@ -16,7 +15,6 @@ export function expandHome(p: string): string {
 
 export interface LoadConfigOptions {
   path?: string;
-  env?: NodeJS.ProcessEnv;
   searchPaths?: readonly string[];
 }
 
@@ -26,16 +24,14 @@ export interface LoadedConfig {
 }
 
 export async function loadConfig(opts: LoadConfigOptions = {}): Promise<LoadedConfig> {
-  const env = opts.env ?? process.env;
   const candidates = opts.path ? [opts.path] : (opts.searchPaths ?? DEFAULT_CONFIG_PATHS);
   let lastErr: unknown;
   for (const candidate of candidates) {
     const full = expandHome(candidate);
     try {
       const raw = await readFile(full, "utf8");
-      const parsed = parseConfig(raw);
-      const overridden = applyEnvOverrides(parsed, env as Parameters<typeof applyEnvOverrides>[1]);
-      return { config: overridden, sourcePath: full };
+      const config = parseConfig(raw);
+      return { config, sourcePath: full };
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === "ENOENT") {
         lastErr = err;

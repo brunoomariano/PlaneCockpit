@@ -9,7 +9,6 @@ export interface ServerConfig {
 }
 
 export interface AuthConfig {
-  api_key_env?: string;
   api_key?: string;
 }
 

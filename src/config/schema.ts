@@ -55,11 +55,10 @@ const serverSchema = z.strictObject({
     .optional(),
 });
 
-// auth is optional: the recommended path is `plane auth login`, which writes to a
-// separate hosts.yaml. api_key_env stays as a backwards-compatible fallback for users
-// who prefer to drive the CLI purely from environment variables (CI).
+// auth is optional: the recommended path is `plc auth login`, which writes the
+// key to a separate hosts.yaml. api_key can be set inline for cases where a
+// committed-but-private config file holds the key directly.
 const authSchema = z.strictObject({
-  api_key_env: z.string().min(1).optional(),
   api_key: z.string().min(1).optional(),
 });
 

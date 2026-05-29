@@ -16,7 +16,7 @@ program
   .description("CLI and TUI for Plane (Cloud and self-hosted)")
   .version(VERSION)
   .enablePositionalOptions()
-  .option("--profile <name>", "profile to use (overrides PLANE_PROFILE and active_profile)")
+  .option("--profile <name>", "profile to use (overrides active_profile from config)")
   .option("--config <path>", "path to a config file (overrides default search)")
   .option("--no-cache", "disable cache for this invocation")
   .option("--debug", "enable debug output");

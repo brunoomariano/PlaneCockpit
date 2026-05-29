@@ -29,11 +29,12 @@ End users do not need `mise`; the published artifact is a plain Node binary.
    plc auth login
    ```
 
-   The API key is prompted (masked) and stored at `~/.config/plc/hosts.yaml`
+   The API key is prompted (masked) and stored at `~/.config/plane-cli/hosts.yaml`
    with `0600` permissions — separate from `config.yaml` so the latter can live in
    version control.
 
-   For non-interactive use (CI), set `PLANE_API_KEY` instead.
+   For a config file that carries the key directly, set `auth.api_key` under the
+   profile instead.
 
 3. Run:
 
@@ -66,23 +67,15 @@ which overrides it):
 
 `hosts.yaml` is always read from `~/.config/plane-cli/hosts.yaml`.
 
-Environment variables override the YAML when present:
-
-| Variable               | Effect                                            |
-| ---------------------- | ------------------------------------------------- |
-| `PLANE_BASE_URL`       | overrides `server.base_url` of the active profile |
-| `PLANE_WORKSPACE_SLUG` | overrides `server.workspace_slug`                 |
-| `PLANE_API_KEY`        | overrides the resolved API key (CI-friendly)      |
-| `PLANE_TIMEOUT_MS`     | overrides `server.timeout_ms`                     |
-| `PLANE_PROFILE`        | selects the active profile                        |
+All configuration lives in these two files — there are no environment variable
+overrides. The active profile can be selected per invocation with `--profile`.
 
 ### API key resolution
 
 In priority order:
 
-1. `PLANE_API_KEY` env var.
-2. Entry in `~/.config/plc/hosts.yaml` (written by `plc auth login`).
-3. Env var named by `profile.auth.api_key_env` (legacy fallback; `auth` is optional).
+1. `auth.api_key` inline in `config.yaml`.
+2. Entry in `~/.config/plane-cli/hosts.yaml` (written by `plc auth login`).
 
 `plc auth logout` removes the stored entry for the active profile.
 
@@ -272,8 +265,8 @@ Run `make help` for the full list.
 
 ## Troubleshooting
 
-- **`api key not found`** — run `plc auth login` for the active profile, or export
-  `PLANE_API_KEY` for non-interactive use.
+- **`api key not found`** — run `plc auth login` for the active profile, or set
+  `auth.api_key` inline under the profile.
 - **`config validation failed`** — run `plc config validate` to see the offending path
   reported by `zod`.
 - **TLS errors against self-hosted** — set `server.tls.reject_unauthorized: false` only

@@ -8,11 +8,9 @@ const cfg: PlaneConfig = {
   profiles: {
     production: {
       server: { base_url: "https://plane.example.com", workspace_slug: "acme" },
-      auth: { api_key_env: "PLANE_API_KEY" },
     },
     staging: {
       server: { base_url: "https://staging.example.com", workspace_slug: "acme-stg" },
-      auth: { api_key_env: "PLANE_STAGING_API_KEY" },
     },
   },
 };

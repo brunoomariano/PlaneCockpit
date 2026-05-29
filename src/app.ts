@@ -55,10 +55,7 @@ export async function buildContext(flags: GlobalFlags): Promise<AppContext> {
   const credentials = new CredentialsStore();
   const apiKey = await resolveApiKey({ profileName: name, profile, credentials });
   if (!apiKey) {
-    const hint = profile.auth?.api_key_env
-      ? ` (try \`plane auth login\` or set $${profile.auth.api_key_env})`
-      : " (try `plane auth login`)";
-    throw new AuthError(`api key not found for profile ${name}${hint}`);
+    throw new AuthError(`api key not found for profile ${name} (try \`plc auth login\`)`);
   }
   const logger = createLogger({ debug: flags.debug, pretty: process.stdout.isTTY });
   const fileLogger = new FileLogger({

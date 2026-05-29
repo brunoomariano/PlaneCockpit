@@ -57,7 +57,5 @@ profiles:
     server:
       base_url: https://plane-staging.company.com
       workspace_slug: acme-staging
-    # Legacy fallback: read the api key from a custom env var instead of hosts.yaml.
-    # Useful for CI where you do not want to bake `plane auth login` into the pipeline.
-    auth:
-      api_key_env: PLANE_STAGING_API_KEY
+    # Authenticate with `plc auth login` (writes to hosts.yaml). For a config file
+    # that holds the key directly, set `auth.api_key` here instead.
