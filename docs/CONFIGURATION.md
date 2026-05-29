@@ -19,19 +19,19 @@ after `gh`:
 
 ### Search paths
 
-`config.yaml` is resolved in this order (first match wins):
+`config.yaml` is read from a single canonical location:
 
-1. `--config <path>` flag
-2. `~/.config/plane-cli/config.yaml`
-3. `~/.plane/config.yaml`
+`~/.config/plane-cli/config.yaml`
+
+The `--config <path>` flag overrides it. There is no secondary fallback path, so
+there is no ambiguity about which file is loaded.
 
 `hosts.yaml` is read from `~/.config/plane-cli/hosts.yaml` (written by
 `plc auth login`).
 
-> **Note:** the on-disk paths above still use the pre-rename `plane-cli` /
-> `.plane` directories (see `src/config/defaults.ts` and
-> `src/config/credentials.ts`). The product is now `plc`; aligning these paths
-> is tracked separately.
+> **Note:** the on-disk directory is `plane-cli` (not `plc`), kept for stability
+> while the binary rename settles. State and cache live elsewhere
+> (`~/.local/state/plane-cli/`, `~/.cache/plane-cli/`).
 
 ## Environment variable overrides
 

@@ -20,7 +20,7 @@ End users do not need `mise`; the published artifact is a plain Node binary.
 
 ## Quick start
 
-1. Drop a config file at `~/.config/plc/config.yaml` (or `~/.plc/config.yaml`).
+1. Drop a config file at `~/.config/plane-cli/config.yaml`.
    See [`examples/config.yaml`](examples/config.yaml). This file is safe to commit.
 
 2. Authenticate:
@@ -59,13 +59,12 @@ startup with the offending path.
 For the complete list of options — server, auth, defaults, cache, and every view
 filter and its accepted values — see [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md).
 
-Search order for `config.yaml`:
+`config.yaml` is read from a single location (after the `--config <path>` flag,
+which overrides it):
 
-1. `--config <path>` flag
-2. `~/.config/plc/config.yaml`
-3. `~/.plc/config.yaml`
+`~/.config/plane-cli/config.yaml`
 
-`hosts.yaml` is always read from `~/.config/plc/hosts.yaml`.
+`hosts.yaml` is always read from `~/.config/plane-cli/hosts.yaml`.
 
 Environment variables override the YAML when present:
 
