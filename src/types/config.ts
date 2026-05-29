@@ -30,7 +30,9 @@ export interface CacheConfig {
 export interface ProfileConfig {
   server: ServerConfig;
   auth?: AuthConfig;
-  defaults?: { project?: string };
+  // projects is the profile's project universe. The TUI scans all of them by
+  // default; the CLI (plc issue list without --project) uses the first one.
+  defaults?: { projects?: string[] };
   cache?: CacheConfig;
   views?: ViewDefinition[];
 }

@@ -6,6 +6,7 @@ import type { ViewDefinition } from "../types/views.js";
 import type { ProjectsService } from "./projects.js";
 import type { WorkItemsService, CreateIssueParams, UpdateIssueParams } from "./work-items.js";
 import { IssueResolver } from "./resolver.js";
+import { sortIssues } from "./sort-issues.js";
 
 export class IssuesService {
   readonly resolver: IssueResolver;
@@ -17,9 +18,38 @@ export class IssuesService {
     this.resolver = new IssueResolver(projects, workItems);
   }
 
-  async list(projectIdentifier: string, view?: ViewDefinition, limit?: number): Promise<Issue[]> {
-    const project = await this.projects.findByIdentifier(projectIdentifier);
-    return this.workItems.list({ project, view, limit });
+  /**
+   * Lists issues from one or more projects as a single set.
+   *
+   * Each project is queried separately (the Plane API lists per project), and
+   * the result is merged, reordered client-side by the view's `sort`, and
+   * truncated by `limit` applied to the aggregated total. If any project fetch
+   * fails, the error propagates.
+   */
+  async list(
+    projectIdentifiers: string[],
+    view?: ViewDefinition,
+    limit?: number,
+  ): Promise<Issue[]> {
+    // Single-project: direct path, no extra sort/merge cost.
+    if (projectIdentifiers.length === 1) {
+      const project = await this.projects.findByIdentifier(projectIdentifiers[0]!);
+      return this.workItems.list({ project, view, limit });
+    }
+
+    // Multi-project: query each project in parallel. Promise.all rejects on the
+    // first error, propagating the partial failure instead of silently
+    // returning an incomplete set.
+    const perProject = await Promise.all(
+      projectIdentifiers.map(async (identifier) => {
+        const project = await this.projects.findByIdentifier(identifier);
+        // We do not pass limit here: the limit is on the aggregated total, not per project.
+        return this.workItems.list({ project, view });
+      }),
+    );
+
+    const merged = sortIssues(perProject.flat(), view?.sort);
+    return limit ? merged.slice(0, limit) : merged;
   }
 
   async view(issueKey: string): Promise<Issue> {

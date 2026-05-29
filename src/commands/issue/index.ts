@@ -3,6 +3,7 @@ import { input, select } from "@inquirer/prompts";
 import { withContext } from "../shared.js";
 import { renderAny, renderIssues } from "../../utils/formatting.js";
 import { findView } from "../../app.js";
+import { resolveViewProjects, firstDefaultProject } from "../../config/resolve-view-projects.js";
 import { buildIssueUrl } from "../../utils/urls.js";
 import { defaultBrowserOpener } from "../../utils/browser.js";
 import { NotFoundError } from "../../utils/errors.js";
@@ -15,7 +16,7 @@ export function registerIssue(program: Command): void {
     .description("list issues, optionally using a configured view")
     .option(
       "-p, --project <identifier>",
-      "project identifier (defaults to profile defaults.project)",
+      "project identifier (defaults to the first of profile defaults.projects)",
     )
     .option("-v, --view <name>", "use a named view from the active profile")
     .option("--limit <n>", "limit results")
@@ -30,13 +31,25 @@ export function registerIssue(program: Command): void {
         if (opts.view && !view) {
           throw new NotFoundError(`view not found in profile: ${opts.view}`);
         }
-        const projectId = opts.project ?? view?.project ?? ctx.runtime.profile.defaults?.project;
-        if (!projectId) {
-          throw new NotFoundError(
-            "project is required (pass --project or configure defaults.project)",
-          );
+        const defaultProjects = ctx.runtime.profile.defaults?.projects;
+        // --project forces a single project; a view defines its own set (which
+        // may be multi-project); with neither, the CLI uses the first default
+        // project.
+        let projects: string[];
+        if (opts.project) {
+          projects = [opts.project];
+        } else if (view) {
+          projects = resolveViewProjects(view, defaultProjects);
+        } else {
+          const fallback = firstDefaultProject(defaultProjects);
+          if (!fallback) {
+            throw new NotFoundError(
+              "project is required (pass --project or configure defaults.projects)",
+            );
+          }
+          projects = [fallback];
         }
-        const issues = await ctx.issues.list(projectId, view, limit ?? view?.limit);
+        const issues = await ctx.issues.list(projects, view, limit ?? view?.limit);
         process.stdout.write(renderIssues(issues, format));
         process.stdout.write("\n");
       });
@@ -78,7 +91,7 @@ export function registerIssue(program: Command): void {
     .option("-t, --title <title>", "issue title")
     .action(async function (this: Command, opts: { project?: string; title?: string }) {
       await withContext(this, { ...this.opts(), ...opts }, async ({ ctx, format }) => {
-        const project = opts.project ?? ctx.runtime.profile.defaults?.project;
+        const project = opts.project ?? firstDefaultProject(ctx.runtime.profile.defaults?.projects);
         if (!project) throw new NotFoundError("project is required (pass --project)");
         const title = opts.title ?? (await input({ message: "title" }));
         const description = await input({ message: "description (optional)" });

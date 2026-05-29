@@ -13,13 +13,35 @@ const viewFiltersSchema = z.strictObject({
   module: z.string().optional(),
 });
 
-const viewSchema = z.strictObject({
-  name: z.string().min(1),
-  project: z.string().min(1),
-  filters: viewFiltersSchema.optional(),
-  sort: sortEnum.optional(),
-  limit: z.number().int().positive().optional(),
-});
+const viewSchema = z
+  .strictObject({
+    name: z.string().min(1),
+    // Always a list of strings. Optional: when absent, the view inherits the
+    // profile universe (defaults.projects).
+    projects: z.array(z.string().min(1)).optional(),
+    filters: viewFiltersSchema.optional(),
+    sort: sortEnum.optional(),
+    limit: z.number().int().positive().optional(),
+  })
+  // cycle and module identify a specific project, so they make no sense when the
+  // view resolves to more than one project.
+  .superRefine((view, ctx) => {
+    if ((view.projects?.length ?? 0) <= 1) return;
+    if (view.filters?.cycle !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["filters", "cycle"],
+        message: "cycle cannot be used in a view with multiple projects (it is per-project)",
+      });
+    }
+    if (view.filters?.module !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["filters", "module"],
+        message: "module cannot be used in a view with multiple projects (it is per-project)",
+      });
+    }
+  });
 
 const serverSchema = z.strictObject({
   base_url: z.url(),
@@ -58,7 +80,8 @@ export const profileSchema = z.strictObject({
   auth: authSchema.optional(),
   defaults: z
     .strictObject({
-      project: z.string().optional(),
+      // The profile's project universe, always a list of strings.
+      projects: z.array(z.string().min(1)).optional(),
     })
     .optional(),
   cache: cacheSchema.optional(),
