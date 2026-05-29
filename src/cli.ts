@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { BINARY_NAME, VERSION } from "./meta.js";
 import { registerAuth } from "./commands/auth/index.js";
 import { registerProject } from "./commands/project/index.js";
 import { registerIssue } from "./commands/issue/index.js";
@@ -11,9 +12,9 @@ import { handleError } from "./commands/shared.js";
 const program = new Command();
 
 program
-  .name("plane")
+  .name(BINARY_NAME)
   .description("CLI and TUI for Plane (Cloud and self-hosted)")
-  .version("0.1.0-beta.1")
+  .version(VERSION)
   .enablePositionalOptions()
   .option("--profile <name>", "profile to use (overrides PLANE_PROFILE and active_profile)")
   .option("--config <path>", "path to a config file (overrides default search)")

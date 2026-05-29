@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Text } from "ink";
+import { PRODUCT_NAME, VERSION, AUTHOR_HANDLE } from "../meta.js";
 
 export interface StatusBarProps {
   profile: string;
@@ -26,6 +27,10 @@ export function StatusBar(props: StatusBarProps): React.ReactElement {
             <Text dimColor>{props.position}</Text>
           </>
         ) : null}
+      </Text>
+      <Text dimColor>
+        <Text bold>{PRODUCT_NAME}</Text>
+        {` v${VERSION} · by ${AUTHOR_HANDLE}`}
       </Text>
       <Text>
         {props.loading ? <Text color="yellow">loading… </Text> : null}
