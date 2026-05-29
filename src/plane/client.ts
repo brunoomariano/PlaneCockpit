@@ -5,7 +5,7 @@ import type { ServerConfig } from "../types/config.js";
 import { normalizeBaseUrl } from "../utils/urls.js";
 import { DEFAULT_TIMEOUT_MS } from "../config/defaults.js";
 
-export interface PlaneApiTraceEvent {
+interface PlaneApiTraceEvent {
   method: string;
   url: string;
   status?: number;
@@ -107,6 +107,10 @@ export class PlaneApiClient {
     const method = opts.method ?? "GET";
     let attempt = 0;
     return retry(
+      // The per-attempt flow (abort wiring, timeout, trace, status classification)
+      // is cohesive; splitting it would scatter the request lifecycle and hurt
+      // readability, so the complexity cap is waived here.
+      // eslint-disable-next-line complexity
       async () => {
         attempt += 1;
         // Per-attempt AbortController so the timeout resets on each retry and a
@@ -186,7 +190,12 @@ export class PlaneApiClient {
   }
 
   workspacePath(...segments: string[]): string {
-    return `/workspaces/${this.workspaceSlug}/${segments.join("/")}`;
+    // Encode each segment so an id containing "/", "?", "#" or "." cannot alter
+    // the URL structure (path traversal / parameter injection). The workspace
+    // slug comes from config; ids come from the API or validated CLI input, but
+    // encoding here is defense in depth regardless of source.
+    const parts = [this.workspaceSlug, ...segments].map((s) => encodeURIComponent(s));
+    return `/workspaces/${parts.join("/")}`;
   }
 }
 
