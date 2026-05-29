@@ -12,6 +12,7 @@ import { buildIssueUrl } from "../utils/urls.js";
 import { defaultBrowserOpener } from "../utils/browser.js";
 import type { FileLogger } from "../utils/file-logger.js";
 import { dispatch } from "../keybindings/dispatcher.js";
+import { resolveViewProjectsLenient, buildViewEntries } from "../config/resolve-view-projects.js";
 import type { ActionId } from "../keybindings/registry.js";
 
 export interface DashboardProps {
@@ -35,6 +36,13 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   }, [stdout]);
 
   const views = useMemo(() => ctx.runtime.profile.views ?? [], [ctx]);
+  const defaultProjects = useMemo(() => ctx.runtime.profile.defaults?.projects ?? [], [ctx]);
+  // Resolve each view once to feed the navbar markers: '#' when it restricts
+  // projects, '*' when it references projects outside defaults.projects.
+  const viewEntries = useMemo(
+    () => buildViewEntries(views, defaultProjects),
+    [views, defaultProjects],
+  );
   const [viewIdx, setViewIdx] = useState(0);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [selected, setSelected] = useState(0);
@@ -64,9 +72,27 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     // rather than stale rows from a different view.
     setIssues([]);
     setSelected(0);
-    logger.debug("loading view", { view: activeView.name, project: activeView.project });
     try {
-      const data = await ctx.issues.list(activeView.project, activeView, activeView.limit ?? 100);
+      // Lenient resolution: a view's invalid projects are ignored (and flagged
+      // in the navbar with '*') instead of crashing the dashboard.
+      const { projects, invalid } = resolveViewProjectsLenient(
+        activeView,
+        ctx.runtime.profile.defaults?.projects,
+      );
+      if (invalid.length > 0) {
+        logger.warn("view references projects outside defaults.projects (ignored)", {
+          view: activeView.name,
+          invalid,
+        });
+      }
+      if (projects.length === 0) {
+        // Every declared project is invalid: nothing to load. The navbar already
+        // shows the error marker; we keep the list empty.
+        logger.warn("view resolved to no valid projects", { view: activeView.name });
+        return;
+      }
+      logger.debug("loading view", { view: activeView.name, projects });
+      const data = await ctx.issues.list(projects, activeView, activeView.limit ?? 100);
       setIssues(data);
       setSelected(0);
       logger.debug("view loaded", { view: activeView.name, count: data.length });
@@ -291,7 +317,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   return (
     <Box flexDirection="column">
       <Box>
-        <ViewSelector views={views.map((v) => v.name)} active={viewIdx} />
+        <ViewSelector defaultProjects={defaultProjects} views={viewEntries} active={viewIdx} />
         <Box flexDirection="column" flexGrow={1}>
           <IssueList
             issues={filtered}
