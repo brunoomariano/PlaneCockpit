@@ -75,12 +75,12 @@ check: fmt-check lint typecheck test ## quick local check before commit
 # ----- local install (dogfooding) -----
 
 .PHONY: install-local
-install-local: build ## build and install `plane` globally from this checkout
+install-local: build ## build and install `plc` globally from this checkout
 	$(PNPM) add -g .
 
 .PHONY: uninstall-local
 uninstall-local: ## remove the global install of this checkout
-	$(PNPM) rm -g plane-cli
+	$(PNPM) rm -g plc-cli
 
 # ----- maintenance -----
 

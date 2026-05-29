@@ -1,11 +1,11 @@
 {
-  "name": "plane-cli",
+  "name": "plc-cli",
   "version": "0.1.0-beta.1",
   "description": "CLI and TUI for Plane (Cloud and self-hosted), inspired by gh and gh dash.",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "plane": "./dist/cli.js"
+    "plc": "./dist/cli.js"
   },
   "main": "./dist/cli.js",
   "files": [
