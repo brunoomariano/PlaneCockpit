@@ -1,10 +1,10 @@
 # AGENTS.md
 
-Guide for humans and LLM agents working in this repository.
+Guide for humans and LLM agents working in the **Plane Cockpit** repository.
 
 ## Functional source of truth
 
-- The documentation under `docs/` is the functional source of truth for the Plane CLI/TUI (`plane`) while the project is being built.
+- The documentation under `docs/` is the functional source of truth for Plane Cockpit (distributed as the `plc` CLI/TUI binary) while the project is being built.
 - Domain language, command surface, configuration shape, and architectural decisions must follow what is documented in `docs/`.
 - Transport details, payloads, and technical contracts that are not yet closed in the docs must not be invented as definitive. Record the decision or update the corresponding documentation first.
 - When code and documentation diverge, treat it as an inconsistency to resolve; do not silently change behavior.
@@ -13,7 +13,7 @@ Guide for humans and LLM agents working in this repository.
 
 The project should be organized around the following top-level areas:
 
-- `src/` — TypeScript source code for the `plane` CLI and TUI.
+- `src/` — TypeScript source code for the Plane Cockpit CLI and TUI (`plc` binary).
 - `infra/` — infrastructure, containers, automations, and operational support.
 - `docs/` — functional documentation, glossary, decisions, and technical plans.
 
@@ -45,7 +45,7 @@ Respect the boundaries of existing modules. When a boundary does not yet exist, 
 - The Plane SDK must be isolated behind a thin adapter layer (e.g. `plane/work-items.ts`, `plane/issues.ts`, `plane/client.ts`). Commands must never depend directly on the SDK.
 - The domain must not depend directly on the SDK, HTTP framework, cache driver, terminal renderer, or real clock.
 - Cache must be optional and pluggable behind a `CacheStore` interface, with at least `MemoryCacheStore`, `SqliteCacheStore`, `RedisCacheStore`, and `NoopCacheStore`. The CLI must work fully without Redis.
-- Configuration is YAML-first at `~/.config/plane-cli/config.yaml` (and `~/.plane/config.yaml`), with environment variable overrides (`PLANE_BASE_URL`, `PLANE_WORKSPACE_SLUG`, `PLANE_API_KEY`, `PLANE_TIMEOUT_MS`, `PLANE_PROFILE`).
+- Configuration is YAML-first at `~/.config/plc/config.yaml` (and `~/.plc/config.yaml`), with environment variable overrides (`PLANE_BASE_URL`, `PLANE_WORKSPACE_SLUG`, `PLANE_API_KEY`, `PLANE_TIMEOUT_MS`, `PLANE_PROFILE`).
 - Long-running flows, timers, cancellations, and concurrent flows must use `AbortController`/`AbortSignal` explicitly; do not rely on implicit cancellation.
 
 ## Code conventions

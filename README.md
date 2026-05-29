@@ -1,34 +1,35 @@
-# plane — CLI + TUI for Plane (Cloud and self-hosted)
+# Plane Cockpit — CLI + TUI for Plane (Cloud and self-hosted)
 
-`plane` is a terminal client for [Plane](https://plane.so), inspired by `gh` and `gh dash`.
+Plane Cockpit is a terminal client for [Plane](https://plane.so), inspired by `gh` and `gh dash`,
+distributed as a `plc` binary.
 It provides a fast CLI for daily operations on projects, issues (work items), and dashboards,
-plus a TUI (`plane dash`) for visual exploration. It supports both Plane Cloud and Plane
+plus a TUI (`plc dash`) for visual exploration. It supports both Plane Cloud and Plane
 self-hosted deployments behind reverse proxies, custom TLS, and custom headers.
 
 ## Install
 
-The published package exposes a `plane` binary:
+The published package exposes a `plc` binary:
 
 ```bash
-npm install -g plane-cli
+npm install -g plc-cli
 # or
-npx plane-cli --help
+npx plc-cli --help
 ```
 
 End users do not need `mise`; the published artifact is a plain Node binary.
 
 ## Quick start
 
-1. Drop a config file at `~/.config/plane-cli/config.yaml` (or `~/.plane/config.yaml`).
+1. Drop a config file at `~/.config/plc/config.yaml` (or `~/.plc/config.yaml`).
    See [`examples/config.yaml`](examples/config.yaml). This file is safe to commit.
 
 2. Authenticate:
 
    ```bash
-   plane auth login
+   plc auth login
    ```
 
-   The API key is prompted (masked) and stored at `~/.config/plane-cli/hosts.yaml`
+   The API key is prompted (masked) and stored at `~/.config/plc/hosts.yaml`
    with `0600` permissions — separate from `config.yaml` so the latter can live in
    version control.
 
@@ -37,15 +38,15 @@ End users do not need `mise`; the published artifact is a plain Node binary.
 3. Run:
 
    ```bash
-   plane auth status
-   plane project list
-   plane issue list --view "Current sprint"
-   plane dash
+   plc auth status
+   plc project list
+   plc issue list --view "Current sprint"
+   plc dash
    ```
 
 ## Configuration
 
-`plane` keeps two files apart, modeled after `gh`:
+Plane Cockpit keeps two files apart, modeled after `gh`:
 
 | File          | Purpose                                      | Safe to commit? |
 | ------------- | -------------------------------------------- | --------------- |
@@ -58,10 +59,10 @@ startup with the offending path.
 Search order for `config.yaml`:
 
 1. `--config <path>` flag
-2. `~/.config/plane-cli/config.yaml`
-3. `~/.plane/config.yaml`
+2. `~/.config/plc/config.yaml`
+3. `~/.plc/config.yaml`
 
-`hosts.yaml` is always read from `~/.config/plane-cli/hosts.yaml`.
+`hosts.yaml` is always read from `~/.config/plc/hosts.yaml`.
 
 Environment variables override the YAML when present:
 
@@ -78,10 +79,10 @@ Environment variables override the YAML when present:
 In priority order:
 
 1. `PLANE_API_KEY` env var.
-2. Entry in `~/.config/plane-cli/hosts.yaml` (written by `plane auth login`).
+2. Entry in `~/.config/plc/hosts.yaml` (written by `plc auth login`).
 3. Env var named by `profile.auth.api_key_env` (legacy fallback; `auth` is optional).
 
-`plane auth logout` removes the stored entry for the active profile.
+`plc auth logout` removes the stored entry for the active profile.
 
 ### Profiles
 
@@ -89,18 +90,18 @@ A single config can declare multiple environments (e.g. `production`, `staging`)
 Switch per invocation with `--profile`:
 
 ```bash
-plane --profile staging issue list
+plc --profile staging issue list
 ```
 
 Or persist a new active profile:
 
 ```bash
-plane profile use staging
+plc profile use staging
 ```
 
 ### Self-hosted
 
-`plane` normalizes trailing slashes, supports custom headers, configurable timeouts, and
+Plane Cockpit normalizes trailing slashes, supports custom headers, configurable timeouts, and
 relaxed TLS for self-hosted clusters behind a reverse proxy:
 
 ```yaml
@@ -119,7 +120,7 @@ server:
 The cache is optional and pluggable. Providers:
 
 - `memory` — in-process, the default.
-- `sqlite` — local persistent cache, file at `~/.cache/plane-cli/cache.sqlite` by default.
+- `sqlite` — local persistent cache, file at `~/.cache/plc/cache.sqlite` by default.
 - `redis` — shared cache (declare `cache.redis.url`).
 - `noop` — disables caching entirely.
 
@@ -129,9 +130,9 @@ The CLI works fully without Redis. To bypass cache for a single invocation, pass
 Common subcommands:
 
 ```bash
-plane cache status
-plane cache warm
-plane cache clear --prefix plane:acme:project
+plc cache status
+plc cache warm
+plc cache clear --prefix plc:acme:project
 ```
 
 ## Views
@@ -149,12 +150,12 @@ views:
 ```
 
 ```bash
-plane issue list --view "My open"
+plc issue list --view "My open"
 ```
 
 ## TUI usage
 
-`plane dash` opens a multi-panel dashboard.
+`plc dash` opens a multi-panel dashboard.
 
 ### Keybindings
 
@@ -188,7 +189,7 @@ blockquotes, strikethrough).
 
 ### Customizing keybindings
 
-Drop a `~/.config/plane-cli/keybindings.yaml` file. Each entry maps an action id
+Drop a `~/.config/plc/keybindings.yaml` file. Each entry maps an action id
 to a key spec. See [`examples/keybindings.yaml`](examples/keybindings.yaml).
 
 ```yaml
@@ -202,16 +203,16 @@ The `?` modal flags overridden bindings with a green `*`.
 
 ## Logs
 
-The TUI cannot print to stderr without corrupting the canvas, so `plane dash` writes
-JSON Lines to `$XDG_STATE_HOME/plane-cli/log.jsonl` (default
-`~/.local/state/plane-cli/log.jsonl`). Render errors caught by the React error boundary
+The TUI cannot print to stderr without corrupting the canvas, so `plc dash` writes
+JSON Lines to `$XDG_STATE_HOME/plc/log.jsonl` (default
+`~/.local/state/plc/log.jsonl`). Render errors caught by the React error boundary
 go to the same file. Rotated to `log.jsonl.1` at ~1 MB.
 
 ```bash
-plane log path        # print the log file path
-plane log tail -n 100 # last 100 entries
-plane log clear       # remove the file
-plane --debug dash    # raise log level to debug for the next run
+plc log path        # print the log file path
+plc log tail -n 100 # last 100 entries
+plc log clear       # remove the file
+plc --debug dash    # raise log level to debug for the next run
 ```
 
 CLI commands (everything other than `dash`) continue to log to stderr via `pino`.
@@ -248,13 +249,13 @@ Run `make help` for the full list.
 
 ## Troubleshooting
 
-- **`api key not found`** — run `plane auth login` for the active profile, or export
+- **`api key not found`** — run `plc auth login` for the active profile, or export
   `PLANE_API_KEY` for non-interactive use.
-- **`config validation failed`** — run `plane config validate` to see the offending path
+- **`config validation failed`** — run `plc config validate` to see the offending path
   reported by `zod`.
 - **TLS errors against self-hosted** — set `server.tls.reject_unauthorized: false` only
   if you intentionally use a private CA.
-- **Stale data** — re-run with `--no-cache` to bypass the cache, or `plane cache clear`.
+- **Stale data** — re-run with `--no-cache` to bypass the cache, or `plc cache clear`.
 
 ## Contributing
 
