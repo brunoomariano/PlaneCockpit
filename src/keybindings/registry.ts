@@ -38,6 +38,7 @@ export const ACTIONS = [
     defaultKey: "enter",
   },
   { id: "list.open-browser", context: "list", description: "open in browser", defaultKey: "o" },
+  { id: "list.comment", context: "list", description: "comment on issue", defaultKey: "c" },
   { id: "view.next", context: "view", description: "next configured view", defaultKey: "]" },
   { id: "view.prev", context: "view", description: "previous configured view", defaultKey: "[" },
   { id: "view.next-alt", context: "view", description: "next view (arrow)", defaultKey: "right" },
@@ -106,6 +107,7 @@ export const ACTIONS = [
     description: "open in browser",
     defaultKey: "o",
   },
+  { id: "detail.comment", context: "detail", description: "comment on issue", defaultKey: "c" },
   {
     id: "detail.close",
     context: "detail",

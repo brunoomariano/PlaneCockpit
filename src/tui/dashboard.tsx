@@ -8,6 +8,8 @@ import { IssueList } from "./issue-list.js";
 import { IssueDetail, DETAIL_CHROME_ROWS } from "./issue-detail.js";
 import { FilterBox } from "./filter-box.js";
 import { HelpModal } from "./help-modal.js";
+import { CommentEditor } from "./comment-editor.js";
+import { useCommentEditor } from "./use-comment-editor.js";
 import { buildIssueUrl } from "../utils/urls.js";
 import { defaultBrowserOpener } from "../utils/browser.js";
 import type { FileLogger } from "../utils/file-logger.js";
@@ -59,6 +61,62 @@ export function restoredSelection(keys: string[], previousKey: string | undefine
   return idx >= 0 ? idx : 0;
 }
 
+// renderOverlay wraps whichever full-screen overlay is active (comment editor,
+// help, or detail) in the shared column + status-bar chrome, or returns null when
+// none is active. Centralising the three branches here keeps the Dashboard
+// component's complexity low and the chrome identical across overlays.
+function renderOverlay(opts: {
+  content: React.ReactNode | undefined;
+  height: number;
+  alignTop: boolean;
+  padded: boolean;
+  statusBar: React.ReactNode;
+}): React.ReactElement | null {
+  if (!opts.content) return null;
+  return (
+    <Box flexDirection="column" height={opts.height}>
+      <Box
+        flexGrow={1}
+        justifyContent="center"
+        alignItems={opts.alignTop ? "flex-start" : "center"}
+        paddingX={opts.padded ? 2 : 0}
+        overflow="hidden"
+      >
+        {opts.content}
+      </Box>
+      {opts.statusBar}
+    </Box>
+  );
+}
+
+// renderCommentContent builds the comment editor node when an issue is selected.
+function renderCommentContent(
+  issue: Issue | undefined,
+  comments: { buffer: import("./text-buffer.js").TextBuffer; submitting: boolean },
+): React.ReactNode | undefined {
+  if (!issue) return undefined;
+  return (
+    <CommentEditor issueKey={issue.key} buffer={comments.buffer} submitting={comments.submitting} />
+  );
+}
+
+// overlayLoading picks the spinner flag for the active overlay's status bar.
+function overlayLoading(
+  submittingComment: boolean,
+  isDetail: boolean,
+  detailLoading: boolean,
+  loading: boolean,
+): boolean {
+  if (submittingComment) return true;
+  return isDetail ? detailLoading : loading;
+}
+
+// Dashboard wires together state, input routing and the per-mode views. Its
+// branch count is inherent to being the single interactive container (list,
+// detail, help, comment, filter); splitting it further would scatter the shared
+// state and hurt readability, so the complexity cap is waived here — the same
+// trade-off the request lifecycle in plane/client.ts makes.
+// eslint-disable-next-line complexity
 export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   const { exit } = useApp();
   const { stdout } = useStdout();
@@ -201,6 +259,22 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     selectedKeyRef.current = currentSummary?.key;
   }, [currentSummary]);
 
+  // The comment editor's state and key handling live in a hook; onSubmit posts
+  // the comment, reports the outcome, and refreshes the detail view.
+  const comments = useCommentEditor({
+    target: currentSummary,
+    onSubmit: async (issue, text) => {
+      try {
+        await ctx.issues.comment(issue.key, text);
+        setError(`commented on ${issue.key}`);
+        void load(true);
+      } catch (err) {
+        logger.error("comment failed", { issue: issue.key, err: err as Error });
+        setError((err as Error).message);
+      }
+    },
+  });
+
   // Fetch full issue (with description) only when the detail panel is visible.
   // The list endpoint omits description_*, so the body needs an extra retrieve.
   useEffect(() => {
@@ -288,6 +362,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     "list.bottom": () => setSelected(Math.max(0, filtered.length - 1)),
     "list.open-detail": () => setPanel("detail"),
     "list.open-browser": openSelectedInBrowser,
+    "list.comment": comments.open,
     "view.next": viewNext,
     "view.next-alt": viewNext,
     "view.prev": viewPrev,
@@ -326,6 +401,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
       "detail.top": () => setDetailScroll(0),
       "detail.bottom": () => setDetailScroll(Number.MAX_SAFE_INTEGER),
       "detail.open-browser": openSelectedInBrowser,
+      "detail.comment": comments.open,
       "global.help": () => setHelpOpen((open) => !open),
       "global.refresh": () => void load(true),
       "global.quit": () => setPanel("list"),
@@ -344,6 +420,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   };
 
   useInput((input, key) => {
+    if (comments.active) return comments.handleKey(input, key);
     if (helpOpen) return handleHelpKey(input, key);
     if (panel === "detail") return handleDetailKey(input, key);
     if (filtering) return handleFilterKey(input, key);
@@ -362,40 +439,35 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   };
   const listPosition = filtered.length > 0 ? `${selected + 1}/${filtered.length}` : undefined;
 
-  if (helpOpen) {
-    // Ink has no absolute positioning, so the modal effect is achieved by replacing
-    // the main content with a centered, bordered HelpModal that fills the terminal.
-    return (
-      <Box flexDirection="column" height={terminalRows}>
-        <Box flexGrow={1} justifyContent="center" alignItems="center">
-          <HelpModal bindings={ctx.keybindings} onClose={() => setHelpOpen(false)} />
-        </Box>
-        <StatusBar {...statusBarBase} loading={loading} position={listPosition} />
-      </Box>
-    );
-  }
-
-  if (panel === "detail") {
-    return (
-      <Box flexDirection="column" height={terminalRows}>
-        <Box flexGrow={1} justifyContent="center" alignItems="flex-start" overflow="hidden">
-          <IssueDetail
-            issue={current}
-            loading={detailLoading}
-            variant="modal"
-            scrollTop={detailScroll}
-            viewportRows={detailViewportRows}
-            height={detailModalHeight}
-          />
-        </Box>
-        <StatusBar
-          {...statusBarBase}
-          loading={detailLoading}
-          position={current ? listPosition : undefined}
-        />
-      </Box>
-    );
-  }
+  const isDetail = panel === "detail";
+  const overlayContent = comments.active ? (
+    renderCommentContent(currentSummary, comments)
+  ) : helpOpen ? (
+    <HelpModal bindings={ctx.keybindings} onClose={() => setHelpOpen(false)} />
+  ) : isDetail ? (
+    <IssueDetail
+      issue={current}
+      loading={detailLoading}
+      variant="modal"
+      scrollTop={detailScroll}
+      viewportRows={detailViewportRows}
+      height={detailModalHeight}
+    />
+  ) : undefined;
+  const overlay = renderOverlay({
+    content: overlayContent,
+    height: terminalRows,
+    alignTop: isDetail,
+    padded: comments.active,
+    statusBar: (
+      <StatusBar
+        {...statusBarBase}
+        loading={overlayLoading(comments.submitting, isDetail, detailLoading, loading)}
+        position={isDetail && !current ? undefined : listPosition}
+      />
+    ),
+  });
+  if (overlay) return overlay;
 
   return (
     <ListLayout
