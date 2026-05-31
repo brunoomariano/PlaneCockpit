@@ -110,7 +110,13 @@ Respect the boundaries of existing modules. When a boundary does not yet exist, 
 - The Makefile is the main control interface of the project.
 - Before assuming a target, consult the existing Makefile.
 - Targets should use direct names, without language-specific prefixes such as `ts_` or `node_`.
-- Main targets: `bootstrap`, `up`, `down`, `fmt`, `lint`, `build`, `test`, `test-cov`, `cov`, `ci`.
+- Main targets: `bootstrap`, `fmt`, `check`, `test`, `build`, `dev`, `run`, `ci`, `install`, `clean`. Run `make help` for the full list grouped by section.
+- Several targets take arguments instead of having a dedicated target each:
+  - `make fmt CHECK=1` verifies formatting without writing.
+  - `make test MODE=watch` (watch mode) and `make test MODE=cov` (coverage, min 95%).
+  - `make check` runs lint + typecheck + test; `make check KIND=lint|typecheck|audit|deadcode|quality` runs a single gate.
+  - `make clean DIST=1` also removes `node_modules`.
+  - `make dev ARGS="..."` and `make run ARGS="..."` forward arguments to the cli.
 - If an applicable check does not exist yet, state that in the delivery instead of inventing a command.
 
 ## Commits
