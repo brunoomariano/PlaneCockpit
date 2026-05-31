@@ -49,6 +49,16 @@ export function listViewportRows(opts: {
   return Math.max(3, opts.terminalRows - reserved);
 }
 
+// restoredSelection decides where the cursor lands after a fetch. On a refresh it
+// re-anchors on the previously selected issue key when it is still present; on a
+// view switch (no previousKey) or when the item is gone it falls back to the top.
+// Keeps the dashboard from jumping to row 0 on every refresh (gh-dash #735).
+export function restoredSelection(keys: string[], previousKey: string | undefined): number {
+  if (!previousKey) return 0;
+  const idx = keys.indexOf(previousKey);
+  return idx >= 0 ? idx : 0;
+}
+
 export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   const { exit } = useApp();
   const { stdout } = useStdout();
@@ -94,49 +104,71 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
 
   const activeView = views[viewIdx];
 
-  const load = useCallback(async () => {
-    if (!activeView) {
-      logger.warn("no active view to load (profile has no views configured)");
-      return;
-    }
-    setLoading(true);
-    setError(undefined);
-    // Clear the previous list so the user sees the skeleton appear immediately
-    // rather than stale rows from a different view.
-    setIssues([]);
-    setSelected(0);
-    try {
-      // Lenient resolution: a view's invalid projects are ignored (and flagged
-      // in the navbar with '*') instead of crashing the dashboard.
-      const { projects, invalid } = resolveViewProjectsLenient(
-        activeView,
-        ctx.runtime.profile.defaults?.projects,
-      );
-      if (invalid.length > 0) {
-        logger.warn("view references projects outside defaults.projects (ignored)", {
-          view: activeView.name,
-          invalid,
-        });
-      }
-      if (projects.length === 0) {
-        // Every declared project is invalid: nothing to load. The navbar already
-        // shows the error marker; we keep the list empty.
-        logger.warn("view resolved to no valid projects", { view: activeView.name });
+  // Tracks the key of the currently selected issue so a refresh can restore the
+  // selection on the same item instead of jumping back to the top (gh-dash #735).
+  const selectedKeyRef = React.useRef<string | undefined>(undefined);
+
+  const load = useCallback(
+    async (preserveSelection = false) => {
+      if (!activeView) {
+        logger.warn("no active view to load (profile has no views configured)");
         return;
       }
-      logger.debug("loading view", { view: activeView.name, projects });
-      const data = await ctx.issues.list(projects, activeView, activeView.query_limit ?? 100);
-      setIssues(data);
-      setSelected(0);
-      logger.debug("view loaded", { view: activeView.name, count: data.length });
-    } catch (err) {
-      const message = (err as Error).message;
-      setError(message);
-      logger.error("view load failed", { view: activeView.name, err: err as Error });
-    } finally {
-      setLoading(false);
-    }
-  }, [ctx, activeView, logger]);
+      setLoading(true);
+      setError(undefined);
+      // On a view switch, clear the list so the skeleton appears immediately and
+      // the cursor starts at the top. On a refresh of the same view, keep the
+      // rows and the cursor put while the new data loads.
+      const previousKey = preserveSelection ? selectedKeyRef.current : undefined;
+      if (!preserveSelection) {
+        setIssues([]);
+        setSelected(0);
+      }
+      try {
+        // Lenient resolution: a view's invalid projects are ignored (and flagged
+        // in the navbar with '*') instead of crashing the dashboard.
+        const { projects, invalid } = resolveViewProjectsLenient(
+          activeView,
+          ctx.runtime.profile.defaults?.projects,
+        );
+        if (invalid.length > 0) {
+          logger.warn("view references projects outside defaults.projects (ignored)", {
+            view: activeView.name,
+            invalid,
+          });
+        }
+        if (projects.length === 0) {
+          // Every declared project is invalid: nothing to load. The navbar already
+          // shows the error marker; we keep the list empty.
+          logger.warn("view resolved to no valid projects", { view: activeView.name });
+          if (preserveSelection) {
+            setIssues([]);
+            setSelected(0);
+          }
+          return;
+        }
+        logger.debug("loading view", { view: activeView.name, projects });
+        const data = await ctx.issues.list(projects, activeView, activeView.query_limit ?? 100);
+        setIssues(data);
+        // Restore the cursor onto the previously selected issue when refreshing;
+        // fall back to the top if it is gone or this was a view switch.
+        setSelected(
+          restoredSelection(
+            data.map((i) => i.key),
+            previousKey,
+          ),
+        );
+        logger.debug("view loaded", { view: activeView.name, count: data.length });
+      } catch (err) {
+        const message = (err as Error).message;
+        setError(message);
+        logger.error("view load failed", { view: activeView.name, err: err as Error });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [ctx, activeView, logger],
+  );
 
   useEffect(() => {
     load();
@@ -162,6 +194,12 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   }, [issues, filter]);
 
   const currentSummary = filtered[selected];
+
+  // Mirror the selected key into a ref so load(preserveSelection) can re-anchor
+  // the cursor after a refresh without depending on a stale closure.
+  useEffect(() => {
+    selectedKeyRef.current = currentSummary?.key;
+  }, [currentSummary]);
 
   // Fetch full issue (with description) only when the detail panel is visible.
   // The list endpoint omits description_*, so the body needs an extra retrieve.
@@ -238,7 +276,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
 
   const handlers: Partial<Record<ActionId, () => void>> = {
     "global.quit": () => exit(),
-    "global.refresh": () => void load(),
+    "global.refresh": () => void load(true),
     "global.help": () => setHelpOpen((open) => !open),
     "list.next": selectNext,
     "list.next-alt": selectNext,
@@ -289,7 +327,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
       "detail.bottom": () => setDetailScroll(Number.MAX_SAFE_INTEGER),
       "detail.open-browser": openSelectedInBrowser,
       "global.help": () => setHelpOpen((open) => !open),
-      "global.refresh": () => void load(),
+      "global.refresh": () => void load(true),
       "global.quit": () => setPanel("list"),
     };
     dispatch(ctx.keybindings, ["detail", "global"], detailHandlers, input, key);

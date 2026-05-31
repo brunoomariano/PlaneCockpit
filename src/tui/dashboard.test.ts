@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { isNarrowLayout, listViewportRows, NARROW_BREAKPOINT } from "./dashboard.js";
+import {
+  isNarrowLayout,
+  listViewportRows,
+  restoredSelection,
+  NARROW_BREAKPOINT,
+} from "./dashboard.js";
 
 describe("isNarrowLayout", () => {
   // Narrow stacks the views panel on top; wide keeps it as a left column.
@@ -32,5 +37,26 @@ describe("listViewportRows", () => {
 
   it("never drops below the 3-row floor on a tiny terminal", () => {
     expect(listViewportRows({ ...base, terminalRows: 5 })).toBe(3);
+  });
+});
+
+describe("restoredSelection", () => {
+  const keys = ["ENG-1", "ENG-2", "ENG-3"];
+
+  // A view switch passes no previous key, so the cursor starts at the top.
+  it("returns the top when there is no previous key", () => {
+    expect(restoredSelection(keys, undefined)).toBe(0);
+  });
+
+  // A refresh re-anchors the cursor on the same issue even if its index moved.
+  it("re-anchors on the previously selected key", () => {
+    expect(restoredSelection(keys, "ENG-3")).toBe(2);
+    expect(restoredSelection(["ENG-9", "ENG-3"], "ENG-3")).toBe(1);
+  });
+
+  // If the previously selected issue is gone after refresh, fall back to the top.
+  it("falls back to the top when the key disappeared", () => {
+    expect(restoredSelection(keys, "ENG-99")).toBe(0);
+    expect(restoredSelection([], "ENG-1")).toBe(0);
   });
 });
