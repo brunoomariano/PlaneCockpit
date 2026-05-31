@@ -3,7 +3,7 @@ import { Box, useApp, useInput, useStdout } from "ink";
 import type { Issue } from "../types/issue.js";
 import type { AppContext } from "../app.js";
 import { StatusBar } from "./status-bar.js";
-import { ViewSelector } from "./view-selector.js";
+import { ViewSelector, SIDE_PANEL_WIDTH } from "./view-selector.js";
 import { IssueList } from "./issue-list.js";
 import { IssueDetail, DETAIL_CHROME_ROWS } from "./issue-detail.js";
 import { FilterBox } from "./filter-box.js";
@@ -23,18 +23,50 @@ export interface DashboardProps {
 
 type Panel = "list" | "detail";
 
+// Below this width the fixed side panel (SIDE_PANEL_WIDTH) leaves too little room
+// for a readable issue table beside it, so the layout stacks the views panel on
+// top instead. Set above SIDE_PANEL_WIDTH + a usable table so the side-by-side
+// layout only stays while the list still has real space.
+export const NARROW_BREAKPOINT = 100;
+
+// isNarrowLayout decides whether the dashboard stacks the views panel on top
+// (true) or keeps it as a left column (false), based on terminal width.
+export function isNarrowLayout(columns: number): boolean {
+  return columns < NARROW_BREAKPOINT;
+}
+
+// listViewportRows computes how many issue rows fit, reserving space for the
+// status bar, list header/border, the optional filter box and "N more" hints,
+// and the stacked views panel in narrow layout (4 rows: 2 content + 2 border).
+// Floored at 3 so the list never collapses entirely on a tiny terminal.
+export function listViewportRows(opts: {
+  terminalRows: number;
+  filtering: boolean;
+  hasFilter: boolean;
+  narrow: boolean;
+}): number {
+  const reserved = 9 + (opts.filtering ? 3 : 0) + (opts.hasFilter ? 1 : 0) + (opts.narrow ? 4 : 0);
+  return Math.max(3, opts.terminalRows - reserved);
+}
+
 export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const [terminalRows, setTerminalRows] = useState(stdout?.rows ?? 24);
+  const [terminalCols, setTerminalCols] = useState(stdout?.columns ?? 80);
   useEffect(() => {
     if (!stdout) return;
-    const onResize = (): void => setTerminalRows(stdout.rows ?? 24);
+    const onResize = (): void => {
+      setTerminalRows(stdout.rows ?? 24);
+      setTerminalCols(stdout.columns ?? 80);
+    };
     stdout.on("resize", onResize);
     return () => {
       stdout.off("resize", onResize);
     };
   }, [stdout]);
+
+  const narrow = isNarrowLayout(terminalCols);
 
   const views = useMemo(() => ctx.runtime.profile.views ?? [], [ctx]);
   const defaultProjects = useMemo(() => ctx.runtime.profile.defaults?.projects ?? [], [ctx]);
@@ -168,10 +200,12 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     };
   }, [panel, currentSummary, ctx, logger]);
 
-  // Reserve rows for status bar (3), list header + border (4), optional filter box (3),
-  // and the "↑ N more" / "↓ N more" hints (2). Keep a floor so the list never disappears.
-  const reservedRows = 9 + (filtering ? 3 : 0) + (filter ? 1 : 0);
-  const viewportRows = Math.max(3, terminalRows - reservedRows);
+  const viewportRows = listViewportRows({
+    terminalRows,
+    filtering,
+    hasFilter: Boolean(filter),
+    narrow,
+  });
 
   // Detail modal viewport. The modal box itself is sized to fill the terminal
   // minus the status bar, and the description region inside it gets whatever is
@@ -326,21 +360,75 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   }
 
   return (
-    <Box flexDirection="column">
-      <Box>
-        <ViewSelector defaultProjects={defaultProjects} views={viewEntries} active={viewIdx} />
-        <Box flexDirection="column" flexGrow={1}>
+    <ListLayout
+      narrow={narrow}
+      height={terminalRows}
+      width={terminalCols}
+      defaultProjects={defaultProjects}
+      viewEntries={viewEntries}
+      viewIdx={viewIdx}
+      issues={filtered}
+      selected={selected}
+      filter={filter}
+      filtering={filtering}
+      viewportRows={viewportRows}
+      loading={loading}
+      statusBar={<StatusBar {...statusBarBase} loading={loading} position={listPosition} />}
+    />
+  );
+}
+
+interface ListLayoutProps {
+  narrow: boolean;
+  // height bounds the whole layout to the terminal so content taller than the
+  // screen clips inside the (scrollable) list region instead of pushing the
+  // views bar and column header off the top of the terminal.
+  height: number;
+  // width (terminal columns) drives the responsive issue-list column widths.
+  width: number;
+  defaultProjects: string[];
+  viewEntries: ReturnType<typeof buildViewEntries>;
+  viewIdx: number;
+  issues: Issue[];
+  selected: number;
+  filter: string;
+  filtering: boolean;
+  viewportRows: number;
+  loading: boolean;
+  statusBar: React.ReactNode;
+}
+
+// ListLayout arranges the views panel and the issue list. Wide terminals place
+// the views panel as a left column; narrow ones stack it on top (controlled by
+// `narrow`). The container is pinned to the terminal height with overflow hidden
+// so the fixed views bar / column header never scroll out of view.
+function ListLayout(props: ListLayoutProps): React.ReactElement {
+  return (
+    <Box flexDirection="column" height={props.height} overflow="hidden">
+      {/* Wide: views panel beside the list (row). Narrow: stacked on top (column). */}
+      <Box flexDirection={props.narrow ? "column" : "row"} flexGrow={1} overflow="hidden">
+        <ViewSelector
+          defaultProjects={props.defaultProjects}
+          views={props.viewEntries}
+          active={props.viewIdx}
+          horizontal={props.narrow}
+        />
+        <Box flexDirection="column" flexGrow={1} overflow="hidden">
           <IssueList
-            issues={filtered}
-            selected={selected}
-            filter={filter}
-            viewportRows={viewportRows}
-            loading={loading}
+            issues={props.issues}
+            selected={props.selected}
+            filter={props.filter}
+            viewportRows={props.viewportRows}
+            // Wide layout: the side panel takes SIDE_PANEL_WIDTH columns, so the
+            // list only has the remainder. Narrow layout: panel is on top, list
+            // gets the full width.
+            width={props.narrow ? props.width : props.width - SIDE_PANEL_WIDTH}
+            loading={props.loading}
           />
-          <FilterBox active={filtering} value={filter} />
+          <FilterBox active={props.filtering} value={props.filter} />
         </Box>
       </Box>
-      <StatusBar {...statusBarBase} loading={loading} position={listPosition} />
+      {props.statusBar}
     </Box>
   );
 }
