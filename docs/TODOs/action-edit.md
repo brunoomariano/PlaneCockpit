@@ -12,9 +12,8 @@ because the domain functions already exist:
 - `ctx.issues.assign(key, [userId])`
 - `ctx.users.resolveAssignee(spec)`
 
-This item covers only those three transitions. Commenting and creation are
-separate items ([action-comment.md](action-comment.md),
-[action-create-from-file.md](action-create-from-file.md)).
+This item covers only those three transitions. Commenting and headless creation
+already shipped (see the index in [README.md](README.md)).
 
 ## Design
 

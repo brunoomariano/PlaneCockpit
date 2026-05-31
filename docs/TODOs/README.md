@@ -16,10 +16,20 @@ item lands.
 | :----------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------- |
 | [declarative-column-layout.md](declarative-column-layout.md) | Make the issue-list columns (`width` / `grow` / `align` / `hidden`) configurable per view instead of hardcoded. |
 | [action-edit.md](action-edit.md)                             | TUI/CLI action to edit an issue's **state**, **assignee** and **priority**.                                     |
-| [action-comment.md](action-comment.md)                       | TUI/CLI action to **comment** on an issue.                                                                      |
-| [action-create-from-file.md](action-create-from-file.md)     | Create an issue with the **body read from a file** (or stdin), for agent/MCP-driven flows.                      |
-| [json-schema-from-zod.md](json-schema-from-zod.md)           | Publish a JSON Schema generated from the Zod config schema, with editor-autocomplete docs.                      |
 | [themes.md](themes.md)                                       | Themeable colors with built-in presets (catppuccin, gruvbox, tokyonight, …).                                    |
+
+## Done
+
+These shipped; their planning docs were removed once implemented.
+
+- **Create from file/stdin** — `plc issue create` runs headless with `--body-file`
+  (and `-` for stdin) and `--priority`. See `src/commands/issue/index.ts`.
+- **Comment on an issue** — a multiline editor in the TUI (`c`) and `--body-file`
+  on `plc issue comment`. See `src/tui/comment-editor.tsx` and
+  `src/commands/issue/index.ts`.
+- **JSON Schema from Zod** — `schema/config.schema.json` generated from the config
+  schema with a CI drift gate; editor autocomplete documented in
+  [`docs/CONFIGURATION.md`](../CONFIGURATION.md#editor-autocomplete-json-schema).
 
 ## Explicitly out of scope (for now)
 
