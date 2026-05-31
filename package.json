@@ -18,7 +18,9 @@
   },
   "packageManager": "pnpm@11.4.0",
   "scripts": {
-    "build": "tsup",
+    "build": "pnpm run gen:schema && tsup",
+    "gen:schema": "tsx scripts/gen-schema.ts",
+    "schema:check": "tsx scripts/gen-schema.ts && git diff --exit-code -- schema/config.schema.json",
     "dev": "tsx src/cli.ts",
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check .",
@@ -31,7 +33,7 @@
     "deadcode": "knip --include files,dependencies",
     "deadcode:strict": "knip",
     "quality": "pnpm run lint && pnpm run deadcode:strict",
-    "ci": "pnpm run fmt:check && pnpm run lint && pnpm run typecheck && pnpm run test:cov && pnpm run deadcode && pnpm run audit && pnpm run build"
+    "ci": "pnpm run fmt:check && pnpm run lint && pnpm run typecheck && pnpm run test:cov && pnpm run deadcode && pnpm run audit && pnpm run schema:check && pnpm run build"
   },
   "dependencies": {
     "@inquirer/prompts": "^8.5.0",

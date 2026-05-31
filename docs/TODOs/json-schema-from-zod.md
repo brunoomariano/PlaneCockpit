@@ -1,5 +1,11 @@
 # Publish a JSON Schema generated from the Zod config schema
 
+> **Status: done.** `scripts/gen-schema.ts` emits `schema/config.schema.json`
+> from `planeConfigSchema` via `z.toJSONSchema`. Wired into `make build` /
+> `pnpm run build`, with a `schema:check` drift gate in CI and
+> `make check KIND=schema`. Editor-autocomplete setup is documented in
+> [`docs/CONFIGURATION.md`](../CONFIGURATION.md#editor-autocomplete-json-schema).
+
 ## Motivation
 
 The config is already schematised in `src/config/schema.ts` (Zod) and documented
@@ -61,12 +67,12 @@ exists. Until then, the local path works for `yaml-language-server`.
 
 ## Acceptance checklist
 
-- [ ] `scripts/gen-schema.ts` emits `schema/config.schema.json` from the Zod schema.
-- [ ] Schema generation runs in `make build` and the file is committed.
-- [ ] A CI gate fails when the committed schema is out of date.
-- [ ] `CONFIGURATION.md` documents the `yaml-language-server` directive and the
+- [x] `scripts/gen-schema.ts` emits `schema/config.schema.json` from the Zod schema.
+- [x] Schema generation runs in `make build` and the file is committed.
+- [x] A CI gate fails when the committed schema is out of date.
+- [x] `CONFIGURATION.md` documents the `yaml-language-server` directive and the
       VS Code `yaml.schemas` mapping.
-- [ ] Enums (priority, state_group, cache provider, …) and required fields appear
+- [x] Enums (priority, state_group, cache provider, …) and required fields appear
       correctly in the generated schema (spot-checked with a deliberately invalid
       config in an editor).
 

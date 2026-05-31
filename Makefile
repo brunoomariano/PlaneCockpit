@@ -24,7 +24,7 @@ else
 endif
 
 .PHONY: check
-check: ## quality gates (KIND=lint|typecheck|audit|deadcode|quality; default runs lint+typecheck+test)
+check: ## quality gates (KIND=lint|typecheck|audit|deadcode|quality|schema; default runs lint+typecheck+test)
 ifeq ($(KIND),lint)
 	$(PNPM) run lint
 else ifeq ($(KIND),typecheck)
@@ -35,6 +35,8 @@ else ifeq ($(KIND),deadcode)
 	$(PNPM) run deadcode
 else ifeq ($(KIND),quality)
 	$(PNPM) run quality
+else ifeq ($(KIND),schema)
+	$(PNPM) run schema:check
 else
 	$(PNPM) run lint
 	$(PNPM) run typecheck
