@@ -5,6 +5,7 @@ import { loadConfig } from "../../config/load-config.js";
 import { selectProfile } from "../../config/profiles.js";
 import { CredentialsStore, hostKey } from "../../config/credentials.js";
 import { AuthError } from "../../utils/errors.js";
+import { readAllStdin } from "../../utils/input-source.js";
 
 export function registerAuth(program: Command): void {
   const auth = program.command("auth").description("manage authentication against Plane");
@@ -57,10 +58,4 @@ export function registerAuth(program: Command): void {
 
 async function promptForToken(): Promise<string> {
   return password({ message: "Plane API key", mask: "*" });
-}
-
-async function readAllStdin(): Promise<string> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
-  return Buffer.concat(chunks).toString("utf8").trim();
 }

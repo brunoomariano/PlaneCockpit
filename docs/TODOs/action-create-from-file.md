@@ -1,5 +1,10 @@
 # Action: create an issue with the body from a file
 
+> **Status: done** (CLI). Implemented in `plc issue create`
+> (`src/commands/issue/index.ts`) with `--body-file`/`--priority` and a shared
+> stdin reader in `src/utils/input-source.ts`. The TUI create action is still
+> future work; see [action-edit.md](action-edit.md) for the modal pattern.
+
 ## Motivation
 
 `plc issue create` today is **interactive only** — it prompts for title,
@@ -82,15 +87,15 @@ Resolution rules:
 
 ## Acceptance checklist
 
-- [ ] `--body-file <path>` reads the description from a file.
-- [ ] `--body-file -` reads the description from stdin.
-- [ ] With `--title` + project (+ optional `--priority`/`--body-file`), the
+- [x] `--body-file <path>` reads the description from a file.
+- [x] `--body-file -` reads the description from stdin.
+- [x] With `--title` + project (+ optional `--priority`/`--body-file`), the
       command runs **without any prompt**.
-- [ ] Missing required field + non-TTY stdin → clear error, not a hung prompt.
-- [ ] `readAllStdin` is shared between `auth login` and `issue create` (no dup).
-- [ ] fs/stdin read errors are wrapped with operational context.
-- [ ] `--json` output prints the created issue (key + url) for the caller.
-- [ ] Tests: file body, stdin body, headless path, empty-title rejection,
+- [x] Missing required field + non-TTY stdin → clear error, not a hung prompt.
+- [x] `readAllStdin` is shared between `auth login` and `issue create` (no dup).
+- [x] fs/stdin read errors are wrapped with operational context.
+- [x] `--json` output prints the created issue (key + url) for the caller.
+- [x] Tests: file body, stdin body, headless path, empty-title rejection,
       shared stdin reader.
 
 ## References

@@ -6,7 +6,9 @@ import { findView } from "../../app.js";
 import { resolveViewProjects, firstDefaultProject } from "../../config/resolve-view-projects.js";
 import { buildIssueUrl } from "../../utils/urls.js";
 import { defaultBrowserOpener } from "../../utils/browser.js";
-import { NotFoundError } from "../../utils/errors.js";
+import { NotFoundError, ConfigError } from "../../utils/errors.js";
+import { readBodyFile } from "../../utils/input-source.js";
+import type { IssuePriority } from "../../types/issue.js";
 
 export function registerIssue(program: Command): void {
   const issue = program.command("issue").description("manage issues / work items");
@@ -86,31 +88,17 @@ export function registerIssue(program: Command): void {
 
   issue
     .command("create")
-    .description("create a new issue interactively")
+    .description("create a new issue (interactive, or headless via flags / --body-file)")
     .option("-p, --project <identifier>", "project identifier")
     .option("-t, --title <title>", "issue title")
-    .action(async function (this: Command, opts: { project?: string; title?: string }) {
+    .option("--body-file <path>", "read the description from a file ('-' for stdin)")
+    .option("--priority <p>", "priority (urgent|high|medium|low|none)")
+    .action(async function (this: Command, opts: CreateOptions) {
       await withContext(this, { ...this.opts(), ...opts }, async ({ ctx, format }) => {
         const project = opts.project ?? firstDefaultProject(ctx.runtime.profile.defaults?.projects);
         if (!project) throw new NotFoundError("project is required (pass --project)");
-        const title = opts.title ?? (await input({ message: "title" }));
-        const description = await input({ message: "description (optional)" });
-        const priority = await select({
-          message: "priority",
-          choices: [
-            { value: "none" as const },
-            { value: "low" as const },
-            { value: "medium" as const },
-            { value: "high" as const },
-            { value: "urgent" as const },
-          ],
-          default: "medium",
-        });
-        const created = await ctx.issues.create(project, {
-          name: title,
-          description: description || undefined,
-          priority,
-        });
+        const fields = await resolveCreateFields(opts);
+        const created = await ctx.issues.create(project, fields);
         process.stdout.write(renderObject(created, format));
         process.stdout.write("\n");
       });
@@ -161,4 +149,58 @@ export function registerIssue(program: Command): void {
         process.stdout.write(`commented on ${key}\n`);
       });
     });
+}
+
+interface CreateOptions {
+  project?: string;
+  title?: string;
+  bodyFile?: string;
+  priority?: string;
+}
+
+interface CreateFields {
+  name: string;
+  description?: string;
+  priority?: IssuePriority;
+}
+
+const PRIORITIES: readonly IssuePriority[] = ["urgent", "high", "medium", "low", "none"];
+
+// parsePriority validates a --priority flag value against the known set, failing
+// with a clear message rather than passing an arbitrary string to the API.
+export function parsePriority(value: string): IssuePriority {
+  const match = PRIORITIES.find((p) => p === value);
+  if (!match) {
+    throw new ConfigError(`invalid priority: ${value}`, { expected: PRIORITIES });
+  }
+  return match;
+}
+
+// resolveCreateFields gathers the issue fields. When the title is provided it
+// runs headless (no prompts) so agents/MCP and scripts can drive it; otherwise,
+// and only on an interactive TTY, it falls back to prompting. --body-file (or
+// '-' for stdin) supplies the description without inlining markdown as an arg.
+export async function resolveCreateFields(opts: CreateOptions): Promise<CreateFields> {
+  const bodyFromFile = opts.bodyFile ? await readBodyFile(opts.bodyFile) : undefined;
+  const priority = opts.priority ? parsePriority(opts.priority) : undefined;
+
+  // Headless path: title present means do not prompt for anything.
+  if (opts.title) {
+    return { name: opts.title, description: bodyFromFile || undefined, priority };
+  }
+  // A missing title with no TTY cannot be prompted — fail clearly instead of hanging.
+  if (!process.stdin.isTTY) {
+    throw new ConfigError("title is required in non-interactive mode (pass --title)");
+  }
+
+  const title = await input({ message: "title" });
+  const description = bodyFromFile ?? (await input({ message: "description (optional)" }));
+  const resolvedPriority =
+    priority ??
+    (await select({
+      message: "priority",
+      choices: PRIORITIES.map((value) => ({ value })),
+      default: "medium" satisfies IssuePriority,
+    }));
+  return { name: title, description: description || undefined, priority: resolvedPriority };
 }
