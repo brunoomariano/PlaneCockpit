@@ -161,13 +161,13 @@ cache:
 A list of named views. Each view selects a set of issues across one or more
 projects.
 
-| Field         | Type                                                 | Required | Notes                                                                    |
-| ------------- | ---------------------------------------------------- | -------- | ------------------------------------------------------------------------ |
-| `name`        | non-empty string                                     | yes      | shown in the TUI navbar and used by `--view`                             |
-| `projects`    | list of strings                                      | no       | absent ⇒ inherits `defaults.projects`; present ⇒ a subset                |
-| `filters`     | **Filters** (see below)                              | no       | narrows the issue set                                                    |
-| `sort`        | `priority` \| `updated_at` \| `created_at` \| `name` | no       | server-side per project; merged set re-sorted client-side                |
-| `query_limit` | positive integer                                     | no       | caps the API fetch per project; does **not** cap state_search refinement |
+| Field         | Type                                                 | Required | Notes                                                                                                                             |
+| ------------- | ---------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | non-empty string                                     | yes      | shown in the TUI navbar and used by `--view`                                                                                      |
+| `projects`    | list of strings                                      | no       | absent ⇒ inherits `defaults.projects`; present ⇒ a subset                                                                         |
+| `filters`     | **Filters** (see below)                              | no       | narrows the issue set                                                                                                             |
+| `sort`        | `priority` \| `updated_at` \| `created_at` \| `name` | no       | server-side per project; merged set re-sorted client-side                                                                         |
+| `query_limit` | positive integer                                     | no       | caps the API fetch per project **and** the final aggregate result (after merge, refinement, and sort); refinement may leave fewer |
 
 A view with `projects` must reference identifiers that exist in
 `defaults.projects`. In the CLI this is a hard error; in the TUI invalid
@@ -177,16 +177,16 @@ projects are ignored and the view is flagged with a red `*`.
 
 All filter fields are optional and combine with AND.
 
-| Filter                 | Type                             | Accepted values                                             |
-| ---------------------- | -------------------------------- | ----------------------------------------------------------- |
-| `assignee`             | string or list                   | user identifier(s); `me` for the current user               |
-| `state_group`          | list                             | `backlog`, `unstarted`, `started`, `completed`, `cancelled` |
-| `labels`               | list of strings                  | label names                                                 |
-| `priority`             | list                             | `urgent`, `high`, `medium`, `low`, `none`                   |
-| `cycle`                | string                           | cycle identifier — **single-project views only**            |
-| `module`               | string                           | module identifier — **single-project views only**           |
-| `state_search`         | list of strings                  | state names matched by slug; refines all projects           |
-| `project_state_search` | list of `{ name, state_search }` | per-project state-name search                               |
+| Filter                 | Type                             | Accepted values                                                                                                                |
+| ---------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `assignee`             | string or list                   | user identifier(s) (display name, email, or id); `me` for the current user. Resolved to user id(s) and matched **client-side** |
+| `state_group`          | list                             | `backlog`, `unstarted`, `started`, `completed`, `cancelled`                                                                    |
+| `labels`               | list of strings                  | label names                                                                                                                    |
+| `priority`             | list                             | `urgent`, `high`, `medium`, `low`, `none`                                                                                      |
+| `cycle`                | string                           | cycle identifier — **single-project views only**                                                                               |
+| `module`               | string                           | module identifier — **single-project views only**                                                                              |
+| `state_search`         | list of strings                  | state names matched by slug; refines all projects                                                                              |
+| `project_state_search` | list of `{ name, state_search }` | per-project state-name search                                                                                                  |
 
 `cycle` and `module` identify a single project, so they are rejected on a view
 that resolves to more than one project.
@@ -203,6 +203,14 @@ They combine by **union**: an issue from a project listed in
 **or** that project's list. An issue from a project not listed falls back to the
 global list only (and passes through untouched if there is no global list).
 Unlike `cycle`/`module`, these are allowed on multi-project views.
+
+##### Assignee
+
+`assignee` is also applied **client-side**: each spec (`me`, a display name, an
+email, or a user id) is resolved to a user id and matched against each issue's
+assignees after the fetch. `me` resolves to the authenticated user. An issue is
+kept when any of its assignees matches, so issues with multiple assignees are
+included as long as one of them is in the filter.
 
 ```yaml
 views:
