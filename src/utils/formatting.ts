@@ -14,6 +14,11 @@ export function pickOutputFormat(flags: { json?: boolean; yaml?: boolean }): Out
 // for `none` keeps the column visually anchored when priority is missing.
 export const PRIORITY_COLUMN_WIDTH = 6;
 
+// Fixed width of the TITLE column so every row's title fills the same span up to
+// the ASSIGN column on the right, keeping the table edge aligned regardless of
+// how long individual titles are. The +2 accounts for cli-table3 cell padding.
+export const TITLE_COLUMN_WIDTH = 60;
+
 const PRIORITY_LABEL: Record<IssuePriority, string> = {
   urgent: "URGENT",
   high: "HIGH",
@@ -30,9 +35,12 @@ export function renderIssues(issues: Issue[], fmt: OutputFormat): string {
   if (fmt === "json") return JSON.stringify(issues, null, 2);
   if (fmt === "yaml") return YAML.stringify(issues);
   const table = new Table({
-    head: ["KEY", "PRIORITY", "STATE", "TITLE", "ASSIGNEES"],
+    head: ["KEY", "PRIORITY", "STATE", "TITLE", "ASSIGN"],
     style: { head: ["cyan"] },
-    colWidths: [null, PRIORITY_COLUMN_WIDTH + 4, null, null, null],
+    // TITLE is pinned to a fixed width so titles fill the span up to ASSIGN and
+    // the ASSIGN column lands at a consistent right edge across all rows. The +2
+    // mirrors cli-table3's per-cell padding so content gets the full width.
+    colWidths: [null, PRIORITY_COLUMN_WIDTH + 4, null, TITLE_COLUMN_WIDTH + 2, null],
     colAligns: ["left", "center", "left", "left", "left"],
   });
   for (const issue of issues) {
@@ -40,7 +48,7 @@ export function renderIssues(issues: Issue[], fmt: OutputFormat): string {
       issue.key,
       priorityLabel(issue.priority),
       issue.state.name,
-      truncate(issue.name, 60),
+      padRight(truncate(issue.name, TITLE_COLUMN_WIDTH), TITLE_COLUMN_WIDTH),
       issue.assignees.map((a) => a.display_name).join(", "),
     ]);
   }

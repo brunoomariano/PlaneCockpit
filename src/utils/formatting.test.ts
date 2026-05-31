@@ -75,6 +75,39 @@ describe("renderIssues", () => {
     expect(out).toContain("ENG-1");
     expect(out).toContain("Hello");
   });
+
+  it("labels the assignee column ASSIGN and lists assignee display names", () => {
+    const assigned: Issue = {
+      ...issue,
+      assignees: [
+        { id: "u1", display_name: "bruno" },
+        { id: "u2", display_name: "ana" },
+      ],
+    };
+    const out = renderIssues([assigned], "table");
+    expect(out).toContain("ASSIGN");
+    expect(out).toContain("bruno, ana");
+  });
+
+  // The title column is fixed-width so it fills the same span on every row up to
+  // the ASSIGN column. A short title must be padded so the separator before
+  // ASSIGN lands at the same offset as a long title would produce.
+  it("pads short titles to a fixed width so ASSIGN stays right-aligned", () => {
+    const short: Issue = { ...issue, name: "x", assignees: [{ id: "u", display_name: "bruno" }] };
+    const long: Issue = {
+      ...issue,
+      name: "a very long issue title that exceeds the fixed column width and gets truncated here",
+      assignees: [{ id: "u", display_name: "bruno" }],
+    };
+    const titleColumnEnd = (row: string): number => row.lastIndexOf("│ bruno");
+    const shortRow = renderIssues([short], "table")
+      .split("\n")
+      .find((l) => l.includes("ENG-1"))!;
+    const longRow = renderIssues([long], "table")
+      .split("\n")
+      .find((l) => l.includes("ENG-1"))!;
+    expect(titleColumnEnd(shortRow)).toBe(titleColumnEnd(longRow));
+  });
 });
 
 describe("renderAny", () => {
