@@ -22,11 +22,11 @@ Add three list/detail keybindings that open a small in-place picker over the
 current issue. Prefer behaviour-named actions over generic setters (per
 `AGENTS.md`): `assignIssue`, `setPriority`, `transitionState`.
 
-| Key | Action id          | Picker |
-| :-- | :----------------- | :----- |
-| `s` | `issue.set-state`  | select from the project's states (grouped: backlog/unstarted/started/completed/cancelled) |
-| `a` | `issue.assign`     | select a workspace member (or `me`); supports unassign |
-| `p` | `issue.set-priority` | select urgent / high / medium / low / none |
+| Key | Action id            | Picker                                                                                    |
+| :-- | :------------------- | :---------------------------------------------------------------------------------------- |
+| `s` | `issue.set-state`    | select from the project's states (grouped: backlog/unstarted/started/completed/cancelled) |
+| `a` | `issue.assign`       | select a workspace member (or `me`); supports unassign                                    |
+| `p` | `issue.set-priority` | select urgent / high / medium / low / none                                                |
 
 ### Picker UX
 

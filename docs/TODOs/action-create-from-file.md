@@ -12,7 +12,7 @@ description and priority. That blocks two important callers:
 
 1. **Agents / MCP servers.** The way MCP-style tooling creates rich content is to
    write the markdown body to a file (or pipe it on stdin) and hand the command a
-   *path*, rather than trying to pass a long, multi-line, markdown string as a
+   _path_, rather than trying to pass a long, multi-line, markdown string as a
    shell argument (which mangles newlines, quoting and code fences). This mirrors
    `gh issue create --body-file <file>` (with `-` meaning stdin) and the existing
    `plc auth login --with-token` stdin reader in this repo.
@@ -47,7 +47,7 @@ Key properties to preserve, because that is what makes it agent-safe:
   quotes and code fences survive intact.
 - **Fully non-interactive when title + project are supplied** — no prompt, so it
   works headless. Falls back to the interactive flow only when a required field
-  is missing *and* stdin is a TTY.
+  is missing _and_ stdin is a TTY.
 - **Deterministic output** — print the created issue in the requested format
   (`--json` already supported via `renderObject`), so the caller can capture the
   new key/URL.
@@ -56,12 +56,12 @@ Key properties to preserve, because that is what makes it agent-safe:
 
 Extend `plc issue create` (`src/commands/issue/index.ts`):
 
-| Flag | Meaning |
-| :--- | :------ |
-| `-p, --project <id>` | already exists |
-| `-t, --title <title>` | already exists |
-| `--body-file <path>` | read description from a file; `-` reads stdin |
-| `--priority <p>` | set priority non-interactively (urgent\|high\|medium\|low\|none) |
+| Flag                  | Meaning                                                          |
+| :-------------------- | :--------------------------------------------------------------- |
+| `-p, --project <id>`  | already exists                                                   |
+| `-t, --title <title>` | already exists                                                   |
+| `--body-file <path>`  | read description from a file; `-` reads stdin                    |
+| `--priority <p>`      | set priority non-interactively (urgent\|high\|medium\|low\|none) |
 
 Resolution rules:
 
@@ -83,7 +83,7 @@ Resolution rules:
 - Add `--body-file` / `--priority` to the `create` command; branch headless vs
   interactive on whether required fields are present and `process.stdin.isTTY`.
 - Keep `ctx.issues.create` unchanged — it already accepts `{ name, description,
-  priority }`.
+priority }`.
 
 ## Acceptance checklist
 

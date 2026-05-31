@@ -20,22 +20,22 @@ the CLI table and the TUI.
 Define a small palette of **roles**, and map roles → colors in a theme. Components
 reference roles, never literals.
 
-| Token | Used by (today) |
-| :---- | :-------------- |
-| `selection` | selected row (currently `cyan` + `inverse`) |
-| `accent` | active view, keys, position (`cyan`) |
-| `danger` | errors, urgent priority (`red`) |
-| `warning` | loading, medium priority (`yellow`) |
-| `success` | low priority (`green`) |
+| Token                                      | Used by (today)                                           |
+| :----------------------------------------- | :-------------------------------------------------------- |
+| `selection`                                | selected row (currently `cyan` + `inverse`)               |
+| `accent`                                   | active view, keys, position (`cyan`)                      |
+| `danger`                                   | errors, urgent priority (`red`)                           |
+| `warning`                                  | loading, medium priority (`yellow`)                       |
+| `success`                                  | low priority (`green`)                                    |
 | `priority.urgent\|high\|medium\|low\|none` | priority column (`red`/`#ff8700`/`yellow`/`green`/`gray`) |
-| `muted` | hints, dim text (`dimColor`) |
+| `muted`                                    | hints, dim text (`dimColor`)                              |
 
 ### Config surface
 
 ```yaml
 theme:
-  preset: catppuccin        # built-in preset, optional
-  colors:                   # optional overrides on top of the preset
+  preset: catppuccin # built-in preset, optional
+  colors: # optional overrides on top of the preset
     accent: "#89b4fa"
     priority:
       urgent: "#f38ba8"

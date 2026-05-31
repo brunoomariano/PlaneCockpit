@@ -23,23 +23,23 @@ views:
   - name: My open
     layout:
       priority: { align: center, width: 10 }
-      state:    { hidden: true }      # never show STATE in this view
-      title:    { grow: true }        # absorb leftover width (recommend exactly one)
-      assign:   { width: 20 }
+      state: { hidden: true } # never show STATE in this view
+      title: { grow: true } # absorb leftover width (recommend exactly one)
+      assign: { width: 20 }
 ```
 
 ### Per-column options (mirror gh-dash)
 
-| Option   | Type    | Default  | Meaning |
-| :------- | :------ | :------- | :------ |
-| `width`  | integer | per-col  | Fixed width in characters (monospace). Minimum 1. |
-| `grow`   | boolean | `title`  | Column expands to fill leftover space. Recommend exactly one per view. |
-| `align`  | enum    | `left`   | `left` \| `center` \| `right`. |
-| `hidden` | boolean | `false`  | Omit the column entirely. |
+| Option   | Type    | Default | Meaning                                                                |
+| :------- | :------ | :------ | :--------------------------------------------------------------------- |
+| `width`  | integer | per-col | Fixed width in characters (monospace). Minimum 1.                      |
+| `grow`   | boolean | `title` | Column expands to fill leftover space. Recommend exactly one per view. |
+| `align`  | enum    | `left`  | `left` \| `center` \| `right`.                                         |
+| `hidden` | boolean | `false` | Omit the column entirely.                                              |
 
 ### Responsive behaviour stays
 
-Config sets *intent*; the responsive solver still decides what fits. Order of
+Config sets _intent_; the responsive solver still decides what fits. Order of
 operations when the terminal is too narrow for all configured columns:
 
 1. Honour `hidden: true` (never rendered).
@@ -48,7 +48,7 @@ operations when the terminal is too narrow for all configured columns:
    columns in the documented order (STATE, then ASSIGN — see
    [action backlog rationale](README.md)), then collapse PRIORITY to its letter.
 
-So a user can *pin* or *hide* columns, but can't force an overflow that wraps
+So a user can _pin_ or _hide_ columns, but can't force an overflow that wraps
 rows — the solver still guarantees a readable title.
 
 ## Implementation sketch
