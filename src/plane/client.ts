@@ -137,23 +137,36 @@ export class PlaneApiClient {
           try {
             res = await this.fetchImpl(url, init);
           } catch (err) {
-            const message =
-              attemptController.signal.aborted && (err as Error).message?.includes("abort")
-                ? "timeout"
-                : (err as Error).message;
+            const aborted =
+              attemptController.signal.aborted && (err as Error).message?.includes("abort");
             this.onTrace?.({
               method,
               url,
               attempt,
               durationMs: Date.now() - started,
-              error: message,
+              error: aborted ? "timeout" : describeNetworkError(err),
             });
-            throw err;
+            if (aborted)
+              throw new ApiError(`timeout after ${this.timeoutMs}ms: ${url}`, undefined, {
+                url,
+                cause: describeNetworkError(err),
+              });
+            // `fetch failed` is opaque; surface the underlying cause (ENOTFOUND,
+            // ECONNREFUSED, CERT_*, …) plus the target URL so the operator can
+            // tell a wrong base_url / unreachable host / TLS problem apart.
+            throw new ApiError(
+              `cannot reach Plane: ${describeNetworkError(err)} (${url})`,
+              undefined,
+              { url, cause: (err as Error).message },
+            );
           }
           const durationMs = Date.now() - started;
           this.onTrace?.({ method, url, status: res.status, attempt, durationMs });
           if (res.status === 401 || res.status === 403) {
-            throw new AuthError(`unauthorized: ${res.status}`, { url });
+            throw new AuthError(
+              `Plane rejected the API key (HTTP ${res.status}) — re-run \`plc auth login\` or check the key has access to this workspace`,
+              { url, status: res.status },
+            );
           }
           if (res.status === 404) {
             throw new ApiError(`not found: ${url}`, 404);
@@ -197,6 +210,35 @@ export class PlaneApiClient {
     const parts = [this.workspaceSlug, ...segments].map((s) => encodeURIComponent(s));
     return `/workspaces/${parts.join("/")}`;
   }
+}
+
+// Maps the OS/TLS error codes undici surfaces on `err.cause.code` to an operator
+// hint. `%s` is replaced with the raw code so the hint stays greppable.
+const NETWORK_ERROR_HINTS: Record<string, string> = {
+  ENOTFOUND: "DNS lookup failed (%s) — check server.base_url",
+  EAI_AGAIN: "DNS lookup failed (%s) — check server.base_url",
+  ECONNREFUSED: "connection refused (%s) — server unreachable or wrong port",
+  ECONNRESET: "connection reset (%s)",
+  ETIMEDOUT: "connection timed out (%s)",
+  DEPTH_ZERO_SELF_SIGNED_CERT:
+    "TLS certificate error (%s) — set server.tls.reject_unauthorized: false for self-signed hosts",
+  SELF_SIGNED_CERT_IN_CHAIN:
+    "TLS certificate error (%s) — set server.tls.reject_unauthorized: false for self-signed hosts",
+  UNABLE_TO_VERIFY_LEAF_SIGNATURE:
+    "TLS certificate error (%s) — set server.tls.reject_unauthorized: false for self-signed hosts",
+  CERT_HAS_EXPIRED:
+    "TLS certificate error (%s) — set server.tls.reject_unauthorized: false for self-signed hosts",
+};
+
+// describeNetworkError turns Node's opaque "fetch failed" TypeError into a
+// human-readable cause. The real failure lives on `err.cause.code`; we map the
+// common ones to an operator hint and fall back to the raw code/message.
+function describeNetworkError(err: unknown): string {
+  const cause = (err as { cause?: { code?: string; message?: string } }).cause;
+  const code = cause?.code;
+  if (code && NETWORK_ERROR_HINTS[code]) return NETWORK_ERROR_HINTS[code].replace("%s", code);
+  if (code) return code;
+  return cause?.message ?? (err as Error).message ?? "unknown network error";
 }
 
 async function safeText(res: Response): Promise<string | undefined> {
