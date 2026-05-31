@@ -139,16 +139,32 @@ export function registerIssue(program: Command): void {
 
   issue
     .command("comment <key>")
-    .description("add a comment to an issue")
-    .option("-m, --message <text>", "comment text (otherwise prompts)")
-    .action(async function (this: Command, key: string, opts: { message?: string }) {
+    .description("add a comment to an issue (inline, from a file, or interactive)")
+    .option("-m, --message <text>", "comment text")
+    .option("--body-file <path>", "read the comment from a file ('-' for stdin)")
+    .action(async function (this: Command, key: string, opts: CommentOptions) {
       await withContext(this, { ...this.opts(), ...opts }, async ({ ctx }) => {
-        const text = opts.message ?? (await input({ message: "comment" }));
-        if (!text) throw new NotFoundError("empty comment");
+        const text = await resolveCommentBody(opts);
+        if (!text) throw new ConfigError("empty comment");
         await ctx.issues.comment(key, text);
         process.stdout.write(`commented on ${key}\n`);
       });
     });
+}
+
+interface CommentOptions {
+  message?: string;
+  bodyFile?: string;
+}
+
+// resolveCommentBody picks the comment text: --body-file (or '-' for stdin) wins,
+// then -m/--message, then an interactive prompt on a TTY. Headless callers that
+// supply neither and have no TTY get an empty string, which the caller rejects.
+export async function resolveCommentBody(opts: CommentOptions): Promise<string> {
+  if (opts.bodyFile) return readBodyFile(opts.bodyFile);
+  if (opts.message !== undefined) return opts.message;
+  if (!process.stdin.isTTY) return "";
+  return input({ message: "comment" });
 }
 
 interface CreateOptions {

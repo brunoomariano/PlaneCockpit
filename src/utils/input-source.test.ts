@@ -2,7 +2,21 @@ import { describe, it, expect, afterEach } from "vitest";
 import { writeFile, rm, mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { readBodyFile } from "./input-source.js";
+import { Readable } from "node:stream";
+import { readAllStdin, readBodyFile } from "./input-source.js";
+
+// withStdin swaps process.stdin for a readable built from `chunks` for the
+// duration of `fn`, so the stdin-reading paths can be exercised deterministically.
+async function withStdin<T>(chunks: string[], fn: () => Promise<T>): Promise<T> {
+  const original = Object.getOwnPropertyDescriptor(process, "stdin");
+  const fake = Readable.from(chunks.map((c) => Buffer.from(c, "utf8")));
+  Object.defineProperty(process, "stdin", { value: fake, configurable: true });
+  try {
+    return await fn();
+  } finally {
+    if (original) Object.defineProperty(process, "stdin", original);
+  }
+}
 
 const created: string[] = [];
 
@@ -32,5 +46,21 @@ describe("readBodyFile", () => {
     await expect(readBodyFile("/no/such/body.md")).rejects.toThrow(
       /readBodyFile: read \/no\/such\/body\.md:/,
     );
+  });
+
+  it("reads from stdin when the path is '-'", async () => {
+    const body = await withStdin(["from ", "stdin\n"], () => readBodyFile("-"));
+    expect(body).toBe("from stdin");
+  });
+});
+
+describe("readAllStdin", () => {
+  it("concatenates and trims all stdin chunks", async () => {
+    const out = await withStdin(["  a", "b", "c  \n"], () => readAllStdin());
+    expect(out).toBe("abc");
+  });
+
+  it("returns empty string for empty stdin", async () => {
+    expect(await withStdin([], () => readAllStdin())).toBe("");
   });
 });
