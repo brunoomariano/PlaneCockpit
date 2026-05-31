@@ -11,8 +11,13 @@ import { describe, it, expect, vi } from "vitest";
 import { IssuesService } from "./issues.js";
 import type { ProjectsService } from "./projects.js";
 import type { WorkItemsService } from "./work-items.js";
+import type { UsersService } from "./users.js";
 import type { Issue } from "../types/issue.js";
 import type { Project } from "../types/project.js";
+
+// IssuesService now resolves assignee specs through UsersService; these tests
+// use no assignee filter, so a stub whose resolveAssignee is never called suffices.
+const stubUsers = { resolveAssignee: vi.fn() } as unknown as UsersService;
 
 function project(identifier: string): Project {
   return { id: `id-${identifier}`, identifier, name: identifier, workspace_id: "ws" };
@@ -62,7 +67,7 @@ function makeService(byProject: Record<string, Issue[] | Error>): IssuesService 
     }),
   } as unknown as WorkItemsService;
 
-  return new IssuesService(projects, workItems);
+  return new IssuesService(projects, workItems, stubUsers);
 }
 
 describe("multi-project aggregation", () => {
@@ -101,11 +106,22 @@ describe("multi-project aggregation", () => {
         return [issue(`${p.identifier}-1`, p.identifier)];
       }),
     } as unknown as WorkItemsService;
-    const svc = new IssuesService(projects, workItems);
+    const svc = new IssuesService(projects, workItems, stubUsers);
 
     await svc.list(["ENG", "OPS"], { name: "Cross", projects: ["ENG", "OPS"] }, 3);
-    // queryLimit caps the API fetch per project; it is not an aggregate slice.
+    // queryLimit reaches each project's fetch (the per-project page cap).
     expect(limits).toEqual([3, 3]);
+  });
+
+  it("should cap the merged result by queryLimit across all projects", async () => {
+    // Each project returns 3 issues (6 total); queryLimit 4 must bound the
+    // aggregate, not just the per-project fetch.
+    const svc = makeService({
+      ENG: [issue("ENG-1", "ENG"), issue("ENG-2", "ENG"), issue("ENG-3", "ENG")],
+      OPS: [issue("OPS-1", "OPS"), issue("OPS-2", "OPS"), issue("OPS-3", "OPS")],
+    });
+    const out = await svc.list(["ENG", "OPS"], { name: "Cross", projects: ["ENG", "OPS"] }, 4);
+    expect(out).toHaveLength(4);
   });
 
   it("should propagate the error when one project fetch fails", async () => {

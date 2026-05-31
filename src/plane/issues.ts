@@ -5,9 +5,11 @@ import type { Issue } from "../types/issue.js";
 import type { ViewDefinition } from "../types/views.js";
 import type { ProjectsService } from "./projects.js";
 import type { WorkItemsService, CreateIssueParams, UpdateIssueParams } from "./work-items.js";
+import type { UsersService } from "./users.js";
 import { IssueResolver } from "./resolver.js";
 import { sortIssues } from "./sort-issues.js";
 import { refineByStateSearch } from "./state-match.js";
+import { refineByAssignee } from "./assignee-match.js";
 
 export class IssuesService {
   readonly resolver: IssueResolver;
@@ -15,6 +17,7 @@ export class IssuesService {
   constructor(
     private readonly projects: ProjectsService,
     private readonly workItems: WorkItemsService,
+    private readonly users: UsersService,
   ) {
     this.resolver = new IssueResolver(projects, workItems);
   }
@@ -27,15 +30,21 @@ export class IssuesService {
    * reordered by the view's `sort`. If any project fetch fails, the error
    * propagates.
    *
-   * `queryLimit` caps how many issues each project's API query fetches. It does
-   * NOT cap the state_search refinement: matching runs after the fetch, so the
-   * final result may contain fewer issues than `queryLimit`.
+   * `queryLimit` caps both the per-project API fetch AND the final aggregate
+   * result. The fetch cap is per project; after merge + client-side refinement
+   * (state_search / assignee) + sort, the result is sliced to `queryLimit` so a
+   * "max N" view honors N across all projects, not N per project. Refinement may
+   * still leave fewer than the cap.
    */
   async list(
     projectIdentifiers: string[],
     view?: ViewDefinition,
     queryLimit?: number,
   ): Promise<Issue[]> {
+    // Resolve the assignee filter once (e.g. "me" -> the current user's id)
+    // before fetching, so the same id set applies across every project.
+    const assigneeIds = await this.resolveAssigneeIds(view);
+
     // Query each project in parallel. Promise.all rejects on the first error,
     // propagating the partial failure instead of silently returning an
     // incomplete set.
@@ -46,11 +55,30 @@ export class IssuesService {
       }),
     );
 
-    // Merge, refine client-side by state_search, and reorder. For a single
-    // project the server already returns the view's sort order, so the
-    // client-side sort is a no-op there.
-    const refined = refineByStateSearch(perProject.flat(), view?.filters);
-    return sortIssues(refined, view?.sort);
+    // Merge, refine client-side (state_search + assignee, since this deployment
+    // ignores those query params), and reorder. For a single project the server
+    // already returns the view's sort order, so the client-side sort is a no-op
+    // there.
+    const byState = refineByStateSearch(perProject.flat(), view?.filters);
+    const byAssignee = refineByAssignee(byState, assigneeIds);
+    const sorted = sortIssues(byAssignee, view?.sort);
+    // Apply queryLimit as an aggregate cap too: it bounds the per-project fetch
+    // above, but the merged set can still exceed it, so slice the final ordered
+    // result to honor "max N" across all projects.
+    return queryLimit !== undefined ? sorted.slice(0, queryLimit) : sorted;
+  }
+
+  /**
+   * Resolves a view's `assignee` filter into user ids. Each spec ("me", a
+   * display name, an email, or a UUID) is resolved via UsersService; absent
+   * filter yields undefined (no assignee refinement).
+   */
+  private async resolveAssigneeIds(view?: ViewDefinition): Promise<string[] | undefined> {
+    const spec = view?.filters?.assignee;
+    if (!spec) return undefined;
+    const specs = Array.isArray(spec) ? spec : [spec];
+    const resolved = await Promise.all(specs.map((s) => this.users.resolveAssignee(s)));
+    return resolved.map((u) => u.id);
   }
 
   async view(issueKey: string): Promise<Issue> {

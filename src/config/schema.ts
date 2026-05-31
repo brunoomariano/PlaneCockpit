@@ -30,7 +30,8 @@ const viewSchema = z
     projects: z.array(z.string().min(1)).optional(),
     filters: viewFiltersSchema.optional(),
     sort: sortEnum.optional(),
-    // Caps the API fetch per project, not the client-side state_search refinement.
+    // Caps the API fetch per project AND the final aggregate result (after
+    // merge + client-side refinement + sort). Refinement may leave fewer.
     query_limit: z.number().int().positive().optional(),
   })
   // cycle and module identify a specific project, so they make no sense when the

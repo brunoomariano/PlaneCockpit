@@ -62,8 +62,8 @@ export async function buildContext(flags: GlobalFlags): Promise<AppContext> {
   });
   const projects = new ProjectsService(api, cache);
   const workItems = new WorkItemsService(api, cache);
-  const issues = new IssuesService(projects, workItems);
   const users = new UsersService(api, cache);
+  const issues = new IssuesService(projects, workItems, users);
   const { bindings: keybindings, sourcePath: keybindingsSourcePath } = await loadKeybindings();
   const runtime: RuntimeConfig = {
     profile_name: name,

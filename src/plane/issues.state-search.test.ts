@@ -12,6 +12,7 @@ import { describe, it, expect, vi } from "vitest";
 import { IssuesService } from "./issues.js";
 import type { ProjectsService } from "./projects.js";
 import type { WorkItemsService } from "./work-items.js";
+import type { UsersService } from "./users.js";
 import type { Issue } from "../types/issue.js";
 import type { Project } from "../types/project.js";
 import type { IssueStateGroup } from "../types/issue.js";
@@ -57,7 +58,8 @@ function makeService(byProject: Record<string, Issue[]>): {
       return byProject[params.project.identifier] ?? [];
     }),
   } as unknown as WorkItemsService;
-  return { svc: new IssuesService(projects, workItems), listCalls };
+  const users = { resolveAssignee: vi.fn() } as unknown as UsersService;
+  return { svc: new IssuesService(projects, workItems, users), listCalls };
 }
 
 describe("state_search refinement", () => {
