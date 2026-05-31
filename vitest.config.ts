@@ -20,6 +20,8 @@ export default defineConfig({
       include: [
         "src/tui/issue-list.tsx",
         "src/tui/help-modal.tsx",
+        "src/tui/text-buffer.ts",
+        "src/utils/input-source.ts",
         "src/keybindings/key-spec.ts",
         "src/keybindings/load.ts",
         "src/keybindings/dispatcher.ts",
