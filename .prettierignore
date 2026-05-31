@@ -4,3 +4,4 @@ coverage
 pnpm-lock.yaml
 *.tsbuildinfo
 schema/config.schema.json
+.claude/settings.local.json

@@ -3,4 +3,4 @@
 export const PRODUCT_NAME = "Plane Cockpit";
 export const BINARY_NAME = "plc";
 export const VERSION = "0.1.0-beta.1";
-export const AUTHOR_HANDLE = "@brunomariano";
+export const AUTHOR_HANDLE = "@brunoomariano";
