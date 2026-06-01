@@ -9,6 +9,7 @@ import type { UsersService } from "./users.js";
 import { IssueResolver } from "./resolver.js";
 import { sortIssues } from "./sort-issues.js";
 import { refineByStateSearch } from "./state-match.js";
+import { refineByStateGroup } from "./state-group-match.js";
 import { refineByAssignee } from "./assignee-match.js";
 
 export class IssuesService {
@@ -55,11 +56,12 @@ export class IssuesService {
       }),
     );
 
-    // Merge, refine client-side (state_search + assignee, since this deployment
-    // ignores those query params), and reorder. For a single project the server
-    // already returns the view's sort order, so the client-side sort is a no-op
-    // there.
-    const byState = refineByStateSearch(perProject.flat(), view?.filters);
+    // Merge, refine client-side (state_group + state_search + assignee, since
+    // this deployment ignores those query params), and reorder. For a single
+    // project the server already returns the view's sort order, so the
+    // client-side sort is a no-op there.
+    const byGroup = refineByStateGroup(perProject.flat(), view?.filters?.state_group);
+    const byState = refineByStateSearch(byGroup, view?.filters);
     const byAssignee = refineByAssignee(byState, assigneeIds);
     const sorted = sortIssues(byAssignee, view?.sort);
     // Apply queryLimit as an aggregate cap too: it bounds the per-project fetch
