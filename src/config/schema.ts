@@ -92,6 +92,10 @@ export const profileSchema = z.strictObject({
     .strictObject({
       // The profile's project universe, always a list of strings.
       projects: z.array(z.string().min(1)).optional(),
+      // TUI auto-refresh interval in seconds, applied to every view. Omitted ⇒
+      // DEFAULT_AUTO_REFRESH_SECONDS (15). 0 disables auto-refresh; manual
+      // refresh still works.
+      auto_refresh_seconds: z.number().int().nonnegative().optional(),
     })
     .optional(),
   cache: cacheSchema.optional(),

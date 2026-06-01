@@ -21,6 +21,9 @@ profiles:
       # This profile's project universe. The TUI scans all of them by default;
       # the CLI (plc issue list without --project) uses the first one.
       projects: ["ENG", "OPS", "DESIGN"]
+      # TUI auto-refresh interval for every view. Omit for the 15s default;
+      # set 0 to disable (manual refresh still works).
+      auto_refresh_seconds: 15
 
     cache:
       provider: sqlite

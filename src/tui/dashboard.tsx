@@ -31,6 +31,17 @@ type Panel = "list" | "detail";
 // layout only stays while the list still has real space.
 export const NARROW_BREAKPOINT = 100;
 
+// Auto-refresh interval used when defaults.auto_refresh_seconds is omitted.
+export const DEFAULT_AUTO_REFRESH_SECONDS = 15;
+
+// autoRefreshIntervalMs turns the configured interval (seconds) into the
+// setInterval delay in milliseconds, or undefined when auto-refresh is off.
+// An omitted value falls back to DEFAULT_AUTO_REFRESH_SECONDS; 0 disables it.
+export function autoRefreshIntervalMs(configuredSeconds: number | undefined): number | undefined {
+  const seconds = configuredSeconds ?? DEFAULT_AUTO_REFRESH_SECONDS;
+  return seconds > 0 ? seconds * 1000 : undefined;
+}
+
 // isNarrowLayout decides whether the dashboard stacks the views panel on top
 // (true) or keeps it as a left column (false), based on terminal width.
 export function isNarrowLayout(columns: number): boolean {
@@ -274,6 +285,20 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
       }
     },
   });
+
+  // Auto-refresh: re-run load(true) on the configured interval so the list
+  // tracks Plane without a keystroke. Paused while any overlay is open (detail,
+  // comment, help, filter) so it never refetches under the user's cursor; the
+  // timer restarts whenever the view, interval, or overlay state changes.
+  const overlayActive = comments.active || helpOpen || panel === "detail" || filtering;
+  const intervalMs = autoRefreshIntervalMs(ctx.runtime.profile.defaults?.auto_refresh_seconds);
+  useEffect(() => {
+    if (intervalMs === undefined || overlayActive || !activeView) return;
+    const timer = setInterval(() => {
+      void load(true);
+    }, intervalMs);
+    return () => clearInterval(timer);
+  }, [intervalMs, overlayActive, activeView, load]);
 
   // Fetch full issue (with description) only when the detail panel is visible.
   // The list endpoint omits description_*, so the body needs an extra retrieve.

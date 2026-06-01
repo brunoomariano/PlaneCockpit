@@ -31,7 +31,9 @@ export interface ProfileConfig {
   auth?: AuthConfig;
   // projects is the profile's project universe. The TUI scans all of them by
   // default; the CLI (plc issue list without --project) uses the first one.
-  defaults?: { projects?: string[] };
+  // auto_refresh_seconds drives the TUI auto-refresh timer for every view
+  // (omitted ⇒ 15s; 0 disables).
+  defaults?: { projects?: string[]; auto_refresh_seconds?: number };
   cache?: CacheConfig;
   views?: ViewDefinition[];
 }

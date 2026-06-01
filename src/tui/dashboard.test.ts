@@ -3,7 +3,9 @@ import {
   isNarrowLayout,
   listViewportRows,
   restoredSelection,
+  autoRefreshIntervalMs,
   NARROW_BREAKPOINT,
+  DEFAULT_AUTO_REFRESH_SECONDS,
 } from "./dashboard.js";
 
 describe("isNarrowLayout", () => {
@@ -58,5 +60,24 @@ describe("restoredSelection", () => {
   it("falls back to the top when the key disappeared", () => {
     expect(restoredSelection(keys, "ENG-99")).toBe(0);
     expect(restoredSelection([], "ENG-1")).toBe(0);
+  });
+});
+
+describe("autoRefreshIntervalMs", () => {
+  // An omitted interval falls back to the 15s default, converted to ms.
+  it("defaults to DEFAULT_AUTO_REFRESH_SECONDS when undefined", () => {
+    expect(autoRefreshIntervalMs(undefined)).toBe(DEFAULT_AUTO_REFRESH_SECONDS * 1000);
+    expect(DEFAULT_AUTO_REFRESH_SECONDS).toBe(15);
+  });
+
+  // A positive interval is converted from seconds to milliseconds.
+  it("converts a positive interval from seconds to milliseconds", () => {
+    expect(autoRefreshIntervalMs(30)).toBe(30_000);
+    expect(autoRefreshIntervalMs(1)).toBe(1_000);
+  });
+
+  // 0 disables auto-refresh (no timer), distinct from omitting the value.
+  it("returns undefined when set to 0 to disable auto-refresh", () => {
+    expect(autoRefreshIntervalMs(0)).toBeUndefined();
   });
 });

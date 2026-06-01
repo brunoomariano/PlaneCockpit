@@ -77,6 +77,11 @@
                   "type": "string",
                   "minLength": 1
                 }
+              },
+              "auto_refresh_seconds": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
               }
             },
             "additionalProperties": false

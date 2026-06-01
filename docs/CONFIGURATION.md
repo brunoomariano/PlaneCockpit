@@ -124,16 +124,25 @@ API key resolution order: `auth.api_key` (inline) → `hosts.yaml` entry.
 
 ### `defaults` (optional)
 
-| Field      | Type            | Notes                                                                |
-| ---------- | --------------- | -------------------------------------------------------------------- |
-| `projects` | list of strings | the profile's project universe (project identifiers, e.g. `["ENG"]`) |
+| Field                  | Type                 | Required | Default | Notes                                                                |
+| ---------------------- | -------------------- | -------- | ------- | -------------------------------------------------------------------- |
+| `projects`             | list of strings      | no       | —       | the profile's project universe (project identifiers, e.g. `["ENG"]`) |
+| `auto_refresh_seconds` | non-negative integer | no       | `15`    | TUI auto-refresh interval, applied to every view; `0` disables it    |
 
 The TUI scans all of `defaults.projects` by default; the CLI
 (`plc issue list` without `--project`) uses the first one.
 
+`auto_refresh_seconds` controls how often the TUI dashboard re-fetches the
+active view on its own. It applies to every view in the profile. Omitting it
+uses a 15-second interval; `0` turns auto-refresh off (manual refresh still
+works). The timer pauses while an overlay is open (issue detail, comment editor,
+help, or the filter box) so it never refetches under the cursor, and it
+re-anchors the selection on the same issue after each refresh.
+
 ```yaml
 defaults:
   projects: ["ENG", "OPS", "DESIGN"]
+  auto_refresh_seconds: 15 # default; 0 disables auto-refresh
 ```
 
 ### `cache` (optional)
