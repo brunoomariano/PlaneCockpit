@@ -17,6 +17,7 @@ item lands.
 | [declarative-column-layout.md](declarative-column-layout.md) | Make the issue-list columns (`width` / `grow` / `align` / `hidden`) configurable per view instead of hardcoded. |
 | [action-edit.md](action-edit.md)                             | TUI/CLI action to edit an issue's **state**, **assignee** and **priority**.                                     |
 | [themes.md](themes.md)                                       | Themeable colors with built-in presets (catppuccin, gruvbox, tokyonight, …).                                    |
+| [multi-level-sort.md](multi-level-sort.md)                   | Turn `sort` into an ordered `field: direction` list with a `defaults.sort` global default.                      |
 
 ## Done
 
