@@ -21,7 +21,20 @@ export interface ViewFilters {
   project_state_search?: ProjectStateSearch[];
 }
 
-export type IssueSortField = "priority" | "updated_at" | "created_at" | "name";
+// Fields a view can sort by. `name` (alphabetical-by-title) was dropped: it is
+// rarely the relevant order once project, priority, state and recency exist (it
+// stays available as the in-TUI text filter, a different feature).
+export type SortField = "project" | "priority" | "state" | "created_at" | "updated_at" | "assign";
+
+export type SortDirection = "asc" | "desc";
+
+// One key of a multi-level sort, after normalisation. A view's `sort` is an
+// ordered list of these: the first is the primary key, each following one breaks
+// ties of the ones above it.
+export interface SortKey {
+  field: SortField;
+  direction: SortDirection;
+}
 
 export interface ViewDefinition {
   name: string;
@@ -31,7 +44,9 @@ export interface ViewDefinition {
   // single project.
   projects?: string[];
   filters?: ViewFilters;
-  sort?: IssueSortField;
+  // Ordered list of sort keys. Absent ⇒ the view inherits defaults.sort, then
+  // the built-in DEFAULT_SORT. Resolved by resolveSort.
+  sort?: SortKey[];
   // Caps how many issues the API query fetches (per project). It does NOT cap
   // the client-side state_search refinement, which may return fewer.
   query_limit?: number;

@@ -6,8 +6,9 @@ import type { ViewDefinition } from "../types/views.js";
 import type { ProjectsService } from "./projects.js";
 import type { WorkItemsService, CreateIssueParams, UpdateIssueParams } from "./work-items.js";
 import type { UsersService } from "./users.js";
+import type { SortKey } from "../types/views.js";
 import { IssueResolver } from "./resolver.js";
-import { sortIssues } from "./sort-issues.js";
+import { sortIssues, resolveSort } from "./sort-issues.js";
 import { refineByStateSearch } from "./state-match.js";
 import { refineByStateGroup } from "./state-group-match.js";
 import { refineByAssignee } from "./assignee-match.js";
@@ -36,15 +37,26 @@ export class IssuesService {
    * (state_search / assignee) + sort, the result is sliced to `queryLimit` so a
    * "max N" view honors N across all projects, not N per project. Refinement may
    * still leave fewer than the cap.
+   *
+   * `defaultsSort` is the profile-level `defaults.sort`; the effective sort is
+   * resolved once as `view.sort ?? defaultsSort ?? DEFAULT_SORT` and applied
+   * both as the per-project server hint and the authoritative client-side sort.
    */
   async list(
     projectIdentifiers: string[],
     view?: ViewDefinition,
     queryLimit?: number,
+    defaultsSort?: SortKey[],
   ): Promise<Issue[]> {
     // Resolve the assignee filter once (e.g. "me" -> the current user's id)
     // before fetching, so the same id set applies across every project.
     const assigneeIds = await this.resolveAssigneeIds(view);
+
+    // Resolve the effective sort once so the per-project query hint and the
+    // client-side reorder agree, and a view inheriting defaults.sort still gets
+    // a server hint. Passed to work-items via an augmented view.
+    const sort = resolveSort(view?.sort, defaultsSort);
+    const effectiveView = view ? { ...view, sort } : { name: "", sort };
 
     // Query each project in parallel. Promise.all rejects on the first error,
     // propagating the partial failure instead of silently returning an
@@ -52,7 +64,7 @@ export class IssuesService {
     const perProject = await Promise.all(
       projectIdentifiers.map(async (identifier) => {
         const project = await this.projects.findByIdentifier(identifier);
-        return this.workItems.list({ project, view, limit: queryLimit });
+        return this.workItems.list({ project, view: effectiveView, limit: queryLimit });
       }),
     );
 
@@ -63,7 +75,7 @@ export class IssuesService {
     const byGroup = refineByStateGroup(perProject.flat(), view?.filters?.state_group);
     const byState = refineByStateSearch(byGroup, view?.filters);
     const byAssignee = refineByAssignee(byState, assigneeIds);
-    const sorted = sortIssues(byAssignee, view?.sort);
+    const sorted = sortIssues(byAssignee, sort);
     // Apply queryLimit as an aggregate cap too: it bounds the per-project fetch
     // above, but the merged set can still exceed it, so slice the final ordered
     // result to honor "max N" across all projects.

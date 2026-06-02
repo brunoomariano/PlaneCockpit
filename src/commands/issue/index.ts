@@ -51,7 +51,12 @@ export function registerIssue(program: Command): void {
           }
           projects = [fallback];
         }
-        const issues = await ctx.issues.list(projects, view, limit ?? view?.query_limit);
+        const issues = await ctx.issues.list(
+          projects,
+          view,
+          limit ?? view?.query_limit,
+          ctx.runtime.profile.defaults?.sort,
+        );
         process.stdout.write(renderIssues(issues, format));
         process.stdout.write("\n");
       });

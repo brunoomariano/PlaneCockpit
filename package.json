@@ -20,7 +20,7 @@
   "scripts": {
     "build": "pnpm run gen:schema && tsup",
     "gen:schema": "tsx scripts/gen-schema.ts",
-    "schema:check": "tsx scripts/gen-schema.ts && git diff --exit-code -- schema/config.schema.json",
+    "schema:check": "tsx scripts/gen-schema.ts --check",
     "dev": "tsx src/cli.ts",
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check .",

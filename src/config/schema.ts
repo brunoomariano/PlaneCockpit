@@ -2,7 +2,54 @@ import { z } from "zod";
 
 const priorityEnum = z.enum(["urgent", "high", "medium", "low", "none"]);
 const stateGroupEnum = z.enum(["backlog", "unstarted", "started", "completed", "cancelled"]);
-const sortEnum = z.enum(["priority", "updated_at", "created_at", "name"]);
+
+// Multi-level sort. A view's `sort` is an ordered list of single-key maps
+// `{ <field>: "asc" | "desc" }`; the first key is primary, each following one
+// breaks ties of the ones above. `name` is intentionally not a sort field.
+const sortKeyEnum = z.enum(["project", "priority", "state", "created_at", "updated_at", "assign"]);
+const sortDirectionEnum = z.enum(["asc", "desc"]);
+
+// Default direction per field when the legacy scalar form omits it. Mirrors the
+// "natural direction" table in docs/TODOs/multi-level-sort.md.
+const DEFAULT_DIRECTION: Record<z.infer<typeof sortKeyEnum>, z.infer<typeof sortDirectionEnum>> = {
+  project: "asc",
+  priority: "desc",
+  state: "asc",
+  created_at: "desc",
+  updated_at: "desc",
+  assign: "asc",
+};
+
+// One list item: a record with EXACTLY one key (a sort field) whose value is a
+// direction. The refine rejects `{}` and multi-key maps like
+// `{ priority: "desc", state: "asc" }`.
+const sortItemSchema = z
+  .partialRecord(sortKeyEnum, sortDirectionEnum)
+  .refine((item) => Object.keys(item).length === 1, {
+    message: "each sort item must have exactly one field",
+  });
+
+// Normalised internal shape consumed by the comparator/resolver.
+type NormalizedSortItem = {
+  field: z.infer<typeof sortKeyEnum>;
+  direction: z.infer<typeof sortDirectionEnum>;
+};
+
+function normalizeSortItem(item: Record<string, string>): NormalizedSortItem {
+  const [field, direction] = Object.entries(item)[0] as [
+    NormalizedSortItem["field"],
+    NormalizedSortItem["direction"],
+  ];
+  return { field, direction };
+}
+
+// `sort` accepts either the ordered list of single-key maps or the legacy scalar
+// (`sort: priority`), normalising both to a SortKey[]. The legacy scalar uses the
+// field's default direction. `name` is rejected in both forms.
+const sortSpecSchema = z.union([
+  z.array(sortItemSchema).transform((items) => items.map(normalizeSortItem)),
+  sortKeyEnum.transform((field) => [{ field, direction: DEFAULT_DIRECTION[field] }]),
+]);
 
 const projectStateSearchSchema = z.strictObject({
   name: z.string().min(1),
@@ -29,7 +76,7 @@ const viewSchema = z
     // profile universe (defaults.projects).
     projects: z.array(z.string().min(1)).optional(),
     filters: viewFiltersSchema.optional(),
-    sort: sortEnum.optional(),
+    sort: sortSpecSchema.optional(),
     // Caps the API fetch per project AND the final aggregate result (after
     // merge + client-side refinement + sort). Refinement may leave fewer.
     query_limit: z.number().int().positive().optional(),
@@ -96,6 +143,9 @@ export const profileSchema = z.strictObject({
       // DEFAULT_AUTO_REFRESH_SECONDS (15). 0 disables auto-refresh; manual
       // refresh still works.
       auto_refresh_seconds: z.number().int().nonnegative().optional(),
+      // Profile-wide default sort, inherited by any view that does not declare
+      // its own `sort`. Same shape as a view's sort.
+      sort: sortSpecSchema.optional(),
     })
     .optional(),
   cache: cacheSchema.optional(),

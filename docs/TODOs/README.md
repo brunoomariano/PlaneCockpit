@@ -17,12 +17,18 @@ item lands.
 | [declarative-column-layout.md](declarative-column-layout.md) | Make the issue-list columns (`width` / `grow` / `align` / `hidden`) configurable per view instead of hardcoded. |
 | [action-edit.md](action-edit.md)                             | TUI/CLI action to edit an issue's **state**, **assignee** and **priority**.                                     |
 | [themes.md](themes.md)                                       | Themeable colors with built-in presets (catppuccin, gruvbox, tokyonight, …).                                    |
-| [multi-level-sort.md](multi-level-sort.md)                   | Turn `sort` into an ordered `field: direction` list with a `defaults.sort` global default.                      |
 
 ## Done
 
 These shipped; their planning docs were removed once implemented.
 
+- **Multi-level sort** — `sort` is an ordered list of `{ field: direction }` keys
+  (`project`, `priority`, `state`, `created_at`, `updated_at`, `assign`), with a
+  profile-wide `defaults.sort` and a built-in fallback (`project asc`,
+  `priority desc`, `state asc`, `updated_at desc`). The legacy scalar form still
+  parses. See `src/plane/sort-issues.ts` (chained comparator + `resolveSort` +
+  `serverOrderBy`), `src/config/schema.ts`, and
+  [`docs/CONFIGURATION.md`](../CONFIGURATION.md#multi-level-sort).
 - **Create from file/stdin** — `plc issue create` runs headless with `--body-file`
   (and `-` for stdin) and `--priority`. See `src/commands/issue/index.ts`.
 - **Comment on an issue** — a multiline editor in the TUI (`c`) and `--body-file`

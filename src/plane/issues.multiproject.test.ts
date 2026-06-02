@@ -88,7 +88,7 @@ describe("multi-project aggregation", () => {
     const out = await svc.list(["ENG", "OPS"], {
       name: "Cross",
       projects: ["ENG", "OPS"],
-      sort: "priority",
+      sort: [{ field: "priority", direction: "desc" }],
     });
     // urgent comes before low, regardless of the order in which the projects
     // were queried (ENG first, but OPS-1 is urgent).

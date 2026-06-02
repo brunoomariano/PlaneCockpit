@@ -6,6 +6,7 @@ import type { CacheStore } from "../cache/types.js";
 import { cacheKeys } from "../cache/keys.js";
 import type { ViewDefinition } from "../types/views.js";
 import { normalizeFilters, filtersFingerprint } from "./filters.js";
+import { serverOrderBy } from "./sort-issues.js";
 import type { PlaneApiClient, PaginatedResponse } from "./client.js";
 import { extractNextCursor } from "./client.js";
 import { collectPages } from "../utils/async.js";
@@ -138,7 +139,9 @@ export class WorkItemsService {
       priority: normalized.priorities?.join(","),
       cycle: normalized.cycle,
       module: normalized.module,
-      order_by: view?.sort,
+      // Best-effort single-field hint; the client-side chained sort in
+      // IssuesService is authoritative for the merged multi-project set.
+      order_by: serverOrderBy(view?.sort),
       per_page: perPage,
       // Ask Plane to inline these relations so we don't get bare UUIDs in the response.
       expand: "state,assignees,labels",

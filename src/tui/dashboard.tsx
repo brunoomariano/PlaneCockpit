@@ -217,7 +217,12 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
           return;
         }
         logger.debug("loading view", { view: activeView.name, projects });
-        const data = await ctx.issues.list(projects, activeView, activeView.query_limit ?? 100);
+        const data = await ctx.issues.list(
+          projects,
+          activeView,
+          activeView.query_limit ?? 100,
+          ctx.runtime.profile.defaults?.sort,
+        );
         setIssues(data);
         // Restore the cursor onto the previously selected issue when refreshing;
         // fall back to the top if it is gone or this was a view switch.

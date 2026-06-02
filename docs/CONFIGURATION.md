@@ -128,9 +128,14 @@ API key resolution order: `auth.api_key` (inline) → `hosts.yaml` entry.
 | ---------------------- | -------------------- | -------- | ------- | -------------------------------------------------------------------- |
 | `projects`             | list of strings      | no       | —       | the profile's project universe (project identifiers, e.g. `["ENG"]`) |
 | `auto_refresh_seconds` | non-negative integer | no       | `15`    | TUI auto-refresh interval, applied to every view; `0` disables it    |
+| `sort`                 | **Sort** (see below) | no       | —       | profile-wide default sort, inherited by views that declare no `sort` |
 
 The TUI scans all of `defaults.projects` by default; the CLI
 (`plc issue list` without `--project`) uses the first one.
+
+`defaults.sort` is inherited by any view that does not declare its own `sort`. A
+view's `sort` replaces it wholesale (no merging). See
+[Multi-level sort](#multi-level-sort) for the shape and the built-in fallback.
 
 `auto_refresh_seconds` controls how often the TUI dashboard re-fetches the
 active view on its own. It applies to every view in the profile. Omitting it
@@ -170,13 +175,13 @@ cache:
 A list of named views. Each view selects a set of issues across one or more
 projects.
 
-| Field         | Type                                                 | Required | Notes                                                                                                                             |
-| ------------- | ---------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `name`        | non-empty string                                     | yes      | shown in the TUI navbar and used by `--view`                                                                                      |
-| `projects`    | list of strings                                      | no       | absent ⇒ inherits `defaults.projects`; present ⇒ a subset                                                                         |
-| `filters`     | **Filters** (see below)                              | no       | narrows the issue set                                                                                                             |
-| `sort`        | `priority` \| `updated_at` \| `created_at` \| `name` | no       | server-side per project; merged set re-sorted client-side                                                                         |
-| `query_limit` | positive integer                                     | no       | caps the API fetch per project **and** the final aggregate result (after merge, refinement, and sort); refinement may leave fewer |
+| Field         | Type                    | Required | Notes                                                                                                                             |
+| ------------- | ----------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | non-empty string        | yes      | shown in the TUI navbar and used by `--view`                                                                                      |
+| `projects`    | list of strings         | no       | absent ⇒ inherits `defaults.projects`; present ⇒ a subset                                                                         |
+| `filters`     | **Filters** (see below) | no       | narrows the issue set                                                                                                             |
+| `sort`        | **Sort** (see below)    | no       | ordered list of `{ field: direction }` keys; see [Multi-level sort](#multi-level-sort)                                            |
+| `query_limit` | positive integer        | no       | caps the API fetch per project **and** the final aggregate result (after merge, refinement, and sort); refinement may leave fewer |
 
 A view with `projects` must reference identifiers that exist in
 `defaults.projects`. In the CLI this is a hard error; in the TUI invalid
@@ -221,6 +226,50 @@ assignees after the fetch. `me` resolves to the authenticated user. An issue is
 kept when any of its assignees matches, so issues with multiple assignees are
 included as long as one of them is in the filter.
 
+#### Multi-level sort
+
+`sort` is an **ordered list** of single-key maps. The list reads top to bottom:
+the first key is the primary sort, each following key breaks ties of the ones
+above it. Every key carries an explicit direction (`asc` or `desc`).
+
+```yaml
+sort:
+  - project: asc # group by project identifier (A→Z)
+  - priority: desc # urgent first within each project
+  - state: asc # backlog → … → cancelled within each priority
+  - updated_at: desc # most recently touched first within each state
+```
+
+| Field        | Sorts by                                                              | Natural direction     |
+| ------------ | --------------------------------------------------------------------- | --------------------- |
+| `project`    | `project_identifier` (alphabetical)                                   | `asc`                 |
+| `priority`   | urgent → high → medium → low → none                                   | `desc` (urgent first) |
+| `state`      | workflow group: backlog → unstarted → started → completed → cancelled | `asc`                 |
+| `created_at` | creation timestamp                                                    | `desc` (newest first) |
+| `updated_at` | last-update timestamp                                                 | `desc` (newest first) |
+| `assign`     | first assignee's display name; unassigned issues last                 | `asc`                 |
+
+Direction semantics:
+
+- `priority desc` means urgent → none (the high-urgency end first); `asc`
+  reverses it.
+- `state asc` follows the lifecycle order above, not the state's name.
+- `assign` pins unassigned issues **last** regardless of direction (they are a
+  "no value" bucket); assigned issues order by first-assignee display name.
+- `name` is **not** a sort field — alphabetical-by-title is rarely the relevant
+  order. It stays available as the in-TUI text filter.
+
+The sort is resolved as **`view.sort` → `defaults.sort` → built-in default**. If
+neither the view nor `defaults.sort` sets it, the built-in fallback is
+`project asc, priority desc, state asc, updated_at desc`. The per-project server
+hint uses the first key when it has a server equivalent (`priority`,
+`created_at`, `updated_at`); the client-side chained sort is authoritative for
+the merged multi-project set.
+
+The legacy scalar form is still accepted: `sort: priority` is read as the
+single key `[{ priority: desc }]` (the field's natural direction), so configs
+that predate this list form keep working.
+
 ```yaml
 views:
   # No `projects`: inherits defaults.projects, aggregates across all of them.
@@ -248,6 +297,16 @@ views:
         - name: ENG
           state_search: ["Blocked"] # ENG also keeps "Blocked"
     query_limit: 50
+
+  # Multi-level sort: group by project, then urgent first, then workflow stage,
+  # then most recently updated.
+  - name: "Triage"
+    projects: ["ENG", "OPS"]
+    sort:
+      - project: asc
+      - priority: desc
+      - state: asc
+      - updated_at: desc
 ```
 
 ## Validation

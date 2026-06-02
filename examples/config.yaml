@@ -24,6 +24,13 @@ profiles:
       # TUI auto-refresh interval for every view. Omit for the 15s default;
       # set 0 to disable (manual refresh still works).
       auto_refresh_seconds: 15
+      # Profile-wide default sort, inherited by any view that declares no `sort`
+      # of its own. A view's `sort` replaces this wholesale (no merging).
+      sort:
+        - project: asc
+        - priority: desc
+        - state: asc
+        - updated_at: desc
 
     cache:
       provider: sqlite
@@ -34,12 +41,21 @@ profiles:
 
     views:
       # No `projects`: inherits defaults.projects and aggregates issues from all
-      # of them, reordered by the view's `sort`.
+      # of them. The legacy scalar `sort` still works (read as priority desc).
       - name: "My open"
         filters:
           assignee: me
           state_group: [unstarted, started]
         sort: priority
+
+      # Multi-level sort: each key breaks ties of the ones above it. This view's
+      # own `sort` overrides defaults.sort entirely.
+      - name: "Triage"
+        projects: ["ENG", "OPS"]
+        sort:
+          - assign: asc # group by assignee; unassigned issues last
+          - priority: desc # urgent first within each assignee
+          - updated_at: desc
 
       # `projects` restricts to a subset of defaults.projects. cycle/module are
       # only allowed when the view resolves to a single project.

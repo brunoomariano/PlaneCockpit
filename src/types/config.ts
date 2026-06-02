@@ -1,4 +1,4 @@
-import type { ViewDefinition } from "./views.js";
+import type { SortKey, ViewDefinition } from "./views.js";
 
 export interface ServerConfig {
   base_url: string;
@@ -32,8 +32,9 @@ export interface ProfileConfig {
   // projects is the profile's project universe. The TUI scans all of them by
   // default; the CLI (plc issue list without --project) uses the first one.
   // auto_refresh_seconds drives the TUI auto-refresh timer for every view
-  // (omitted ⇒ 15s; 0 disables).
-  defaults?: { projects?: string[]; auto_refresh_seconds?: number };
+  // (omitted ⇒ 15s; 0 disables). sort is the profile-wide default sort,
+  // inherited by views that declare no sort of their own.
+  defaults?: { projects?: string[]; auto_refresh_seconds?: number; sort?: SortKey[] };
   cache?: CacheConfig;
   views?: ViewDefinition[];
 }
