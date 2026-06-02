@@ -39,6 +39,41 @@ describe("workspacePath", () => {
   });
 });
 
+describe("trailing-slash normalization", () => {
+  // Plane's API (Django APPEND_SLASH) 301-redirects any path without a trailing
+  // slash to the slashed form, adding a round-trip per call and risking dropped
+  // auth headers / timeouts on redirect. The client must request the slashed URL
+  // directly. The slash goes before the query string.
+  async function capturedUrl(path: string, query?: Record<string, string>): Promise<string> {
+    let seen = "";
+    const fetchImpl = (async (url: string) => {
+      seen = url;
+      return new Response(JSON.stringify({ results: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+    await client(fetchImpl).request(path, { query });
+    return seen;
+  }
+
+  it("requests a collection path with a trailing slash", async () => {
+    const url = await capturedUrl(client().workspacePath("projects", "p1", "issues"), {
+      per_page: "100",
+    });
+    expect(url).toBe(
+      "https://plane.example.com/api/v1/workspaces/acme/projects/p1/issues/?per_page=100",
+    );
+  });
+
+  it("adds the trailing slash to a hand-built path like /users/me", async () => {
+    const url = await capturedUrl("/users/me");
+    expect(url).toBe("https://plane.example.com/api/v1/users/me/");
+  });
+
+  it("does not double a slash when the path already ends with one", async () => {
+    const url = await capturedUrl("/users/me/");
+    expect(url).toBe("https://plane.example.com/api/v1/users/me/");
+  });
+});
+
 describe("extractNextCursor", () => {
   it("returns null when no pagination metadata is present", () => {
     expect(extractNextCursor(page({}))).toBeNull();

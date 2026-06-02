@@ -93,6 +93,13 @@ export class PlaneApiClient {
 
   private buildUrl(path: string, query?: RequestOptions["query"]): string {
     const url = new URL(`${this.baseUrl}${path.startsWith("/") ? path : `/${path}`}`);
+    // Plane's API (Django APPEND_SLASH) 301-redirects any path without a trailing
+    // slash. Request the slashed form directly to avoid a redirect round-trip per
+    // call (which also risks dropped auth headers and timeouts). The URL parser
+    // keeps the slash before the query string.
+    if (!url.pathname.endsWith("/")) {
+      url.pathname += "/";
+    }
     if (query) {
       for (const [k, v] of Object.entries(query)) {
         if (v === undefined) continue;
