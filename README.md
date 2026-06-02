@@ -1,5 +1,9 @@
 # Plane Cockpit — CLI + TUI for Plane (Cloud and self-hosted)
 
+<p align="center">
+  <img src="docs/assets/img/logo.png" alt="Plane Cockpit logo" width="240" />
+</p>
+
 Plane Cockpit is a terminal client for [Plane](https://plane.so), inspired by `gh` and `gh dash`,
 distributed as a `plc` binary.
 It provides a fast CLI for daily operations on projects, issues (work items), and dashboards,
@@ -44,6 +48,27 @@ End users do not need `mise`; the published artifact is a plain Node binary.
    plc issue list --view "Current sprint"
    plc dash
    ```
+
+## Commands
+
+| Command                                | What it does                                           |
+| -------------------------------------- | ------------------------------------------------------ |
+| `plc auth login` / `logout` / `status` | manage the stored API key for the active profile       |
+| `plc project list` / `view <id>`       | list projects, or show one by identifier               |
+| `plc issue list`                       | list issues, optionally via a configured `--view`      |
+| `plc issue view <key>`                 | show a single issue (e.g. `ENG-123`)                   |
+| `plc issue open <key>`                 | open the issue in the default browser                  |
+| `plc issue create`                     | create an issue (interactive, or headless via flags)   |
+| `plc issue edit <key>`                 | edit title, description, or priority                   |
+| `plc issue assign <key> <user>`        | assign an issue (use `me` for yourself)                |
+| `plc issue comment <key>`              | add a comment (inline, from a file, or interactive)    |
+| `plc config show` / `validate`         | print the resolved config (keys masked) or validate it |
+| `plc profile list` / `use <name>`      | list profiles, or switch the active one                |
+| `plc cache status` / `warm` / `clear`  | inspect, prime, or clear the cache                     |
+| `plc log path` / `tail` / `clear`      | locate, read, or remove the TUI log                    |
+| `plc dash`                             | open the interactive TUI dashboard                     |
+
+Run `plc <command> --help` for the full flag list of any command.
 
 ## Configuration
 
@@ -115,7 +140,7 @@ server:
 The cache is optional and pluggable. Providers:
 
 - `memory` — in-process, the default.
-- `sqlite` — local persistent cache, file at `~/.cache/plc/cache.sqlite` by default.
+- `sqlite` — local persistent cache, file at `~/.cache/plane-cli/cache.sqlite` by default.
 - `redis` — shared cache (declare `cache.redis.url`).
 - `noop` — disables caching entirely.
 
@@ -140,19 +165,25 @@ defaults:
   # The universe of projects this profile can reach. The TUI scans all of them
   # by default; the CLI (`plc issue list` without `--project`) uses the first.
   projects: ["ENG", "OPS", "DESIGN"]
+  # Profile-wide default sort, inherited by any view that omits its own `sort`.
+  sort: [{ priority: desc }, { updated_at: desc }]
 
 views:
   - name: "My open" # no `projects` => scans every project above
     filters:
       assignee: me
       state_group: [unstarted, started]
-    sort: priority
+    sort: priority # scalar shorthand; uses the field's natural direction
 
   - name: "Eng sprint"
     projects: ["ENG"] # restricts to a subset of defaults.projects
     filters:
       cycle: current # cycle/module are only allowed on single-project views
       state_group: [started]
+    sort: # multi-level: each key breaks ties of the one above
+      - priority: desc
+      - state: asc
+      - updated_at: desc
 ```
 
 ```bash
@@ -165,6 +196,12 @@ with `projects` restricts to that subset, which must be contained in
 `defaults.projects`. Because `cycle` and `module` identify a single project,
 they may only be used on views that resolve to exactly one project.
 
+`sort` accepts either a scalar (`sort: priority`, applied in the field's natural
+direction) or an ordered list of single-key maps (`- priority: desc`) for
+multi-level sorting, where each entry breaks ties of the ones above it. Valid
+fields are `priority`, `state`, `project`, `assign`, `created_at`, and
+`updated_at`. A view inherits `defaults.sort` when it omits its own.
+
 The full list of filters (`assignee`, `state_group`, `labels`, `priority`,
 `cycle`, `module`, plus client-side `state_search` / `project_state_search`) and
 their accepted values is documented in
@@ -172,7 +209,9 @@ their accepted values is documented in
 
 ## TUI usage
 
-`plc dash` opens a multi-panel dashboard.
+`plc dash` opens a multi-panel dashboard. Views auto-refresh on a configurable
+interval — set `defaults.auto_refresh_seconds` (default `15`; `0` disables it,
+leaving manual `r` refresh intact).
 
 ### Keybindings
 
@@ -206,7 +245,7 @@ blockquotes, strikethrough).
 
 ### Customizing keybindings
 
-Drop a `~/.config/plc/keybindings.yaml` file. Each entry maps an action id
+Drop a `~/.config/plane-cli/keybindings.yaml` file. Each entry maps an action id
 to a key spec. See [`examples/keybindings.yaml`](examples/keybindings.yaml).
 
 ```yaml
@@ -221,8 +260,8 @@ The `?` modal flags overridden bindings with a green `*`.
 ## Logs
 
 The TUI cannot print to stderr without corrupting the canvas, so `plc dash` writes
-JSON Lines to `$XDG_STATE_HOME/plc/log.jsonl` (default
-`~/.local/state/plc/log.jsonl`). Render errors caught by the React error boundary
+JSON Lines to `$XDG_STATE_HOME/plane-cli/log.jsonl` (default
+`~/.local/state/plane-cli/log.jsonl`). Render errors caught by the React error boundary
 go to the same file. Rotated to `log.jsonl.1` at ~1 MB.
 
 ```bash
