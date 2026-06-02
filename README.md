@@ -1,7 +1,7 @@
 # Plane Cockpit — CLI + TUI for Plane (Cloud and self-hosted)
 
 <p align="center">
-  <img src="docs/assets/img/logo.png" alt="Plane Cockpit logo" width="240" />
+  <img src="docs/assets/img/plc-logo.png" alt="Plane Cockpit logo" width="340" />
 </p>
 
 Plane Cockpit is a terminal client for [Plane](https://plane.so), inspired by `gh` and `gh dash`,
