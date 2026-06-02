@@ -12,16 +12,24 @@ item lands.
 
 ## Index
 
-| TODO                                                         | Summary                                                                                                         |
-| :----------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------- |
-| [declarative-column-layout.md](declarative-column-layout.md) | Make the issue-list columns (`width` / `grow` / `align` / `hidden`) configurable per view instead of hardcoded. |
-| [action-edit.md](action-edit.md)                             | TUI/CLI action to edit an issue's **state**, **assignee** and **priority**.                                     |
-| [themes.md](themes.md)                                       | Themeable colors with built-in presets (catppuccin, gruvbox, tokyonight, …).                                    |
+| TODO                             | Summary                                                                      |
+| :------------------------------- | :--------------------------------------------------------------------------- |
+| [action-edit.md](action-edit.md) | TUI/CLI action to edit an issue's **state**, **assignee** and **priority**.  |
+| [themes.md](themes.md)           | Themeable colors with built-in presets (catppuccin, gruvbox, tokyonight, …). |
 
 ## Done
 
 These shipped; their planning docs were removed once implemented.
 
+- **Declarative column layout** — a per-view `layout` block (and `defaults.layout`)
+  sets `width` / `grow` / `align` / `hidden` per column (`key`, `priority`,
+  `state`, `title`, `assign`) for the TUI list. The responsive solver stays the
+  authority: it still drops STATE→ASSIGN and collapses PRIORITY to keep the grow
+  column at a readable minimum, so a pinned width never forces a wrap. At most one
+  column may grow (schema-enforced). TUI only — the CLI `table` output is
+  unchanged. See `src/tui/issue-list.tsx` (`issueColumns` + `resolveLayout`),
+  `src/config/schema.ts`, and
+  [`docs/CONFIGURATION.md`](../CONFIGURATION.md#column-layout).
 - **Multi-level sort** — `sort` is an ordered list of `{ field: direction }` keys
   (`project`, `priority`, `state`, `created_at`, `updated_at`, `assign`), with a
   profile-wide `defaults.sort` and a built-in fallback (`project asc`,

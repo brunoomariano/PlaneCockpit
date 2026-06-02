@@ -1,7 +1,15 @@
 import React from "react";
 import { Box, Text } from "ink";
 import type { Issue } from "../types/issue.js";
-import { priorityLabel, PRIORITY_COLUMN_WIDTH, truncate, padCenter } from "../utils/formatting.js";
+import type { ColumnAlign, ColumnId, ViewLayout } from "../types/views.js";
+import {
+  priorityLabel,
+  PRIORITY_COLUMN_WIDTH,
+  truncate,
+  padCenter,
+  padLeft,
+  padRight,
+} from "../utils/formatting.js";
 import { SkeletonRows } from "./skeleton.js";
 
 export interface IssueListProps {
@@ -12,6 +20,9 @@ export interface IssueListProps {
   // width is the terminal column count; columns size against it so rows never
   // wrap (wrapping corrupts the table and breaks the fixed header).
   width: number;
+  // Resolved per-column layout intent (view.layout ?? defaults.layout). Absent ⇒
+  // the solver uses its built-in responsive constants.
+  layout?: ViewLayout;
   loading?: boolean;
 }
 
@@ -26,63 +37,180 @@ const ASSIGN_WIDTH = 16;
 const LIST_CHROME_COLS = 4;
 const MIN_TITLE_WIDTH = 12;
 
+const DEFAULT_ALIGN: Record<ColumnId, ColumnAlign> = {
+  key: "left",
+  priority: "center",
+  state: "left",
+  title: "left",
+  assign: "left",
+};
+
 export interface IssueColumns {
   title: number;
+  keyWidth: number;
+  priorityWidth: number;
+  stateWidth: number;
+  assignWidth: number;
+  compactPriority: boolean;
+  showState: boolean;
+  showAssign: boolean;
+  // Which column absorbs leftover width. "title" unless the layout grows another.
+  growColumn: ColumnId;
+  // Resolved alignment per column, for the renderer to apply.
+  align: Record<ColumnId, ColumnAlign>;
+}
+
+// resolveLayout picks the effective layout for a view: the view's own layout
+// wins; otherwise the profile's defaults.layout; with neither, an empty layout
+// (the solver then uses its built-in constants). A view's layout replaces the
+// default wholesale — columns are never merged.
+export function resolveLayout(
+  viewLayout: ViewLayout | undefined,
+  defaultsLayout: ViewLayout | undefined,
+): ViewLayout {
+  return viewLayout ?? defaultsLayout ?? {};
+}
+
+// One degradation step the solver may pick, richest to tightest.
+interface Candidate {
   priorityWidth: number;
   compactPriority: boolean;
   showState: boolean;
   showAssign: boolean;
 }
 
+// ColumnSpec is the layout resolved into concrete numbers/flags, independent of
+// terminal width. The solver then fits it to the width.
+interface ColumnSpec {
+  keyWidth: number;
+  priorityFull: number;
+  stateWidth: number;
+  assignWidth: number;
+  titleFixed: number;
+  growColumn: ColumnId;
+  align: Record<ColumnId, ColumnAlign>;
+  candidates: Candidate[];
+}
+
+// resolveAligns fills every column's alignment, falling back to its default.
+function resolveAligns(layout: ViewLayout): Record<ColumnId, ColumnAlign> {
+  const ids: ColumnId[] = ["key", "priority", "state", "title", "assign"];
+  return Object.fromEntries(
+    ids.map((id) => [id, layout[id]?.align ?? DEFAULT_ALIGN[id]]),
+  ) as Record<ColumnId, ColumnAlign>;
+}
+
+// Fixed widths per column, each overridable by the layout's configured width.
+function resolveWidths(layout: ViewLayout): {
+  key: number;
+  priority: number;
+  state: number;
+  assign: number;
+  title: number;
+} {
+  const widthOf = (id: ColumnId, fallback: number): number => layout[id]?.width ?? fallback;
+  return {
+    key: widthOf("key", KEY_WIDTH),
+    priority: widthOf("priority", PRIORITY_WIDTH),
+    state: widthOf("state", STATE_WIDTH),
+    assign: widthOf("assign", ASSIGN_WIDTH),
+    title: widthOf("title", MIN_TITLE_WIDTH),
+  };
+}
+
+// resolveColumnSpec turns the layout intent into concrete widths, the grow
+// column, alignments, and the degradation candidates. A configured `width`
+// overrides the column constant; `hidden` drops STATE/ASSIGN; the grow column
+// defaults to TITLE.
+function resolveColumnSpec(layout: ViewLayout): ColumnSpec {
+  const w = resolveWidths(layout);
+  const showState = layout.state?.hidden !== true;
+  const showAssign = layout.assign?.hidden !== true;
+  const growColumn =
+    (Object.keys(layout) as ColumnId[]).find((id) => layout[id]?.grow === true) ?? "title";
+
+  return {
+    keyWidth: w.key,
+    priorityFull: w.priority,
+    stateWidth: w.state,
+    assignWidth: w.assign,
+    titleFixed: w.title,
+    growColumn,
+    align: resolveAligns(layout),
+    candidates: [
+      { priorityWidth: w.priority, compactPriority: false, showState, showAssign },
+      { priorityWidth: w.priority, compactPriority: false, showState: false, showAssign },
+      { priorityWidth: w.priority, compactPriority: false, showState: false, showAssign: false },
+      {
+        priorityWidth: PRIORITY_COMPACT_WIDTH,
+        compactPriority: true,
+        showState: false,
+        showAssign: false,
+      },
+    ],
+  };
+}
+
 // issueColumns derives the responsive column layout from the list's available
-// width. TITLE absorbs the leftover space; as width shrinks the layout degrades
-// in order: drop STATE, then drop ASSIGN, then collapse PRIORITY to a single
-// letter. ASSIGN outlives STATE because assignees are the column users most want
-// to keep visible. TITLE always keeps a readable minimum so rows never wrap.
-//
-// Each layout is a row of fixed column widths; titleFor() returns the space left
-// for TITLE after those columns and the 1-col gap between each. A layout is used
-// when its TITLE still meets MIN_TITLE_WIDTH.
-export function issueColumns(width: number): IssueColumns {
+// width, seeded by the resolved `layout` intent. The grow column (TITLE by
+// default) absorbs leftover space; as width shrinks the layout degrades in
+// order: drop STATE, then ASSIGN, then collapse PRIORITY to a single letter. A
+// `hidden` column never renders; a configured `width` overrides the constant.
+// The grow column always keeps MIN_TITLE_WIDTH so rows never wrap — a pinned
+// width can never force an overflow.
+export function issueColumns(width: number, layout: ViewLayout = {}): IssueColumns {
   const inner = Math.max(0, width - LIST_CHROME_COLS);
-  // Space left for TITLE after the given fixed columns plus a 1-col gap per cell.
-  const titleFor = (fixed: number[]): number =>
+  const spec = resolveColumnSpec(layout);
+  const { keyWidth, stateWidth, assignWidth, titleFixed, growColumn, align } = spec;
+
+  // Space left for the grow column after the given fixed columns plus a 1-col
+  // gap per rendered cell.
+  const growFor = (fixed: number[]): number =>
     inner - fixed.reduce((a, b) => a + b, 0) - fixed.length;
 
-  const layouts: IssueColumns[] = [
-    {
-      title: titleFor([KEY_WIDTH, PRIORITY_WIDTH, STATE_WIDTH, ASSIGN_WIDTH]),
-      priorityWidth: PRIORITY_WIDTH,
-      compactPriority: false,
-      showState: true,
-      showAssign: true,
-    },
-    {
-      title: titleFor([KEY_WIDTH, PRIORITY_WIDTH, ASSIGN_WIDTH]),
-      priorityWidth: PRIORITY_WIDTH,
-      compactPriority: false,
-      showState: false,
-      showAssign: true,
-    },
-    {
-      title: titleFor([KEY_WIDTH, PRIORITY_WIDTH]),
-      priorityWidth: PRIORITY_WIDTH,
-      compactPriority: false,
-      showState: false,
-      showAssign: false,
-    },
-  ];
-  const chosen = layouts.find((l) => l.title >= MIN_TITLE_WIDTH);
-  if (chosen) return chosen;
+  // Fixed columns for a candidate are everything shown except the grow column.
+  const fixedWidths = (c: Candidate): number[] =>
+    (
+      [
+        { id: "key", w: keyWidth, shown: true },
+        { id: "priority", w: c.priorityWidth, shown: true },
+        { id: "state", w: stateWidth, shown: c.showState },
+        { id: "title", w: titleFixed, shown: true },
+        { id: "assign", w: assignWidth, shown: c.showAssign },
+      ] satisfies { id: ColumnId; w: number; shown: boolean }[]
+    )
+      .filter((p) => p.shown && p.id !== growColumn)
+      .map((p) => p.w);
 
-  // Tightest layout: single-letter priority, no STATE/ASSIGN; floor the title.
-  return {
-    title: Math.max(MIN_TITLE_WIDTH, titleFor([KEY_WIDTH, PRIORITY_COMPACT_WIDTH])),
-    priorityWidth: PRIORITY_COMPACT_WIDTH,
-    compactPriority: true,
-    showState: false,
-    showAssign: false,
-  };
+  const build = (c: Candidate, grow: number): IssueColumns => ({
+    title: growColumn === "title" ? grow : titleFixed,
+    keyWidth,
+    priorityWidth: c.priorityWidth,
+    stateWidth,
+    assignWidth: growColumn === "assign" ? grow : assignWidth,
+    compactPriority: c.compactPriority,
+    showState: c.showState,
+    showAssign: c.showAssign,
+    growColumn,
+    align,
+  });
+
+  // Pick the richest candidate whose grow column still meets MIN_TITLE_WIDTH;
+  // otherwise the tightest, with the grow column floored so rows never wrap (Ink
+  // truncates per cell even if the floor nominally exceeds the inner width).
+  const fitting = spec.candidates.find((c) => growFor(fixedWidths(c)) >= MIN_TITLE_WIDTH);
+  if (fitting) return build(fitting, growFor(fixedWidths(fitting)));
+  const tightest = spec.candidates[spec.candidates.length - 1]!;
+  return build(tightest, Math.max(MIN_TITLE_WIDTH, growFor(fixedWidths(tightest))));
+}
+
+// alignText pads `value` to `width` per the column's alignment. left = pad right
+// (padRight), center = padCenter, right = pad left (padLeft). Used for fixed
+// columns; the grow column relies on Ink's flex-grow + truncate instead.
+function alignText(value: string, width: number, align: ColumnAlign): string {
+  if (align === "center") return padCenter(value, width);
+  if (align === "right") return padLeft(value, width);
+  return padRight(value, width);
 }
 
 // assignLabel renders the assignees for the ASSIGN column: joined display names,
@@ -155,29 +283,36 @@ export function IssueList(props: IssueListProps): React.ReactElement {
   const visible = props.issues.slice(start, end);
   const hiddenAbove = start;
   const hiddenBelow = props.issues.length - end;
-  const cols = issueColumns(props.width);
+  const cols = issueColumns(props.width, props.layout);
+
+  // Box props for a column: the grow column flex-grows, the rest are fixed width.
+  const cell = (
+    id: ColumnId,
+    width: number,
+  ): { width?: number; flexGrow?: number; flexShrink?: number } =>
+    cols.growColumn === id ? { flexGrow: 1 } : { width, flexShrink: 0 };
   return (
     <Box flexDirection="column" borderStyle="round" paddingX={1} flexGrow={1}>
-      {/* Each cell is a fixed-width Box with flexShrink={0} (title flex-grows) so
-          columns never shrink into each other; a 1-col gap separates them. The
-          fixed widths already reserve room for that gap (padCenter/truncate). */}
+      {/* Each cell is a fixed-width Box with flexShrink={0}; the grow column
+          flex-grows so columns never shrink into each other. A 1-col gap
+          separates them; the fixed widths reserve room for it. */}
       <Box columnGap={1}>
-        <Box width={KEY_WIDTH} flexShrink={0}>
-          <Text bold>KEY</Text>
+        <Box {...cell("key", cols.keyWidth)}>
+          <Text bold>{alignText("KEY", cols.keyWidth, cols.align.key)}</Text>
         </Box>
-        <Box width={cols.priorityWidth} flexShrink={0}>
+        <Box {...cell("priority", cols.priorityWidth)}>
           <Text bold>{cols.compactPriority ? "PR" : "PRIORITY"}</Text>
         </Box>
         {cols.showState ? (
-          <Box width={STATE_WIDTH} flexShrink={0}>
+          <Box {...cell("state", cols.stateWidth)}>
             <Text bold>STATE</Text>
           </Box>
         ) : null}
-        <Box flexGrow={1}>
+        <Box {...cell("title", cols.title)}>
           <Text bold>TITLE</Text>
         </Box>
         {cols.showAssign ? (
-          <Box width={ASSIGN_WIDTH} flexShrink={0}>
+          <Box {...cell("assign", cols.assignWidth)}>
             <Text bold>ASSIGN</Text>
           </Box>
         ) : null}
@@ -192,35 +327,41 @@ export function IssueList(props: IssueListProps): React.ReactElement {
           : priorityLabel(issue.priority);
         return (
           <Box key={issue.id} columnGap={1}>
-            <Box width={KEY_WIDTH} flexShrink={0}>
+            <Box {...cell("key", cols.keyWidth)}>
               <Text color={color} inverse={isSelected} wrap="truncate">
-                {issue.key}
+                {alignText(issue.key, cols.keyWidth, cols.align.key)}
               </Text>
             </Box>
-            <Box width={cols.priorityWidth} flexShrink={0}>
+            <Box {...cell("priority", cols.priorityWidth)}>
               <Text
                 color={isSelected ? color : PRIORITY_COLOR[issue.priority]}
                 inverse={isSelected}
               >
-                {cols.compactPriority ? priorityText : padCenter(priorityText, cols.priorityWidth)}
+                {cols.compactPriority
+                  ? priorityText
+                  : alignText(priorityText, cols.priorityWidth, cols.align.priority)}
               </Text>
             </Box>
             {cols.showState ? (
-              <Box width={STATE_WIDTH} flexShrink={0}>
+              <Box {...cell("state", cols.stateWidth)}>
                 <Text color={color} inverse={isSelected} wrap="truncate">
-                  {issue.state.name}
+                  {alignText(issue.state.name, cols.stateWidth, cols.align.state)}
                 </Text>
               </Box>
             ) : null}
-            <Box flexGrow={1}>
+            <Box {...cell("title", cols.title)}>
               <Text color={color} inverse={isSelected} wrap="truncate">
                 {issue.name}
               </Text>
             </Box>
             {cols.showAssign ? (
-              <Box width={ASSIGN_WIDTH} flexShrink={0}>
+              <Box {...cell("assign", cols.assignWidth)}>
                 <Text color={color} inverse={isSelected} wrap="truncate">
-                  {assignLabel(issue, ASSIGN_WIDTH)}
+                  {alignText(
+                    assignLabel(issue, cols.assignWidth),
+                    cols.assignWidth,
+                    cols.align.assign,
+                  )}
                 </Text>
               </Box>
             ) : null}

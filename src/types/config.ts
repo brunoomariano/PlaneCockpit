@@ -1,4 +1,4 @@
-import type { SortKey, ViewDefinition } from "./views.js";
+import type { SortKey, ViewLayout, ViewDefinition } from "./views.js";
 
 export interface ServerConfig {
   base_url: string;
@@ -34,7 +34,12 @@ export interface ProfileConfig {
   // auto_refresh_seconds drives the TUI auto-refresh timer for every view
   // (omitted ⇒ 15s; 0 disables). sort is the profile-wide default sort,
   // inherited by views that declare no sort of their own.
-  defaults?: { projects?: string[]; auto_refresh_seconds?: number; sort?: SortKey[] };
+  defaults?: {
+    projects?: string[];
+    auto_refresh_seconds?: number;
+    sort?: SortKey[];
+    layout?: ViewLayout;
+  };
   cache?: CacheConfig;
   views?: ViewDefinition[];
 }

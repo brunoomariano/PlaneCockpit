@@ -71,6 +71,12 @@ profiles:
         filters:
           labels: [bug]
           priority: [urgent, high]
+        # Per-column layout (TUI only): hide STATE, widen ASSIGN, TITLE grows.
+        # The responsive solver still drops columns if the terminal is too narrow.
+        layout:
+          state: { hidden: true }
+          assign: { width: 24 }
+          title: { grow: true }
 
   staging:
     server:

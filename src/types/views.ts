@@ -36,6 +36,25 @@ export interface SortKey {
   direction: SortDirection;
 }
 
+// Stable ids for the issue-list columns. `title` is the grow column by default
+// and is never hidden (a list without titles is useless).
+export type ColumnId = "key" | "priority" | "state" | "title" | "assign";
+
+export type ColumnAlign = "left" | "center" | "right";
+
+// Per-column layout intent. The responsive solver still decides what fits; these
+// set intent (fixed width, which column grows, alignment, whether to show it).
+export interface ColumnLayout {
+  width?: number;
+  grow?: boolean;
+  align?: ColumnAlign;
+  hidden?: boolean;
+}
+
+// A view's column layout, keyed by column id. At most one column may set
+// `grow: true`; absent ⇒ TITLE grows. Resolved by resolveLayout.
+export type ViewLayout = Partial<Record<ColumnId, ColumnLayout>>;
+
 export interface ViewDefinition {
   name: string;
   // Project identifiers this view queries. When absent, the view inherits the
@@ -47,6 +66,9 @@ export interface ViewDefinition {
   // Ordered list of sort keys. Absent ⇒ the view inherits defaults.sort, then
   // the built-in DEFAULT_SORT. Resolved by resolveSort.
   sort?: SortKey[];
+  // Per-column layout. Absent ⇒ the view inherits defaults.layout, then the
+  // built-in responsive defaults. Resolved by resolveLayout.
+  layout?: ViewLayout;
   // Caps how many issues the API query fetches (per project). It does NOT cap
   // the client-side state_search refinement, which may return fewer.
   query_limit?: number;

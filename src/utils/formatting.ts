@@ -80,6 +80,14 @@ export function padRight(value: string | undefined | null, width: number): strin
   return v + " ".repeat(width - v.length);
 }
 
+// Right-aligns `value` within `width` by padding spaces on the left, truncating
+// (no ellipsis) when it overflows. Complements padRight (left-align) / padCenter.
+export function padLeft(value: string | undefined | null, width: number): string {
+  const v = value ?? "";
+  if (v.length >= width) return v.slice(0, width);
+  return " ".repeat(width - v.length) + v;
+}
+
 // Centers `value` within `width`, truncating (no ellipsis) when it overflows.
 export function padCenter(value: string | undefined | null, width: number): string {
   const v = value ?? "";

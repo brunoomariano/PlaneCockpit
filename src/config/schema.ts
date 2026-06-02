@@ -51,6 +51,26 @@ const sortSpecSchema = z.union([
   sortKeyEnum.transform((field) => [{ field, direction: DEFAULT_DIRECTION[field] }]),
 ]);
 
+// Per-column layout. Columns are keyed by a stable id; each entry sets width
+// (fixed, min 1), grow (absorb leftover space), align, and/or hidden. At most
+// one column may grow (enforced on the layout map below). `title` is the grow
+// column by default and is never hidden.
+const columnIdEnum = z.enum(["key", "priority", "state", "title", "assign"]);
+const columnAlignEnum = z.enum(["left", "center", "right"]);
+
+const columnLayoutSchema = z.strictObject({
+  width: z.number().int().positive().optional(),
+  grow: z.boolean().optional(),
+  align: columnAlignEnum.optional(),
+  hidden: z.boolean().optional(),
+});
+
+const layoutSchema = z
+  .partialRecord(columnIdEnum, columnLayoutSchema)
+  .refine((layout) => Object.values(layout).filter((c) => c?.grow).length <= 1, {
+    message: "at most one column may set grow: true",
+  });
+
 const projectStateSearchSchema = z.strictObject({
   name: z.string().min(1),
   state_search: z.array(z.string().min(1)),
@@ -77,6 +97,7 @@ const viewSchema = z
     projects: z.array(z.string().min(1)).optional(),
     filters: viewFiltersSchema.optional(),
     sort: sortSpecSchema.optional(),
+    layout: layoutSchema.optional(),
     // Caps the API fetch per project AND the final aggregate result (after
     // merge + client-side refinement + sort). Refinement may leave fewer.
     query_limit: z.number().int().positive().optional(),
@@ -146,6 +167,8 @@ export const profileSchema = z.strictObject({
       // Profile-wide default sort, inherited by any view that does not declare
       // its own `sort`. Same shape as a view's sort.
       sort: sortSpecSchema.optional(),
+      // Profile-wide default column layout, inherited by views without a layout.
+      layout: layoutSchema.optional(),
     })
     .optional(),
   cache: cacheSchema.optional(),

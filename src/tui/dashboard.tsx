@@ -4,7 +4,8 @@ import type { Issue } from "../types/issue.js";
 import type { AppContext } from "../app.js";
 import { StatusBar } from "./status-bar.js";
 import { ViewSelector, SIDE_PANEL_WIDTH } from "./view-selector.js";
-import { IssueList } from "./issue-list.js";
+import type { ViewLayout } from "../types/views.js";
+import { IssueList, resolveLayout } from "./issue-list.js";
 import { IssueDetail, DETAIL_CHROME_ROWS } from "./issue-detail.js";
 import { FilterBox } from "./filter-box.js";
 import { HelpModal } from "./help-modal.js";
@@ -172,6 +173,13 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   const [detailScroll, setDetailScroll] = useState(0);
 
   const activeView = views[viewIdx];
+
+  // Effective column layout for the active view: its own layout, else the
+  // profile default, else empty (the solver falls back to responsive constants).
+  const activeLayout = useMemo(
+    () => resolveLayout(activeView?.layout, ctx.runtime.profile.defaults?.layout),
+    [activeView, ctx],
+  );
 
   // Tracks the key of the currently selected issue so a refresh can restore the
   // selection on the same item instead of jumping back to the top (gh-dash #735).
@@ -512,6 +520,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
       filter={filter}
       filtering={filtering}
       viewportRows={viewportRows}
+      layout={activeLayout}
       loading={loading}
       statusBar={<StatusBar {...statusBarBase} loading={loading} position={listPosition} />}
     />
@@ -534,6 +543,8 @@ interface ListLayoutProps {
   filter: string;
   filtering: boolean;
   viewportRows: number;
+  // Resolved column layout for the active view, threaded to the issue list.
+  layout: ViewLayout;
   loading: boolean;
   statusBar: React.ReactNode;
 }
@@ -563,6 +574,7 @@ function ListLayout(props: ListLayoutProps): React.ReactElement {
             // list only has the remainder. Narrow layout: panel is on top, list
             // gets the full width.
             width={props.narrow ? props.width : props.width - SIDE_PANEL_WIDTH}
+            layout={props.layout}
             loading={props.loading}
           />
           <FilterBox active={props.filtering} value={props.filter} />

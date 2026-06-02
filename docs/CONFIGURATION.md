@@ -124,11 +124,12 @@ API key resolution order: `auth.api_key` (inline) → `hosts.yaml` entry.
 
 ### `defaults` (optional)
 
-| Field                  | Type                 | Required | Default | Notes                                                                |
-| ---------------------- | -------------------- | -------- | ------- | -------------------------------------------------------------------- |
-| `projects`             | list of strings      | no       | —       | the profile's project universe (project identifiers, e.g. `["ENG"]`) |
-| `auto_refresh_seconds` | non-negative integer | no       | `15`    | TUI auto-refresh interval, applied to every view; `0` disables it    |
-| `sort`                 | **Sort** (see below) | no       | —       | profile-wide default sort, inherited by views that declare no `sort` |
+| Field                  | Type                   | Required | Default | Notes                                                                   |
+| ---------------------- | ---------------------- | -------- | ------- | ----------------------------------------------------------------------- |
+| `projects`             | list of strings        | no       | —       | the profile's project universe (project identifiers, e.g. `["ENG"]`)    |
+| `auto_refresh_seconds` | non-negative integer   | no       | `15`    | TUI auto-refresh interval, applied to every view; `0` disables it       |
+| `sort`                 | **Sort** (see below)   | no       | —       | profile-wide default sort, inherited by views that declare no `sort`    |
+| `layout`               | **Layout** (see below) | no       | —       | profile-wide default column layout, inherited by views without `layout` |
 
 The TUI scans all of `defaults.projects` by default; the CLI
 (`plc issue list` without `--project`) uses the first one.
@@ -136,6 +137,9 @@ The TUI scans all of `defaults.projects` by default; the CLI
 `defaults.sort` is inherited by any view that does not declare its own `sort`. A
 view's `sort` replaces it wholesale (no merging). See
 [Multi-level sort](#multi-level-sort) for the shape and the built-in fallback.
+
+`defaults.layout` is inherited by any view without its own `layout`, with the
+same wholesale-replacement rule. See [Column layout](#column-layout).
 
 `auto_refresh_seconds` controls how often the TUI dashboard re-fetches the
 active view on its own. It applies to every view in the profile. Omitting it
@@ -181,6 +185,7 @@ projects.
 | `projects`    | list of strings         | no       | absent ⇒ inherits `defaults.projects`; present ⇒ a subset                                                                         |
 | `filters`     | **Filters** (see below) | no       | narrows the issue set                                                                                                             |
 | `sort`        | **Sort** (see below)    | no       | ordered list of `{ field: direction }` keys; see [Multi-level sort](#multi-level-sort)                                            |
+| `layout`      | **Layout** (see below)  | no       | per-column width/grow/align/hidden for the TUI list; see [Column layout](#column-layout)                                          |
 | `query_limit` | positive integer        | no       | caps the API fetch per project **and** the final aggregate result (after merge, refinement, and sort); refinement may leave fewer |
 
 A view with `projects` must reference identifiers that exist in
@@ -270,6 +275,35 @@ The legacy scalar form is still accepted: `sort: priority` is read as the
 single key `[{ priority: desc }]` (the field's natural direction), so configs
 that predate this list form keep working.
 
+#### Column layout
+
+`layout` tunes the TUI issue-list columns. It is a map keyed by column id —
+`key`, `priority`, `state`, `title`, `assign` — where each entry sets any of:
+
+| Option   | Type            | Default    | Meaning                                                       |
+| :------- | :-------------- | :--------- | :------------------------------------------------------------ |
+| `width`  | integer (min 1) | per-column | Fixed width in characters when the column is shown.           |
+| `grow`   | boolean         | `title`    | Column absorbs leftover width. At most one column per layout. |
+| `align`  | enum            | per-column | `left` \| `center` \| `right`.                                |
+| `hidden` | boolean         | `false`    | Omit the column. `title` is never hidden.                     |
+
+```yaml
+layout:
+  priority: { align: center, width: 10 }
+  state: { hidden: true } # never show STATE in this view
+  title: { grow: true } # absorb leftover width (at most one column)
+  assign: { width: 20 }
+```
+
+`layout` sets _intent_; the responsive solver still decides what fits. On a
+terminal too narrow for every configured column it drops STATE, then ASSIGN,
+then collapses PRIORITY to a single letter — always keeping the grow column
+(TITLE by default) at a readable minimum so rows never wrap. So you can pin or
+hide columns, but a `width` can never force an overflow. A view's `layout`
+replaces `defaults.layout` wholesale (columns are not merged); with neither set,
+the built-in responsive widths apply. This affects the TUI only — the CLI
+`table` output is unchanged.
+
 ```yaml
 views:
   # No `projects`: inherits defaults.projects, aggregates across all of them.
@@ -307,6 +341,13 @@ views:
       - priority: desc
       - state: asc
       - updated_at: desc
+
+  # Custom column layout: hide STATE, widen ASSIGN, let TITLE grow.
+  - name: "Wide titles"
+    layout:
+      state: { hidden: true }
+      assign: { width: 24 }
+      title: { grow: true }
 ```
 
 ## Validation
