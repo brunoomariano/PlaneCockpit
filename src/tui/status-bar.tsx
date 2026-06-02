@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import { PRODUCT_NAME, VERSION, AUTHOR_HANDLE } from "../meta.js";
+import { useTheme } from "./theme/context.js";
 
 export interface StatusBarProps {
   profile: string;
@@ -12,6 +13,7 @@ export interface StatusBarProps {
 }
 
 export function StatusBar(props: StatusBarProps): React.ReactElement {
+  const theme = useTheme();
   return (
     <Box justifyContent="space-between" borderStyle="round" paddingX={1}>
       <Text>
@@ -19,7 +21,7 @@ export function StatusBar(props: StatusBarProps): React.ReactElement {
         {" · "}
         <Text dimColor>{props.workspace}</Text>
         {" · view: "}
-        <Text color="cyan">{props.view}</Text>
+        <Text color={theme.accent}>{props.view}</Text>
         {props.position ? (
           <>
             {" · "}
@@ -32,8 +34,8 @@ export function StatusBar(props: StatusBarProps): React.ReactElement {
         {` v${VERSION} · by ${AUTHOR_HANDLE}`}
       </Text>
       <Text>
-        {props.loading ? <Text color="yellow">loading… </Text> : null}
-        {props.message ? <Text color="red">{props.message} </Text> : null}
+        {props.loading ? <Text color={theme.warning}>loading… </Text> : null}
+        {props.message ? <Text color={theme.danger}>{props.message} </Text> : null}
         <Text dimColor>j/k · g/G · PgUp/PgDn · enter · o · r · / · q</Text>
       </Text>
     </Box>

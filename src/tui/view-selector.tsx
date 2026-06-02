@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Text } from "ink";
+import { useTheme } from "./theme/context.js";
 
 interface ViewEntry {
   name: string;
@@ -27,6 +28,7 @@ export interface ViewSelectorProps {
 }
 
 export function ViewSelector(props: ViewSelectorProps): React.ReactElement {
+  const theme = useTheme();
   if (props.horizontal) return <HorizontalViewSelector {...props} />;
   return (
     <Box flexDirection="column" width={SIDE_PANEL_WIDTH} flexShrink={0}>
@@ -37,12 +39,12 @@ export function ViewSelector(props: ViewSelectorProps): React.ReactElement {
           {props.defaultProjects.length === 0 ? (
             <Text dimColor>none</Text>
           ) : (
-            <Text color="cyan">{props.defaultProjects.join(", ")}</Text>
+            <Text color={theme.accent}>{props.defaultProjects.join(", ")}</Text>
           )}
         </Text>
         <Text dimColor># = view restricts projects</Text>
         <Text>
-          <Text color="red">*</Text>
+          <Text color={theme.danger}>*</Text>
           <Text dimColor> = error in view config</Text>
         </Text>
       </Box>
@@ -53,9 +55,9 @@ export function ViewSelector(props: ViewSelectorProps): React.ReactElement {
         {props.views.map((view, idx) => {
           const isActive = idx === props.active;
           return (
-            <Text key={view.name} color={isActive ? "cyan" : undefined}>
+            <Text key={view.name} color={isActive ? theme.accent : undefined}>
               {isActive ? "› " : "  "}
-              {view.hasErrors ? <Text color="red">* </Text> : null}
+              {view.hasErrors ? <Text color={theme.danger}>* </Text> : null}
               {view.restricted ? <Text dimColor># </Text> : null}
               {view.name}
             </Text>
@@ -71,6 +73,7 @@ export function ViewSelector(props: ViewSelectorProps): React.ReactElement {
 // (projects summary + views with their markers) but folds it onto two truncating
 // lines so it costs minimal vertical space.
 function HorizontalViewSelector(props: ViewSelectorProps): React.ReactElement {
+  const theme = useTheme();
   return (
     <Box flexDirection="column" borderStyle="round" paddingX={1} flexShrink={0}>
       {/* Each row is one Text with wrap="truncate" so it clips on overflow
@@ -80,7 +83,7 @@ function HorizontalViewSelector(props: ViewSelectorProps): React.ReactElement {
         {props.defaultProjects.length === 0 ? (
           <Text dimColor>none</Text>
         ) : (
-          <Text color="cyan">{props.defaultProjects.join(", ")}</Text>
+          <Text color={theme.accent}>{props.defaultProjects.join(", ")}</Text>
         )}
       </Text>
       <Text wrap="truncate">
@@ -89,9 +92,9 @@ function HorizontalViewSelector(props: ViewSelectorProps): React.ReactElement {
         {props.views.map((view, idx) => {
           const isActive = idx === props.active;
           return (
-            <Text key={view.name} color={isActive ? "cyan" : undefined}>
+            <Text key={view.name} color={isActive ? theme.accent : undefined}>
               {isActive ? "›" : " "}
-              {view.hasErrors ? <Text color="red">*</Text> : null}
+              {view.hasErrors ? <Text color={theme.danger}>*</Text> : null}
               {view.restricted ? <Text dimColor>#</Text> : null}
               {view.name}
               {idx < props.views.length - 1 ? <Text dimColor>{"  "}</Text> : null}

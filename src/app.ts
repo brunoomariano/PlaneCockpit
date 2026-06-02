@@ -12,6 +12,8 @@ import { WorkItemsService } from "./plane/work-items.js";
 import { IssuesService } from "./plane/issues.js";
 import { UsersService } from "./plane/users.js";
 import { loadKeybindings, type ResolvedBinding } from "./keybindings/load.js";
+import { resolveTheme } from "./tui/theme/resolve.js";
+import type { Theme } from "./tui/theme/tokens.js";
 import type { CacheStore } from "./cache/types.js";
 import type { ProfileConfig, RuntimeConfig } from "./types/config.js";
 
@@ -33,6 +35,9 @@ export interface AppContext {
   users: UsersService;
   keybindings: ResolvedBinding[];
   keybindingsSourcePath?: string;
+  // Resolved color theme (preset + overrides), shared by the TUI and the CLI
+  // table so both render priority and accents consistently.
+  theme: Theme;
   close(): Promise<void>;
 }
 
@@ -82,6 +87,7 @@ export async function buildContext(flags: GlobalFlags): Promise<AppContext> {
     users,
     keybindings,
     keybindingsSourcePath,
+    theme: resolveTheme(profile.theme),
     async close() {
       if (cache.close) await cache.close();
     },

@@ -1,6 +1,9 @@
 import Table from "cli-table3";
 import YAML from "yaml";
 import type { Issue, IssuePriority } from "../types/issue.js";
+import type { Theme } from "../tui/theme/tokens.js";
+import { PRESETS } from "../tui/theme/presets.js";
+import { colorize } from "./ansi-color.js";
 
 export type OutputFormat = "table" | "json" | "yaml";
 
@@ -31,7 +34,14 @@ export function priorityLabel(p: IssuePriority): string {
   return PRIORITY_LABEL[p];
 }
 
-export function renderIssues(issues: Issue[], fmt: OutputFormat): string {
+// renderIssues renders the issue list in the chosen format. In `table` mode the
+// PRIORITY cell is colored from the shared theme so the CLI and TUI agree;
+// `theme` defaults to the default preset, so existing 2-arg callers keep working.
+export function renderIssues(
+  issues: Issue[],
+  fmt: OutputFormat,
+  theme: Theme = PRESETS.default,
+): string {
   if (fmt === "json") return JSON.stringify(issues, null, 2);
   if (fmt === "yaml") return YAML.stringify(issues);
   const table = new Table({
@@ -46,7 +56,7 @@ export function renderIssues(issues: Issue[], fmt: OutputFormat): string {
   for (const issue of issues) {
     table.push([
       issue.key,
-      priorityLabel(issue.priority),
+      colorize(priorityLabel(issue.priority), theme.priority[issue.priority]),
       issue.state.name,
       padRight(truncate(issue.name, TITLE_COLUMN_WIDTH), TITLE_COLUMN_WIDTH),
       issue.assignees.map((a) => a.display_name).join(", "),

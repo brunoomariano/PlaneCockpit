@@ -1,3 +1,4 @@
+import type { IssuePriority } from "./issue.js";
 import type { SortKey, ViewLayout, ViewDefinition } from "./views.js";
 
 export interface ServerConfig {
@@ -41,7 +42,25 @@ export interface ProfileConfig {
     layout?: ViewLayout;
   };
   cache?: CacheConfig;
+  // Optional theme: a built-in preset plus per-token color overrides. Resolved
+  // into a concrete Theme by resolveTheme; absent ⇒ the default preset.
+  theme?: ThemeConfigInput;
   views?: ViewDefinition[];
+}
+
+// Theme config as written in YAML (pre-resolution). Mirrors the Zod themeSchema.
+// Colors are hex, named, or ANSI-256 index strings; all optional overrides.
+export interface ThemeConfigInput {
+  preset?: "default" | "catppuccin" | "gruvbox" | "tokyonight";
+  colors?: {
+    selection?: string;
+    accent?: string;
+    danger?: string;
+    warning?: string;
+    success?: string;
+    muted?: string;
+    priority?: Partial<Record<IssuePriority, string>>;
+  };
 }
 
 export interface PlaneConfig {

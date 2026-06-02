@@ -11,6 +11,7 @@ import {
   padRight,
 } from "../utils/formatting.js";
 import { SkeletonRows } from "./skeleton.js";
+import { useTheme } from "./theme/context.js";
 
 export interface IssueListProps {
   issues: Issue[];
@@ -220,14 +221,6 @@ export function assignLabel(issue: Issue, width: number): string {
   return truncate(issue.assignees.map((a) => a.display_name).join(", "), width);
 }
 
-const PRIORITY_COLOR = {
-  urgent: "red",
-  high: "#ff8700", // orange (Ink maps hex to the nearest terminal color)
-  medium: "yellow",
-  low: "green",
-  none: "gray",
-} as const;
-
 // Single-letter priority labels for the compact column ('·' for none).
 const PRIORITY_LETTER = {
   urgent: "U",
@@ -255,6 +248,7 @@ export function computeViewport(
 }
 
 export function IssueList(props: IssueListProps): React.ReactElement {
+  const theme = useTheme();
   const startRef = React.useRef(0);
   if (props.loading) {
     // Hide the previous content during a fetch. The skeleton mirrors the column
@@ -321,7 +315,7 @@ export function IssueList(props: IssueListProps): React.ReactElement {
       {visible.map((issue, offset) => {
         const idx = start + offset;
         const isSelected = idx === props.selected;
-        const color = isSelected ? "cyan" : undefined;
+        const color = isSelected ? theme.selection : undefined;
         const priorityText = cols.compactPriority
           ? PRIORITY_LETTER[issue.priority]
           : priorityLabel(issue.priority);
@@ -334,7 +328,7 @@ export function IssueList(props: IssueListProps): React.ReactElement {
             </Box>
             <Box {...cell("priority", cols.priorityWidth)}>
               <Text
-                color={isSelected ? color : PRIORITY_COLOR[issue.priority]}
+                color={isSelected ? color : theme.priority[issue.priority]}
                 inverse={isSelected}
               >
                 {cols.compactPriority

@@ -4,6 +4,7 @@ import { render } from "ink";
 import { withContext } from "../shared.js";
 import { Dashboard } from "../../tui/dashboard.js";
 import { ErrorBoundary } from "../../tui/error-boundary.js";
+import { ThemeProvider } from "../../tui/theme/context.js";
 
 export function registerDash(program: Command): void {
   program
@@ -19,7 +20,10 @@ export function registerDash(program: Command): void {
           logger.error("unhandledRejection in dash", { reason });
         });
         const dashboard = React.createElement(Dashboard, { ctx, logger });
-        const tree = React.createElement(ErrorBoundary, { logger, children: dashboard });
+        // ThemeProvider wraps the whole tree (including the ErrorBoundary, which
+        // also reads theme tokens) so every component can call useTheme.
+        const boundary = React.createElement(ErrorBoundary, { logger, children: dashboard });
+        const tree = React.createElement(ThemeProvider, { theme: ctx.theme, children: boundary });
 
         // Enter the terminal's alternate screen buffer so the TUI renders on a
         // throwaway screen. On exit the terminal restores the previous contents

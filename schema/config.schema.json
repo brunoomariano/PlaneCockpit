@@ -205,6 +205,66 @@
             ],
             "additionalProperties": false
           },
+          "theme": {
+            "type": "object",
+            "properties": {
+              "preset": {
+                "type": "string",
+                "enum": [
+                  "default",
+                  "catppuccin",
+                  "gruvbox",
+                  "tokyonight"
+                ]
+              },
+              "colors": {
+                "type": "object",
+                "properties": {
+                  "selection": {
+                    "type": "string"
+                  },
+                  "accent": {
+                    "type": "string"
+                  },
+                  "danger": {
+                    "type": "string"
+                  },
+                  "warning": {
+                    "type": "string"
+                  },
+                  "success": {
+                    "type": "string"
+                  },
+                  "muted": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "object",
+                    "properties": {
+                      "urgent": {
+                        "type": "string"
+                      },
+                      "high": {
+                        "type": "string"
+                      },
+                      "medium": {
+                        "type": "string"
+                      },
+                      "low": {
+                        "type": "string"
+                      },
+                      "none": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
           "views": {
             "type": "array",
             "items": {

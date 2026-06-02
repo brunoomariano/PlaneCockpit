@@ -39,6 +39,15 @@ profiles:
         url: redis://localhost:6379
         key_prefix: plc
 
+    # Semantic color theme. A built-in preset plus optional per-token overrides.
+    # Applies to the TUI and the `plc issue list` table. Omit for the default look.
+    theme:
+      preset: catppuccin # default | catppuccin | gruvbox | tokyonight
+      colors:
+        accent: "#89b4fa" # override a single token on top of the preset
+        priority:
+          urgent: "#f38ba8"
+
     views:
       # No `projects`: inherits defaults.projects and aggregates issues from all
       # of them. The legacy scalar `sort` still works (read as priority desc).

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { padRight } from "../utils/formatting.js";
+import { useTheme } from "./theme/context.js";
 import type { ResolvedBinding } from "../keybindings/load.js";
 import type { ActionId, ActionContext } from "../keybindings/registry.js";
 
@@ -171,6 +172,7 @@ export function buildHelpSections(bindings: ResolvedBinding[], query: string): H
 }
 
 export function HelpModal(props: HelpModalProps): React.ReactElement {
+  const theme = useTheme();
   const [query, setQuery] = useState("");
   const sections = useMemo(() => buildHelpSections(props.bindings, query), [props.bindings, query]);
 
@@ -193,20 +195,20 @@ export function HelpModal(props: HelpModalProps): React.ReactElement {
     <Box
       flexDirection="column"
       borderStyle="double"
-      borderColor="cyan"
+      borderColor={theme.accent}
       paddingX={2}
       paddingY={1}
       width={80}
     >
       <Box justifyContent="space-between">
-        <Text bold color="cyan">
+        <Text bold color={theme.accent}>
           Keybindings
         </Text>
         <Text dimColor>esc/q to close</Text>
       </Box>
       <Box marginTop={1}>
         <Text>search: </Text>
-        <Text color="cyan">{query || " "}</Text>
+        <Text color={theme.accent}>{query || " "}</Text>
         <Text dimColor>_</Text>
       </Box>
       <Box marginTop={1} flexDirection="column">
@@ -215,14 +217,14 @@ export function HelpModal(props: HelpModalProps): React.ReactElement {
         ) : (
           sections.map((section) => (
             <Box key={section.title} flexDirection="column" marginTop={1}>
-              <Text bold color="yellow">
+              <Text bold color={theme.warning}>
                 {section.title}
               </Text>
               {section.rows.map((row) => (
                 <Box key={row.ids.join(",")}>
                   <Text>{padRight(row.keys, 14)}</Text>
                   <Text dimColor>{row.label}</Text>
-                  {row.override ? <Text color="green"> *</Text> : null}
+                  {row.override ? <Text color={theme.success}> *</Text> : null}
                 </Box>
               ))}
             </Box>

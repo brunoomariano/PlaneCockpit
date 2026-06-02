@@ -86,6 +86,7 @@ server: { ... } # required
 auth: { ... } # optional
 defaults: { ... } # optional
 cache: { ... } # optional
+theme: { ... } # optional
 views: [...] # optional
 ```
 
@@ -173,6 +174,36 @@ cache:
     url: redis://localhost:6379
     key_prefix: plc
 ```
+
+### `theme` (optional)
+
+Colors are driven by **semantic tokens**, not raw color literals. A theme maps
+each token to a color; a built-in `preset` selects a palette and `colors`
+overrides individual tokens on top of it.
+
+| Field    | Type                                                   | Required | Notes                                            |
+| -------- | ------------------------------------------------------ | -------- | ------------------------------------------------ |
+| `preset` | `default` \| `catppuccin` \| `gruvbox` \| `tokyonight` | no       | built-in palette; omitted ⇒ `default`            |
+| `colors` | map of token → color                                   | no       | per-token overrides applied on top of the preset |
+
+Tokens: `selection`, `accent`, `danger`, `warning`, `success`, `muted`, and
+`priority.{urgent,high,medium,low,none}`. A color is a hex (`#rrggbb`), a named
+color (`red`, `cyanBright`, …), or an ANSI-256 index as a string (`"203"`) for
+limited terminals.
+
+```yaml
+theme:
+  preset: catppuccin # default | catppuccin | gruvbox | tokyonight
+  colors: # optional overrides on top of the preset
+    accent: "#89b4fa"
+    priority:
+      urgent: "#f38ba8"
+```
+
+`preset: default` reproduces the built-in look, so a profile without a `theme`
+block is unchanged. A partial `colors.priority` override keeps the preset's other
+priority colors. The theme applies to the TUI and to the `plc issue list` table
+(priority colors), so the two stay consistent.
 
 ### `views` (optional)
 

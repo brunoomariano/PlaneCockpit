@@ -6,6 +6,17 @@ import type { AppContext } from "../app.js";
 import type { Issue } from "../types/issue.js";
 import { resolveBindings } from "../keybindings/load.js";
 import type { FileLogger } from "../utils/file-logger.js";
+import { ThemeProvider } from "../tui/theme/context.js";
+import { PRESETS } from "../tui/theme/presets.js";
+
+// Renders the Dashboard wrapped in a ThemeProvider, mirroring how the dash
+// command composes the tree, so components calling useTheme have a theme.
+function renderDashboard(ctx: AppContext, logger: FileLogger): ReturnType<typeof render> {
+  const dashboard = React.createElement(Dashboard, { ctx, logger });
+  return render(
+    React.createElement(ThemeProvider, { theme: PRESETS.default, children: dashboard }),
+  );
+}
 
 // A delay lets Ink flush effects between keystrokes so assertions see the settled
 // frame. The first call must outlast the async view load (which populates the
@@ -61,6 +72,7 @@ function harness(): Harness {
     workItems: { retrieve: vi.fn().mockResolvedValue(issue("ENG-1")) },
     users: {},
     keybindings: resolveBindings({}),
+    theme: PRESETS.default,
     close: vi.fn().mockResolvedValue(undefined),
   } as unknown as AppContext;
   return { ctx, logger, comment };
@@ -69,7 +81,7 @@ function harness(): Harness {
 describe("dashboard comment flow (e2e)", () => {
   it("opens the editor with c, accepts typed text, and submits on ctrl+s", async () => {
     const { ctx, logger, comment } = harness();
-    const { stdin, lastFrame, unmount } = render(React.createElement(Dashboard, { ctx, logger }));
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
     await tick(); // initial view load
 
     stdin.write("c"); // open comment editor on ENG-1
@@ -91,7 +103,7 @@ describe("dashboard comment flow (e2e)", () => {
 
   it("cancels on escape without commenting", async () => {
     const { ctx, logger, comment } = harness();
-    const { stdin, lastFrame, unmount } = render(React.createElement(Dashboard, { ctx, logger }));
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
     await tick();
 
     stdin.write("c");
@@ -108,7 +120,7 @@ describe("dashboard comment flow (e2e)", () => {
 
   it("does not submit a blank comment", async () => {
     const { ctx, logger, comment } = harness();
-    const { stdin, unmount } = render(React.createElement(Dashboard, { ctx, logger }));
+    const { stdin, unmount } = renderDashboard(ctx, logger);
     await tick();
 
     stdin.write("c");

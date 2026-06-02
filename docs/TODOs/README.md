@@ -12,15 +12,22 @@ item lands.
 
 ## Index
 
-| TODO                             | Summary                                                                      |
-| :------------------------------- | :--------------------------------------------------------------------------- |
-| [action-edit.md](action-edit.md) | TUI/CLI action to edit an issue's **state**, **assignee** and **priority**.  |
-| [themes.md](themes.md)           | Themeable colors with built-in presets (catppuccin, gruvbox, tokyonight, …). |
+| TODO                             | Summary                                                                     |
+| :------------------------------- | :-------------------------------------------------------------------------- |
+| [action-edit.md](action-edit.md) | TUI/CLI action to edit an issue's **state**, **assignee** and **priority**. |
 
 ## Done
 
 These shipped; their planning docs were removed once implemented.
 
+- **Themeable colors** — semantic tokens (`selection`, `accent`, `danger`,
+  `warning`, `success`, `muted`, `priority.*`) replace the color literals across
+  the TUI, driven by a `theme` block: a built-in `preset` (`default`,
+  `catppuccin`, `gruvbox`, `tokyonight`) plus per-token `colors` overrides
+  (hex, named, or ANSI-256). Injected via `ThemeProvider`/`useTheme` (no global
+  singleton); the CLI `issue list` table shares the same theme for priority
+  colors. See `src/tui/theme/`, `src/config/schema.ts`, and
+  [`docs/CONFIGURATION.md`](../CONFIGURATION.md#theme).
 - **Declarative column layout** — a per-view `layout` block (and `defaults.layout`)
   sets `width` / `grow` / `align` / `hidden` per column (`key`, `priority`,
   `state`, `title`, `assign`) for the TUI list. The responsive solver stays the

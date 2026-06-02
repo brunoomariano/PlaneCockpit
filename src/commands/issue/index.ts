@@ -57,7 +57,7 @@ export function registerIssue(program: Command): void {
           limit ?? view?.query_limit,
           ctx.runtime.profile.defaults?.sort,
         );
-        process.stdout.write(renderIssues(issues, format));
+        process.stdout.write(renderIssues(issues, format, ctx.theme));
         process.stdout.write("\n");
       });
     });

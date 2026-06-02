@@ -3,6 +3,7 @@ import { Box, Text } from "ink";
 import type { Issue } from "../types/issue.js";
 import { markdownToAnsi } from "../utils/markdown-to-ansi.js";
 import { splitAnsiIntoLines } from "../utils/ansi-lines.js";
+import { useTheme } from "./theme/context.js";
 
 export interface IssueDetailProps {
   issue?: Issue;
@@ -30,10 +31,11 @@ export const DETAIL_CHROME_ROWS = 16;
 
 // The fixed metadata block (state, priority, assignees, labels, updated).
 function IssueMeta({ issue }: { issue: Issue }): React.ReactElement {
+  const theme = useTheme();
   return (
     <Box marginTop={1} flexDirection="column" flexShrink={0}>
       <Text>
-        state: <Text color="cyan">{issue.state.name}</Text>
+        state: <Text color={theme.accent}>{issue.state.name}</Text>
       </Text>
       <Text>priority: {issue.priority}</Text>
       <Text wrap="truncate">
@@ -88,6 +90,7 @@ function closeHintFor(scrollTop: number, viewportRows: number, total: number): s
 }
 
 export function IssueDetail(props: IssueDetailProps): React.ReactElement {
+  const theme = useTheme();
   const variant = props.variant ?? "panel";
   const width = variant === "modal" ? MODAL_WIDTH : PANEL_WIDTH;
   const contentWidth = width - HORIZONTAL_CHROME;
@@ -120,7 +123,7 @@ export function IssueDetail(props: IssueDetailProps): React.ReactElement {
     <Box
       flexDirection="column"
       borderStyle={variant === "modal" ? "double" : "round"}
-      borderColor={variant === "modal" ? "cyan" : undefined}
+      borderColor={variant === "modal" ? theme.accent : undefined}
       paddingX={1}
       paddingY={variant === "modal" ? 1 : 0}
       width={width}

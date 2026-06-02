@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import type { FileLogger } from "../utils/file-logger.js";
+import { ThemeContext } from "./theme/context.js";
 
 interface Props {
   logger: FileLogger;
@@ -31,13 +32,22 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   override render(): React.ReactNode {
     if (!this.state.error) return this.props.children;
+    const message = this.state.error.message;
+    const filePath = this.props.logger.filePath;
+    // Read danger from the theme via Consumer (class component can't use the
+    // hook). Fall back to a literal when no provider is present so the crash view
+    // renders even if a missing/broken theme is the cause of the error.
     return (
-      <Box flexDirection="column" borderStyle="round" paddingX={1}>
-        <Text color="red" bold>
-          render error: {this.state.error.message}
-        </Text>
-        <Text dimColor>see {this.props.logger.filePath} — press q to quit</Text>
-      </Box>
+      <ThemeContext.Consumer>
+        {(theme) => (
+          <Box flexDirection="column" borderStyle="round" paddingX={1}>
+            <Text color={theme?.danger ?? "red"} bold>
+              render error: {message}
+            </Text>
+            <Text dimColor>see {filePath} — press q to quit</Text>
+          </Box>
+        )}
+      </ThemeContext.Consumer>
     );
   }
 }

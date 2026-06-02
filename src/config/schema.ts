@@ -71,6 +71,69 @@ const layoutSchema = z
     message: "at most one column may set grow: true",
   });
 
+// A theme color: a hex (#rrggbb), a named color chalk/Ink accepts, or an
+// ANSI-256 index as a string ("0".."255") for limited terminals.
+const NAMED_COLORS = [
+  "black",
+  "red",
+  "green",
+  "yellow",
+  "blue",
+  "magenta",
+  "cyan",
+  "white",
+  "gray",
+  "grey",
+  "blackBright",
+  "redBright",
+  "greenBright",
+  "yellowBright",
+  "blueBright",
+  "magentaBright",
+  "cyanBright",
+  "whiteBright",
+] as const;
+const namedColors = new Set<string>(NAMED_COLORS);
+
+const themeColorSchema = z.string().refine(
+  (value) => {
+    if (/^#[0-9a-fA-F]{6}$/.test(value)) return true;
+    if (namedColors.has(value)) return true;
+    // ANSI-256 index as a string in [0, 255].
+    if (/^\d{1,3}$/.test(value)) {
+      const n = Number(value);
+      return n >= 0 && n <= 255;
+    }
+    return false;
+  },
+  { message: "color must be a hex (#rrggbb), a named color, or an ANSI-256 index (0-255)" },
+);
+
+const themePresetEnum = z.enum(["default", "catppuccin", "gruvbox", "tokyonight"]);
+
+const priorityColorsSchema = z.strictObject({
+  urgent: themeColorSchema.optional(),
+  high: themeColorSchema.optional(),
+  medium: themeColorSchema.optional(),
+  low: themeColorSchema.optional(),
+  none: themeColorSchema.optional(),
+});
+
+const themeSchema = z.strictObject({
+  preset: themePresetEnum.optional(),
+  colors: z
+    .strictObject({
+      selection: themeColorSchema.optional(),
+      accent: themeColorSchema.optional(),
+      danger: themeColorSchema.optional(),
+      warning: themeColorSchema.optional(),
+      success: themeColorSchema.optional(),
+      muted: themeColorSchema.optional(),
+      priority: priorityColorsSchema.optional(),
+    })
+    .optional(),
+});
+
 const projectStateSearchSchema = z.strictObject({
   name: z.string().min(1),
   state_search: z.array(z.string().min(1)),
@@ -172,6 +235,7 @@ export const profileSchema = z.strictObject({
     })
     .optional(),
   cache: cacheSchema.optional(),
+  theme: themeSchema.optional(),
   views: z.array(viewSchema).optional(),
 });
 
