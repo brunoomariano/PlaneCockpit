@@ -20,7 +20,8 @@ list.page-down: pageDown
 list.page-up: pageUp
 list.top: g
 list.bottom: G
-list.refresh: r
 
+global.refresh: r
+global.refresh-all: R
 global.help: "?"
 global.quit: q

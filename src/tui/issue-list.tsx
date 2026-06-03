@@ -250,9 +250,10 @@ export function computeViewport(
 export function IssueList(props: IssueListProps): React.ReactElement {
   const theme = useTheme();
   const startRef = React.useRef(0);
-  if (props.loading) {
-    // Hide the previous content during a fetch. The skeleton mirrors the column
-    // layout so the eye doesn't have to re-anchor when results arrive.
+  if (props.loading && props.issues.length === 0) {
+    // Skeleton only when there is nothing to show yet (first load of a view).
+    // On a refresh we keep the previous rows on screen and update them in place
+    // once the new data arrives, so the list never blanks out under the cursor.
     const skeletonRows = Math.max(3, Math.min(props.viewportRows, 12));
     return (
       <Box borderStyle="round" paddingX={1} flexGrow={1} flexDirection="column">

@@ -17,6 +17,12 @@ export interface ActionDescriptor {
 export const ACTIONS = [
   { id: "global.quit", context: "global", description: "quit the dashboard", defaultKey: "q" },
   { id: "global.refresh", context: "global", description: "reload current view", defaultKey: "r" },
+  {
+    id: "global.refresh-all",
+    context: "global",
+    description: "reload every view",
+    defaultKey: "R",
+  },
   { id: "global.help", context: "global", description: "toggle help modal", defaultKey: "?" },
   { id: "list.next", context: "list", description: "select next issue", defaultKey: "j" },
   { id: "list.prev", context: "list", description: "select previous issue", defaultKey: "k" },

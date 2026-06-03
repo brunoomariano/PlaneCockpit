@@ -72,3 +72,26 @@ export async function collectPages<T>(
   }
   return out;
 }
+
+// mapWithConcurrency runs `worker` over every item with at most `concurrency`
+// calls in flight at once, preserving result order. A pool of that many workers
+// pulls from a shared cursor, so a slow item never blocks the others beyond the
+// width of the pool. Used to throttle a fan-out (e.g. refreshing every view)
+// against a server that times out under a burst. `concurrency` is floored at 1.
+export async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const width = Math.max(1, Math.min(concurrency, items.length));
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const run = async (): Promise<void> => {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await worker(items[index]!, index);
+    }
+  };
+  await Promise.all(Array.from({ length: width }, run));
+  return results;
+}

@@ -42,11 +42,17 @@ export class IssuesService {
    * resolved once as `view.sort ?? defaultsSort ?? DEFAULT_SORT` and applied
    * both as the per-project server hint and the authoritative client-side sort.
    */
+  // `signal` is threaded down to each per-project fetch so the dashboard can
+  // abort an in-flight refresh (e.g. when a new one starts before the previous
+  // resolves), preventing requests from piling up and timing out. The positional
+  // list mirrors the call sites; the cap is waived rather than reshaping both.
+  // eslint-disable-next-line max-params
   async list(
     projectIdentifiers: string[],
     view?: ViewDefinition,
     queryLimit?: number,
     defaultsSort?: SortKey[],
+    signal?: AbortSignal,
   ): Promise<Issue[]> {
     // Resolve the assignee filter once (e.g. "me" -> the current user's id)
     // before fetching, so the same id set applies across every project.
@@ -64,7 +70,7 @@ export class IssuesService {
     const perProject = await Promise.all(
       projectIdentifiers.map(async (identifier) => {
         const project = await this.projects.findByIdentifier(identifier);
-        return this.workItems.list({ project, view: effectiveView, limit: queryLimit });
+        return this.workItems.list({ project, view: effectiveView, limit: queryLimit, signal });
       }),
     );
 

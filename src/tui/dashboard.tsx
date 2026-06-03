@@ -3,7 +3,7 @@ import { Box, useApp, useInput, useStdout } from "ink";
 import type { Issue } from "../types/issue.js";
 import type { AppContext } from "../app.js";
 import { StatusBar } from "./status-bar.js";
-import { ViewSelector, SIDE_PANEL_WIDTH } from "./view-selector.js";
+import { ViewSelector, SIDE_PANEL_WIDTH, type ViewEntry } from "./view-selector.js";
 import type { ViewLayout } from "../types/views.js";
 import { IssueList, resolveLayout } from "./issue-list.js";
 import { IssueDetail, DETAIL_CHROME_ROWS } from "./issue-detail.js";
@@ -15,7 +15,8 @@ import { buildIssueUrl } from "../utils/urls.js";
 import { defaultBrowserOpener } from "../utils/browser.js";
 import type { FileLogger } from "../utils/file-logger.js";
 import { dispatch } from "../keybindings/dispatcher.js";
-import { resolveViewProjectsLenient, buildViewEntries } from "../config/resolve-view-projects.js";
+import { buildViewEntries } from "../config/resolve-view-projects.js";
+import { useViewsData } from "./use-views-data.js";
 import type { ActionId } from "../keybindings/registry.js";
 import type { InkKey } from "../keybindings/key-spec.js";
 
@@ -157,10 +158,11 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     [views, defaultProjects],
   );
   const [viewIdx, setViewIdx] = useState(0);
-  const [issues, setIssues] = useState<Issue[]>([]);
   const [selected, setSelected] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | undefined>();
+  // statusMessage holds a transient status message from the comment flow. View
+  // fetch errors live per-view inside useViewsData; this is only for actions
+  // that are not tied to a single view's fetch lifecycle.
+  const [statusMessage, setStatusMessage] = useState<string | undefined>();
   const [filtering, setFiltering] = useState(false);
   const [filter, setFilter] = useState("");
   const [panel, setPanel] = useState<Panel>("list");
@@ -185,76 +187,67 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   // selection on the same item instead of jumping back to the top (gh-dash #735).
   const selectedKeyRef = React.useRef<string | undefined>(undefined);
 
-  const load = useCallback(
-    async (preserveSelection = false) => {
-      if (!activeView) {
-        logger.warn("no active view to load (profile has no views configured)");
-        return;
-      }
-      setLoading(true);
-      setError(undefined);
-      // On a view switch, clear the list so the skeleton appears immediately and
-      // the cursor starts at the top. On a refresh of the same view, keep the
-      // rows and the cursor put while the new data loads.
-      const previousKey = preserveSelection ? selectedKeyRef.current : undefined;
-      if (!preserveSelection) {
-        setIssues([]);
-        setSelected(0);
-      }
-      try {
-        // Lenient resolution: a view's invalid projects are ignored (and flagged
-        // in the navbar with '*') instead of crashing the dashboard.
-        const { projects, invalid } = resolveViewProjectsLenient(
-          activeView,
-          ctx.runtime.profile.defaults?.projects,
-        );
-        if (invalid.length > 0) {
-          logger.warn("view references projects outside defaults.projects (ignored)", {
-            view: activeView.name,
-            invalid,
-          });
-        }
-        if (projects.length === 0) {
-          // Every declared project is invalid: nothing to load. The navbar already
-          // shows the error marker; we keep the list empty.
-          logger.warn("view resolved to no valid projects", { view: activeView.name });
-          if (preserveSelection) {
-            setIssues([]);
-            setSelected(0);
-          }
-          return;
-        }
-        logger.debug("loading view", { view: activeView.name, projects });
-        const data = await ctx.issues.list(
-          projects,
-          activeView,
-          activeView.query_limit ?? 100,
-          ctx.runtime.profile.defaults?.sort,
-        );
-        setIssues(data);
-        // Restore the cursor onto the previously selected issue when refreshing;
-        // fall back to the top if it is gone or this was a view switch.
-        setSelected(
-          restoredSelection(
-            data.map((i) => i.key),
-            previousKey,
-          ),
-        );
-        logger.debug("view loaded", { view: activeView.name, count: data.length });
-      } catch (err) {
-        const message = (err as Error).message;
-        setError(message);
-        logger.error("view load failed", { view: activeView.name, err: err as Error });
-      } finally {
-        setLoading(false);
-      }
-    },
-    [ctx, activeView, logger],
+  // Per-view fetch state lives in this hook so the navbar can show a live count
+  // per view and a view switch can reuse the previous result instead of flashing
+  // a skeleton. The dashboard only reads the active view's slice below.
+  const viewsData = useViewsData({
+    views,
+    issuesService: ctx.issues,
+    defaultProjects: ctx.runtime.profile.defaults?.projects,
+    defaultsSort: ctx.runtime.profile.defaults?.sort,
+    logger,
+  });
+  const active = viewsData.byView[viewIdx] ?? {
+    issues: [],
+    loading: false,
+    error: undefined,
+    loaded: false,
+  };
+  const issues = active.issues;
+  const loading = active.loading;
+  const error = statusMessage ?? active.error;
+
+  // Merge the static markers with each view's live count/loading so the navbar
+  // shows "(N)" beside loaded views and a spinner while one is fetching. Count
+  // stays undefined (no badge) until a view has loaded at least once.
+  const navbarEntries = useMemo(
+    () =>
+      viewEntries.map((entry, idx) => {
+        const data = viewsData.byView[idx];
+        return {
+          ...entry,
+          loading: data?.loading ?? false,
+          count: data?.loaded ? data.issues.length : undefined,
+        };
+      }),
+    [viewEntries, viewsData.byView],
   );
 
+  // load wraps the hook's per-view loader for the active view. preserveSelection
+  // re-anchors the cursor on the previously selected issue (refresh); otherwise
+  // it falls to the top (view switch / first load). Depends only on the stable
+  // loader (not the changing byView) so it does not churn on every fetch tick.
+  const loadView = viewsData.load;
+  const load = useCallback(
+    async (preserveSelection = false): Promise<void> => {
+      const previousKey = preserveSelection ? selectedKeyRef.current : undefined;
+      const keys = await loadView(viewIdx);
+      setSelected(restoredSelection(keys, previousKey));
+    },
+    [loadView, viewIdx],
+  );
+
+  // On a view switch, fetch the view if it has never loaded; otherwise reuse its
+  // cached rows/count and just reset the cursor to the top. Either way the list
+  // keeps showing data (cached or skeleton-then-data) — never blanks mid-switch.
+  // loadedRef reads the latest per-view state without retriggering the effect.
+  const loadedRef = React.useRef(viewsData.byView);
+  loadedRef.current = viewsData.byView;
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!activeView) return;
+    if (loadedRef.current[viewIdx]?.loaded) setSelected(0);
+    else void load();
+  }, [viewIdx, activeView, load]);
 
   useEffect(() => {
     logger.info("dashboard started", {
@@ -263,7 +256,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
       views: views.length,
     });
     if (views.length === 0) {
-      setError("no views configured — add `views:` to your profile in config.yaml");
+      setStatusMessage("no views configured — add `views:` to your profile in config.yaml");
     }
   }, [ctx, views, logger]);
 
@@ -290,11 +283,11 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     onSubmit: async (issue, text) => {
       try {
         await ctx.issues.comment(issue.key, text);
-        setError(`commented on ${issue.key}`);
+        setStatusMessage(`commented on ${issue.key}`);
         void load(true);
       } catch (err) {
         logger.error("comment failed", { issue: issue.key, err: err as Error });
-        setError((err as Error).message);
+        setStatusMessage((err as Error).message);
       }
     },
   });
@@ -340,7 +333,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
       .catch((err: Error) => {
         if (cancelled) return;
         logger.error("retrieve issue failed", { issue: currentSummary.key, err });
-        setError(err.message);
+        setStatusMessage(err.message);
       })
       .finally(() => {
         if (!cancelled) setDetailLoading(false);
@@ -377,7 +370,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
       });
     } catch (err) {
       logger.error("failed to build issue url", { issue: issue.key, err: err as Error });
-      setError((err as Error).message);
+      setStatusMessage((err as Error).message);
     }
   }, [filtered, selected, ctx, logger]);
 
@@ -389,6 +382,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   const handlers: Partial<Record<ActionId, () => void>> = {
     "global.quit": () => exit(),
     "global.refresh": () => void load(true),
+    "global.refresh-all": () => viewsData.refreshAll(),
     "global.help": () => setHelpOpen((open) => !open),
     "list.next": selectNext,
     "list.next-alt": selectNext,
@@ -442,6 +436,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
       "detail.comment": comments.open,
       "global.help": () => setHelpOpen((open) => !open),
       "global.refresh": () => void load(true),
+      "global.refresh-all": () => viewsData.refreshAll(),
       "global.quit": () => setPanel("list"),
     };
     dispatch(ctx.keybindings, ["detail", "global"], detailHandlers, input, key);
@@ -513,7 +508,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
       height={terminalRows}
       width={terminalCols}
       defaultProjects={defaultProjects}
-      viewEntries={viewEntries}
+      viewEntries={navbarEntries}
       viewIdx={viewIdx}
       issues={filtered}
       selected={selected}
@@ -536,7 +531,7 @@ interface ListLayoutProps {
   // width (terminal columns) drives the responsive issue-list column widths.
   width: number;
   defaultProjects: string[];
-  viewEntries: ReturnType<typeof buildViewEntries>;
+  viewEntries: ViewEntry[];
   viewIdx: number;
   issues: Issue[];
   selected: number;

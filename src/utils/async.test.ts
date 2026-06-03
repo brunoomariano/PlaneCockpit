@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { collectPages, retry, sleep } from "./async.js";
+import { collectPages, retry, sleep, mapWithConcurrency } from "./async.js";
 
 describe("retry", () => {
   it("returns the first successful result", async () => {
@@ -107,5 +107,50 @@ describe("sleep", () => {
     const promise = sleep(500, ctrl.signal);
     setTimeout(() => ctrl.abort(new Error("late")), 10);
     await expect(promise).rejects.toThrow("late");
+  });
+});
+
+describe("mapWithConcurrency", () => {
+  // Results keep input order even though items finish out of order.
+  it("preserves result order regardless of completion order", async () => {
+    const delays = [30, 5, 20, 1];
+    const results = await mapWithConcurrency(delays, 2, async (ms, i) => {
+      await sleep(ms);
+      return i;
+    });
+    expect(results).toEqual([0, 1, 2, 3]);
+  });
+
+  // Never more than `concurrency` workers run at once; the peak is observed.
+  it("caps the number of in-flight workers", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    await mapWithConcurrency([1, 2, 3, 4, 5, 6], 3, async () => {
+      inFlight++;
+      peak = Math.max(peak, inFlight);
+      await sleep(5);
+      inFlight--;
+    });
+    expect(peak).toBe(3);
+  });
+
+  // A concurrency wider than the item count just runs them all in parallel.
+  it("clamps concurrency to the number of items", async () => {
+    let peak = 0;
+    let inFlight = 0;
+    await mapWithConcurrency([1, 2], 10, async () => {
+      inFlight++;
+      peak = Math.max(peak, inFlight);
+      await sleep(5);
+      inFlight--;
+    });
+    expect(peak).toBe(2);
+  });
+
+  // An empty input does no work and returns an empty array.
+  it("returns an empty array for no items", async () => {
+    const worker = vi.fn();
+    expect(await mapWithConcurrency([], 3, worker)).toEqual([]);
+    expect(worker).not.toHaveBeenCalled();
   });
 });
