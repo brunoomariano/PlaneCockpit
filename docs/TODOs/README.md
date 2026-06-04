@@ -12,7 +12,11 @@ item lands.
 
 ## Index
 
-_No open items right now._
+Scale / search:
+
+| TODO                                           | Summary                                                                                       |
+| :--------------------------------------------- | :-------------------------------------------------------------------------------------------- |
+| [server-side-search.md](server-side-search.md) | Push filtering/search to the server so it covers the whole project, not just the loaded page. |
 
 ## Done
 
