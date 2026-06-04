@@ -61,6 +61,8 @@ End users do not need `mise`; the published artifact is a plain Node binary.
 | `plc issue create`                     | create an issue (interactive, or headless via flags)   |
 | `plc issue edit <key>`                 | edit title, description, or priority                   |
 | `plc issue assign <key> <user>`        | assign an issue (use `me` for yourself)                |
+| `plc issue transition <key> <state>`   | move an issue to a state (by name or id)               |
+| `plc issue label <key> [labels...]`    | set an issue's labels (no labels clears them)          |
 | `plc issue comment <key>`              | add a comment (inline, from a file, or interactive)    |
 | `plc issue delete <key>`               | delete an issue (confirms unless `--yes`)              |
 | `plc config show` / `validate`         | print the resolved config (keys masked) or validate it |

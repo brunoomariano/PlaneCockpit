@@ -19,12 +19,6 @@ TUI navigation & quick actions:
 | [quick-state-transition.md](quick-state-transition.md) | Advance/retreat the selected issue's state with a named-transition confirm. |
 | [structured-tui-filter.md](structured-tui-filter.md)   | gh-dash-style `key:value` filter bar (`ass:joe`, `label:bug`, …) over rows. |
 
-CLI parity:
-
-| TODO                                             | Summary                                                                 |
-| :----------------------------------------------- | :---------------------------------------------------------------------- |
-| [cli-state-and-label.md](cli-state-and-label.md) | `plc issue transition` and `plc issue label` (scriptable state/labels). |
-
 Correctness / resilience:
 
 | TODO                                                           | Summary                                                             |
@@ -35,6 +29,12 @@ Correctness / resilience:
 
 These shipped; their planning docs were removed once implemented.
 
+- **CLI: change state and labels** — `plc issue transition <key> <state>` moves an
+  issue to a state and `plc issue label <key> [labels...]` sets its labels
+  (replace semantics; no args clears), both resolving the value by name
+  (case-insensitive) or id within the issue's project and failing with the valid
+  options listed. Verified end-to-end against a live self-hosted Plane. See
+  `src/commands/issue/resolve-field.ts` and `src/commands/issue/index.ts`.
 - **Explicit TTL on states/labels caches** — `StatesService`/`LabelsService` now
   cache with their own short TTL (300s) instead of inheriting the profile-wide
   `cache.ttl`, so a high global list TTL never strands a freshly-created state or

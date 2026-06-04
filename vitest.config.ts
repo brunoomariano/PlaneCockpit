@@ -30,6 +30,7 @@ export default defineConfig({
         "src/cache/keys.ts",
         "src/cache/memory.ts",
         "src/cache/sqlite.ts",
+        "src/commands/issue/resolve-field.ts",
         "src/config/credentials.ts",
         "src/config/env.ts",
         "src/config/profiles.ts",

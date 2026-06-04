@@ -8,6 +8,7 @@ import { buildIssueUrl } from "../../utils/urls.js";
 import { defaultBrowserOpener } from "../../utils/browser.js";
 import { NotFoundError, ConfigError } from "../../utils/errors.js";
 import { readBodyFile } from "../../utils/input-source.js";
+import { resolveStateByNameOrId, resolveLabelsByNameOrId } from "./resolve-field.js";
 import type { IssuePriority } from "../../types/issue.js";
 
 export function registerIssue(program: Command): void {
@@ -139,6 +140,38 @@ export function registerIssue(program: Command): void {
         const user = await ctx.users.resolveAssignee(userSpec);
         await ctx.issues.assign(key, [user.id]);
         process.stdout.write(`assigned ${key} to ${user.display_name}\n`);
+      });
+    });
+
+  issue
+    .command("transition <key> <state>")
+    .description("move an issue to a state (by name or id, within its project)")
+    .action(async function (this: Command, key: string, stateSpec: string) {
+      await withContext(this, this.opts(), async ({ ctx, format }) => {
+        const project = await ctx.projects.findByIdentifier(
+          ctx.issues.resolver.parseKey(key).identifier,
+        );
+        const states = await ctx.states.list(project);
+        const stateId = resolveStateByNameOrId(stateSpec, states);
+        const updated = await ctx.issues.update(key, { state_id: stateId });
+        process.stdout.write(renderObject(updated, format));
+        process.stdout.write("\n");
+      });
+    });
+
+  issue
+    .command("label <key> [labels...]")
+    .description("set an issue's labels (by name or id; no labels clears them)")
+    .action(async function (this: Command, key: string, labelSpecs: string[]) {
+      await withContext(this, this.opts(), async ({ ctx, format }) => {
+        const project = await ctx.projects.findByIdentifier(
+          ctx.issues.resolver.parseKey(key).identifier,
+        );
+        const labels = await ctx.labels.list(project);
+        const labelIds = resolveLabelsByNameOrId(labelSpecs, labels);
+        const updated = await ctx.issues.update(key, { label_ids: labelIds });
+        process.stdout.write(renderObject(updated, format));
+        process.stdout.write("\n");
       });
     });
 
