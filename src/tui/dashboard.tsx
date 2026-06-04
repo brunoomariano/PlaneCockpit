@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Box, useApp, useInput, useStdout } from "ink";
+import { Box, Text, useApp, useInput, useStdout } from "ink";
+import { useTheme } from "./theme/context.js";
 import type { Issue } from "../types/issue.js";
 import type { AppContext } from "../app.js";
 import { StatusBar } from "./status-bar.js";
@@ -22,6 +23,7 @@ import { defaultBrowserOpener } from "../utils/browser.js";
 import type { FileLogger } from "../utils/file-logger.js";
 import { dispatch } from "../keybindings/dispatcher.js";
 import { buildViewEntries, resolveViewProjectsLenient } from "../config/resolve-view-projects.js";
+import { neighbourState } from "../plane/state-order.js";
 import { useViewsData } from "./use-views-data.js";
 import type { ActionId } from "../keybindings/registry.js";
 import type { InkKey } from "../keybindings/key-spec.js";
@@ -208,6 +210,34 @@ function renderCreatorContent(
   );
 }
 
+// TransitionConfirm names the exact state move and gates it on y/n, so a quick
+// transition is never silent. Shown over the list while a transition is pending.
+function TransitionConfirm(props: {
+  issueKey: string;
+  from: string;
+  to: string;
+  saving: boolean;
+}): React.ReactElement {
+  const theme = useTheme();
+  return (
+    <Box
+      flexDirection="column"
+      borderStyle="round"
+      borderColor={theme.accent}
+      paddingX={2}
+      paddingY={1}
+    >
+      <Text>
+        {props.issueKey}: <Text dimColor>{props.from}</Text> →{" "}
+        <Text color={theme.accent}>{props.to}</Text>
+      </Text>
+      <Box marginTop={1}>
+        <Text color={theme.warning}>{props.saving ? "applying… " : "apply? y / n"}</Text>
+      </Box>
+    </Box>
+  );
+}
+
 // overlayLoading picks the spinner flag for the active overlay's status bar.
 function overlayLoading(
   submittingComment: boolean,
@@ -268,6 +298,13 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   const [detailed, setDetailed] = useState<Issue | undefined>();
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailScroll, setDetailScroll] = useState(0);
+  // A pending quick state transition awaiting confirmation: the issue, the
+  // target state, and whether the API call is in flight. While set, the
+  // dashboard shows a "from → to?" confirmation that gates the mutation.
+  const [pendingTransition, setPendingTransition] = useState<
+    | { issue: Issue; targetId: string; targetName: string; fromName: string; saving: boolean }
+    | undefined
+  >();
 
   const activeView = views[viewIdx];
 
@@ -470,6 +507,58 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     },
   });
 
+  // startTransition resolves the selected issue's project states, finds the
+  // neighbour one step in `direction`, and opens the confirmation. A no-op at
+  // the ends (no neighbour) shows a hint instead of erroring; a state-load
+  // failure surfaces in the status bar.
+  const startTransition = useCallback(
+    async (direction: 1 | -1) => {
+      const issue = filtered[selected];
+      if (!issue) return;
+      try {
+        const states = await ctx.states.list(project(issue));
+        const target = neighbourState(states, issue.state.id, direction);
+        if (!target) {
+          setStatusMessage(
+            `${issue.key}: already at the ${direction === 1 ? "last" : "first"} state`,
+          );
+          return;
+        }
+        setPendingTransition({
+          issue,
+          targetId: target.id,
+          targetName: target.name,
+          fromName: issue.state.name,
+          saving: false,
+        });
+      } catch (err) {
+        logger.error("state transition load failed", { issue: issue.key, err: err as Error });
+        setStatusMessage(`${issue.key}: ${(err as Error).message}`);
+      }
+    },
+    [filtered, selected, ctx, logger],
+  );
+
+  // applyTransition commits the confirmed move with one issues.update and
+  // reconciles the row the same way the edit modal does.
+  const applyTransition = useCallback(async () => {
+    const pending = pendingTransition;
+    if (!pending) return;
+    setPendingTransition({ ...pending, saving: true });
+    try {
+      const patch = { state_id: pending.targetId };
+      const updated = await ctx.issues.update(pending.issue.key, patch);
+      setStatusMessage(`${pending.issue.key} → ${pending.targetName}`);
+      if (patchTouchesViewFilter(patch, activeView?.filters)) void load(true);
+      else viewsData.patchIssue(viewIdx, updated);
+    } catch (err) {
+      logger.error("state transition failed", { issue: pending.issue.key, err: err as Error });
+      setStatusMessage(`${pending.issue.key}: ${(err as Error).message}`);
+    } finally {
+      setPendingTransition(undefined);
+    }
+  }, [pendingTransition, ctx, activeView, load, viewsData, viewIdx, logger]);
+
   // Auto-refresh: re-run load(true) on the configured interval so the list
   // tracks Plane without a keystroke. Paused while any overlay is open (detail,
   // comment, edit, help, filter) so it never refetches under the user's cursor;
@@ -478,6 +567,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     comments.active ||
     editor.active ||
     creator.active ||
+    pendingTransition !== undefined ||
     helpOpen ||
     panel === "detail" ||
     filtering;
@@ -581,6 +671,8 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     "list.comment": comments.open,
     "list.edit": editor.open,
     "list.create": creator.open,
+    "list.state-next": () => void startTransition(1),
+    "list.state-prev": () => void startTransition(-1),
     "view.next": viewNext,
     "view.next-alt": viewNext,
     "view.prev": viewPrev,
@@ -639,7 +731,14 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     }
   };
 
+  const handleTransitionKey = (input: string, key: InkKey): void => {
+    if (pendingTransition?.saving) return;
+    if (input === "y" || key.return) return void applyTransition();
+    if (input === "n" || key.escape) setPendingTransition(undefined);
+  };
+
   useInput((input, key) => {
+    if (pendingTransition) return handleTransitionKey(input, key);
     if (creator.active) return creator.handleKey(input, key);
     if (editor.active) return editor.handleKey(input, key);
     if (comments.active) return comments.handleKey(input, key);
@@ -662,7 +761,14 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   const listPosition = filtered.length > 0 ? `${selected + 1}/${filtered.length}` : undefined;
 
   const isDetail = panel === "detail";
-  const overlayContent = creator.active ? (
+  const overlayContent = pendingTransition ? (
+    <TransitionConfirm
+      issueKey={pendingTransition.issue.key}
+      from={pendingTransition.fromName}
+      to={pendingTransition.targetName}
+      saving={pendingTransition.saving}
+    />
+  ) : creator.active ? (
     renderCreatorContent(creator)
   ) : editor.active ? (
     renderEditorContent(editor)

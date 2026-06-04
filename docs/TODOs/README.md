@@ -14,15 +14,21 @@ item lands.
 
 TUI navigation & quick actions:
 
-| TODO                                                   | Summary                                                                     |
-| :----------------------------------------------------- | :-------------------------------------------------------------------------- |
-| [quick-state-transition.md](quick-state-transition.md) | Advance/retreat the selected issue's state with a named-transition confirm. |
-| [structured-tui-filter.md](structured-tui-filter.md)   | gh-dash-style `key:value` filter bar (`ass:joe`, `label:bug`, …) over rows. |
+| TODO                                                 | Summary                                                                     |
+| :--------------------------------------------------- | :-------------------------------------------------------------------------- |
+| [structured-tui-filter.md](structured-tui-filter.md) | gh-dash-style `key:value` filter bar (`ass:joe`, `label:bug`, …) over rows. |
 
 ## Done
 
 These shipped; their planning docs were removed once implemented.
 
+- **Quick state transition** — `>` / `<` move the selected issue one step
+  forward / back along its project's workflow order (group lifecycle, then API
+  order), behind a confirmation that names the move (`ENG-1: Todo → In Progress?`)
+  so it is never silent. Applies via one `issues.update`, reconciling the row in
+  place (or a refresh when the view filters by state); a no-op with a hint at the
+  ends. Backed by `neighbourState` (pure, table-tested). See
+  `src/plane/state-order.ts` and `src/tui/dashboard.tsx`.
 - **Self-hosted payload audit** — hardened every read adapter against the shape
   variance seen on the self-hosted instance and locked it with tests: projects
   (array vs `{ results }`, `workspace` vs `workspace_id`, null/partial rows

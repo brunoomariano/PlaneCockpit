@@ -47,6 +47,18 @@ export const ACTIONS = [
   { id: "list.comment", context: "list", description: "comment on issue", defaultKey: "c" },
   { id: "list.edit", context: "list", description: "edit issue fields", defaultKey: "e" },
   { id: "list.create", context: "list", description: "create a new issue", defaultKey: "n" },
+  {
+    id: "list.state-next",
+    context: "list",
+    description: "advance issue to the next state",
+    defaultKey: ">",
+  },
+  {
+    id: "list.state-prev",
+    context: "list",
+    description: "move issue to the previous state",
+    defaultKey: "<",
+  },
   { id: "view.next", context: "view", description: "next configured view", defaultKey: "]" },
   { id: "view.prev", context: "view", description: "previous configured view", defaultKey: "[" },
   { id: "view.next-alt", context: "view", description: "next view (arrow)", defaultKey: "right" },

@@ -38,6 +38,7 @@ export default defineConfig({
         "src/plane/filters.ts",
         "src/plane/projects.ts",
         "src/plane/resolver.ts",
+        "src/plane/state-order.ts",
         "src/plane/states.ts",
         "src/plane/labels.ts",
         "src/plane/users.ts",

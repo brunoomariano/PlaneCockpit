@@ -421,3 +421,62 @@ describe("dashboard create flow (e2e)", () => {
     unmount();
   });
 });
+
+describe("dashboard quick state transition (e2e)", () => {
+  // `>` proposes the next workflow state with a named confirmation; `y` applies
+  // it in one update (the issue starts in Todo -> In Progress).
+  it("advances the state on > and applies on y", async () => {
+    const { ctx, logger, update } = harness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write(">"); // propose the next state
+    await tick();
+    expect(lastFrame()).toContain("Todo");
+    expect(lastFrame()).toContain("In Progress");
+    expect(lastFrame()).toContain("apply?");
+
+    stdin.write("y"); // confirm
+    await tick();
+
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith("ENG-1", { state_id: "s-doing" });
+    unmount();
+  });
+
+  // Cancelling the confirmation makes no API call.
+  it("cancels the transition on n without calling update", async () => {
+    const { ctx, logger, update } = harness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write(">");
+    await tick();
+    expect(lastFrame()).toContain("apply?");
+    stdin.write("n"); // cancel
+    await tick();
+
+    expect(update).not.toHaveBeenCalled();
+    expect(lastFrame()).toContain("TITLE"); // back to the list
+    unmount();
+  });
+
+  // At the last state moving forward is a no-op with a hint (no confirmation).
+  it("is a no-op with a hint at the last state", async () => {
+    const { ctx, logger, update } = harness();
+    // Force the selected issue into the last state (Done).
+    (ctx.issues.listResilient as ReturnType<typeof vi.fn>).mockResolvedValue({
+      issues: [{ ...issue("ENG-1"), state: { id: "s-done", name: "Done", group: "completed" } }],
+      failedProjects: [],
+    });
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write(">");
+    await tick();
+
+    expect(update).not.toHaveBeenCalled();
+    expect(lastFrame()).toContain("already at the last state");
+    unmount();
+  });
+});
