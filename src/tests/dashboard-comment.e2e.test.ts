@@ -163,4 +163,78 @@ describe("dashboard structured filter (e2e)", () => {
     expect(lastFrame()).toContain("0 of 2");
     unmount();
   });
+
+  // Two issues with distinct assignee/label/priority so the richer tokens have
+  // something to discriminate. ENG-1 is mine + bug + high; ENG-2 is someone
+  // else + chore + low.
+  function richHarness(): Harness {
+    const h = harness();
+    const eng1: Issue = {
+      ...issue("ENG-1"),
+      priority: "high",
+      assignees: [{ id: "me", display_name: "Ana" }],
+      labels: [{ id: "l1", name: "bug" }],
+    };
+    const eng2: Issue = {
+      ...issue("ENG-2"),
+      priority: "low",
+      assignees: [{ id: "u2", display_name: "Bruno" }],
+      labels: [{ id: "l2", name: "chore" }],
+    };
+    (h.ctx.issues.listResilient as ReturnType<typeof vi.fn>).mockResolvedValue({
+      issues: [eng1, eng2],
+      failedProjects: [],
+    });
+    return h;
+  }
+
+  // ass:me resolves to the current user (id "me" from users.me) and keeps only
+  // the issue assigned to them.
+  it("filters by ass:me using the current user", async () => {
+    const { ctx, logger } = richHarness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write("/");
+    await tick();
+    stdin.write("ass:me");
+    await tick();
+
+    expect(lastFrame()).toContain("title ENG-1"); // mine
+    expect(lastFrame()).not.toContain("title ENG-2"); // someone else
+    unmount();
+  });
+
+  // Tokens of different keys AND together: prio:high label:bug matches only the
+  // issue that satisfies both.
+  it("ANDs tokens of different keys", async () => {
+    const { ctx, logger } = richHarness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write("/");
+    await tick();
+    stdin.write("prio:high label:bug");
+    await tick();
+
+    expect(lastFrame()).toContain("title ENG-1");
+    expect(lastFrame()).toContain("1 of 2");
+    unmount();
+  });
+
+  // Repeating a key ORs within it: label:bug label:chore keeps both issues.
+  it("ORs repeated tokens of the same key", async () => {
+    const { ctx, logger } = richHarness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write("/");
+    await tick();
+    stdin.write("label:bug label:chore");
+    await tick();
+
+    expect(lastFrame()).toContain("title ENG-1");
+    expect(lastFrame()).toContain("title ENG-2");
+    unmount();
+  });
 });

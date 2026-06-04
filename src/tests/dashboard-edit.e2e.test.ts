@@ -482,4 +482,27 @@ describe("dashboard quick state transition (e2e)", () => {
     expect(lastFrame()).toContain("already at the last state");
     unmount();
   });
+
+  // When the active view filters by state, the move can change view membership,
+  // so the dashboard reconciles by refreshing (an extra listResilient) instead
+  // of patching the row in place.
+  it("refreshes the view when it filters by state", async () => {
+    const { ctx, logger, update } = harness();
+    // A view that filters by state_group: an edited state may move the issue out.
+    ctx.runtime.profile.views = [{ name: "Started", filters: { state_group: ["unstarted"] } }];
+    const listResilient = ctx.issues.listResilient as ReturnType<typeof vi.fn>;
+    const { stdin, unmount } = renderDashboard(ctx, logger);
+    await tick(); // initial load (1 call)
+    const callsAfterLoad = listResilient.mock.calls.length;
+
+    stdin.write(">"); // propose
+    await tick();
+    stdin.write("y"); // apply
+    await tick();
+
+    expect(update).toHaveBeenCalledWith("ENG-1", { state_id: "s-doing" });
+    // The save triggered a refresh rather than an in-place patch.
+    expect(listResilient.mock.calls.length).toBeGreaterThan(callsAfterLoad);
+    unmount();
+  });
 });
