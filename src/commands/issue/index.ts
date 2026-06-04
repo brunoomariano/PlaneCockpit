@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { input, select } from "@inquirer/prompts";
+import { input, select, confirm } from "@inquirer/prompts";
 import { withContext } from "../shared.js";
 import { renderObject, renderIssues } from "../../utils/formatting.js";
 import { findView } from "../../app.js";
@@ -155,6 +155,33 @@ export function registerIssue(program: Command): void {
         process.stdout.write(`commented on ${key}\n`);
       });
     });
+
+  issue
+    .command("delete <key>")
+    .description("delete an issue (asks for confirmation unless --yes)")
+    .option("-y, --yes", "skip the confirmation prompt (for non-interactive use)")
+    .action(async function (this: Command, key: string, opts: DeleteOptions) {
+      await withContext(this, { ...this.opts(), ...opts }, async ({ ctx }) => {
+        // Destructive and irreversible: confirm by default (defaulting to no),
+        // and only skip the prompt when --yes is given or there is no TTY to ask.
+        if (!opts.yes && process.stdin.isTTY) {
+          const confirmed = await confirm({
+            message: `delete ${key}? this cannot be undone`,
+            default: false,
+          });
+          if (!confirmed) {
+            process.stdout.write("aborted\n");
+            return;
+          }
+        }
+        await ctx.issues.delete(key);
+        process.stdout.write(`deleted ${key}\n`);
+      });
+    });
+}
+
+interface DeleteOptions {
+  yes?: boolean;
 }
 
 interface CommentOptions {

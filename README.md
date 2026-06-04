@@ -62,6 +62,7 @@ End users do not need `mise`; the published artifact is a plain Node binary.
 | `plc issue edit <key>`                 | edit title, description, or priority                   |
 | `plc issue assign <key> <user>`        | assign an issue (use `me` for yourself)                |
 | `plc issue comment <key>`              | add a comment (inline, from a file, or interactive)    |
+| `plc issue delete <key>`               | delete an issue (confirms unless `--yes`)              |
 | `plc config show` / `validate`         | print the resolved config (keys masked) or validate it |
 | `plc profile list` / `use <name>`      | list profiles, or switch the active one                |
 | `plc cache status` / `warm` / `clear`  | inspect, prime, or clear the cache                     |

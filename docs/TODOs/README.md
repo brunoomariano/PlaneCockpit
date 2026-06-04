@@ -24,7 +24,6 @@ CLI parity:
 | TODO                                             | Summary                                                                 |
 | :----------------------------------------------- | :---------------------------------------------------------------------- |
 | [cli-state-and-label.md](cli-state-and-label.md) | `plc issue transition` and `plc issue label` (scriptable state/labels). |
-| [cli-delete-issue.md](cli-delete-issue.md)       | `plc issue delete` with a destructive-action confirmation (`--yes`).    |
 
 Correctness / resilience:
 
@@ -37,6 +36,16 @@ Correctness / resilience:
 
 These shipped; their planning docs were removed once implemented.
 
+- **Fix: descriptions were silently dropped** — the issue endpoint ignores a
+  plain `description` field (returns 200, body unchanged); Plane only persists a
+  description sent as `description_html`. Both create and update now convert the
+  editor's text to minimal HTML (`textToHtml`, paragraph-per-line, escaped) and
+  send `description_html`. Verified end-to-end against a live self-hosted Plane.
+  See `src/utils/text-to-html.ts` and `src/plane/work-items.ts`.
+- **CLI: delete an issue** — `plc issue delete <key>` removes an issue, confirming
+  by default (defaulting to no) and skipping the prompt with `--yes` for
+  non-interactive use; the project's issue cache is invalidated. Backed by
+  `issues.delete` / `workItems.delete`. See `src/commands/issue/index.ts`.
 - **Create an issue from the TUI** — `n` opens a create modal that reuses the edit
   form and pickers. It first picks the target project (inferred when the view
   resolves to one, a picker when several), then composes title/description/state/

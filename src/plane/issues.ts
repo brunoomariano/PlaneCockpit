@@ -180,4 +180,9 @@ export class IssuesService {
     const { project, issueId } = await this.resolver.resolve(issueKey);
     await this.workItems.comment(project, issueId, comment);
   }
+
+  async delete(issueKey: string): Promise<void> {
+    const { project, issueId } = await this.resolver.resolve(issueKey);
+    await this.workItems.delete(project, issueId);
+  }
 }
