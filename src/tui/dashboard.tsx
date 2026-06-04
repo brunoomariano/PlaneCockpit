@@ -24,6 +24,7 @@ import type { FileLogger } from "../utils/file-logger.js";
 import { dispatch } from "../keybindings/dispatcher.js";
 import { buildViewEntries, resolveViewProjectsLenient } from "../config/resolve-view-projects.js";
 import { neighbourState } from "../plane/state-order.js";
+import { parseQuery, matchesQuery } from "./issue-query.js";
 import { useViewsData } from "./use-views-data.js";
 import type { ActionId } from "../keybindings/registry.js";
 import type { InkKey } from "../keybindings/key-spec.js";
@@ -400,13 +401,29 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     }
   }, [ctx, views, logger]);
 
+  // The current user's id, resolved once so the `ass:me` filter token works. A
+  // failure here is non-fatal: ass:me simply matches nothing until it resolves.
+  const [meId, setMeId] = useState<string | undefined>();
+  useEffect(() => {
+    let cancelled = false;
+    ctx.users
+      .me()
+      .then((u) => {
+        if (!cancelled) setMeId(u.id);
+      })
+      .catch((err: Error) => logger.debug("could not resolve current user", { err }));
+    return () => {
+      cancelled = true;
+    };
+  }, [ctx, logger]);
+
+  // The `/` filter is a small structured query (key:value tokens + bare words)
+  // applied client-side to the loaded rows. Parsing/matching live in issue-query.
+  const queryTerms = useMemo(() => parseQuery(filter), [filter]);
   const filtered = useMemo(() => {
-    if (!filter) return issues;
-    const needle = filter.toLowerCase();
-    return issues.filter(
-      (i) => i.name.toLowerCase().includes(needle) || i.key.toLowerCase().includes(needle),
-    );
-  }, [issues, filter]);
+    if (queryTerms.length === 0) return issues;
+    return issues.filter((i) => matchesQuery(i, queryTerms, { meId }));
+  }, [issues, queryTerms, meId]);
 
   const currentSummary = filtered[selected];
 
@@ -758,7 +775,16 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     view: activeView?.name ?? "—",
     message: error,
   };
-  const listPosition = filtered.length > 0 ? `${selected + 1}/${filtered.length}` : undefined;
+  // Position shows cursor/visible-count; with an active filter it also reports
+  // how many of the loaded rows match, so an over-narrow query (or a zero match)
+  // reads as "filtered", not "no data". 0 matches still surfaces the count.
+  const matchSuffix = filter ? ` (${filtered.length} of ${issues.length})` : "";
+  const listPosition =
+    filtered.length > 0
+      ? `${selected + 1}/${filtered.length}${matchSuffix}`
+      : filter
+        ? `0 of ${issues.length}`
+        : undefined;
 
   const isDetail = panel === "detail";
   const overlayContent = pendingTransition ? (

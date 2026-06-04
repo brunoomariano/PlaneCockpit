@@ -73,7 +73,7 @@ function harness(): Harness {
     },
     issues,
     workItems: { retrieve: vi.fn().mockResolvedValue(issue("ENG-1")) },
-    users: {},
+    users: { me: vi.fn().mockResolvedValue({ id: "me", display_name: "me" }) },
     keybindings: resolveBindings({}),
     theme: PRESETS.default,
     close: vi.fn().mockResolvedValue(undefined),
@@ -132,6 +132,35 @@ describe("dashboard comment flow (e2e)", () => {
     await tick();
 
     expect(comment).not.toHaveBeenCalled();
+    unmount();
+  });
+});
+
+describe("dashboard structured filter (e2e)", () => {
+  // The `/` filter accepts key:value tokens applied to the loaded rows. The two
+  // seeded issues have priority "none" (the e2e factory default).
+  it("narrows the list with a prio: token and shows the match count", async () => {
+    const { ctx, logger } = harness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write("/"); // start the filter
+    await tick();
+    stdin.write("prio:none"); // both issues match
+    await tick();
+    expect(lastFrame()).toContain("title ENG-1");
+    expect(lastFrame()).toContain("title ENG-2");
+
+    // A non-matching token empties the visible list but reports the count, so it
+    // reads as "filtered", not "no data".
+    stdin.write(""); // escape closes the input, keeping the filter applied
+    await tick();
+    stdin.write("/");
+    await tick();
+    stdin.write("prio:urgent");
+    await tick();
+    expect(lastFrame()).not.toContain("title ENG-1");
+    expect(lastFrame()).toContain("0 of 2");
     unmount();
   });
 });

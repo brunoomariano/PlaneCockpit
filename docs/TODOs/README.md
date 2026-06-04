@@ -12,16 +12,19 @@ item lands.
 
 ## Index
 
-TUI navigation & quick actions:
-
-| TODO                                                 | Summary                                                                     |
-| :--------------------------------------------------- | :-------------------------------------------------------------------------- |
-| [structured-tui-filter.md](structured-tui-filter.md) | gh-dash-style `key:value` filter bar (`ass:joe`, `label:bug`, …) over rows. |
+_No open items right now._
 
 ## Done
 
 These shipped; their planning docs were removed once implemented.
 
+- **Structured filter bar** — `/` filters the loaded rows with a gh-dash-style
+  `key:value` query (`ass:`/`state:`/`group:`/`prio:`/`label:`/`proj:`, plus bare
+  words for title/key). Tokens AND across keys and OR within a key; `ass:me`
+  resolves the current user; an unknown key degrades to a substring match; the
+  status bar shows the match count. Parsing/matching are pure (`issue-query.ts`,
+  table-tested). See `src/tui/issue-query.ts` and the `filtered` memo in
+  `src/tui/dashboard.tsx`.
 - **Quick state transition** — `>` / `<` move the selected issue one step
   forward / back along its project's workflow order (group lifecycle, then API
   order), behind a confirmation that names the move (`ENG-1: Todo → In Progress?`)

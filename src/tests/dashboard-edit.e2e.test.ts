@@ -106,7 +106,10 @@ function harness(updateImpl?: () => Promise<Issue>): Harness {
         workspace_id: "ws",
       })),
     },
-    users: { list: vi.fn().mockResolvedValue(MEMBERS) },
+    users: {
+      list: vi.fn().mockResolvedValue(MEMBERS),
+      me: vi.fn().mockResolvedValue({ id: "u-1", display_name: "Ana" }),
+    },
     states: { list: vi.fn().mockResolvedValue(STATES) },
     labels: { list: vi.fn().mockResolvedValue(LABELS) },
     keybindings: resolveBindings({}),

@@ -22,6 +22,7 @@ export default defineConfig({
         "src/tui/help-modal.tsx",
         "src/tui/text-buffer.ts",
         "src/tui/issue-editor-draft.ts",
+        "src/tui/issue-query.ts",
         "src/utils/input-source.ts",
         "src/keybindings/key-spec.ts",
         "src/keybindings/load.ts",

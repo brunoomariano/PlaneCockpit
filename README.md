@@ -238,7 +238,7 @@ Default bindings:
 | `n`                | create a new issue                     |
 | `>` / `<`          | advance / retreat the issue's state    |
 | `r`                | refresh                                |
-| `/`                | textual filter                         |
+| `/`                | filter the loaded rows (see below)     |
 | `q`                | quit                                   |
 
 Inside the detail modal, the same `j`/`k`/arrows/`PgUp`/`PgDn`/`g`/`G`
@@ -265,6 +265,23 @@ no-op with a hint.
 the active view spans several projects it first asks which project to create in
 (a single project is inferred). Fill the fields the same way as editing; a title
 is required. `ctrl+s` creates the issue, `Esc` cancels.
+
+`/` filters the loaded rows with a small `key:value` query (no refetch). Bare
+words match the title/key; typed tokens narrow by field:
+
+| Token    | Matches                      | Example         |
+| -------- | ---------------------------- | --------------- |
+| `ass:`   | assignee display name / `me` | `ass:joe`       |
+| `state:` | state name (substring)       | `state:prog`    |
+| `group:` | state group                  | `group:started` |
+| `prio:`  | priority                     | `prio:high`     |
+| `label:` | label name (substring)       | `label:bug`     |
+| `proj:`  | project identifier           | `proj:ENG`      |
+
+Tokens of different keys combine with AND; repeating a key is an OR within it
+(`label:bug label:ui`). An unknown `key:` falls back to a title/key substring.
+The status bar shows how many of the loaded rows match, so an empty result reads
+as "filtered", not "no data".
 
 Issue descriptions are stored as HTML on Plane and rendered inline as
 Markdown by a small custom renderer (headings, lists, code, links,

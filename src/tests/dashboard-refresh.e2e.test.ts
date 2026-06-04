@@ -77,7 +77,7 @@ function baseCtx(list: ReturnType<typeof vi.fn>, views: { name: string }[]): App
       })),
     },
     workItems: { retrieve: vi.fn().mockResolvedValue(issue("ENG-1")) },
-    users: {},
+    users: { me: vi.fn().mockResolvedValue({ id: "me", display_name: "me" }) },
     keybindings: resolveBindings({}),
     theme: PRESETS.default,
     close: vi.fn().mockResolvedValue(undefined),
