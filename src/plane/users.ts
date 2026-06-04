@@ -4,8 +4,25 @@ import { cacheKeys } from "../cache/keys.js";
 import { NotFoundError } from "../utils/errors.js";
 import type { PlaneApiClient, PaginatedResponse } from "./client.js";
 
-interface RawMember {
-  member: { id: string; display_name: string; email?: string };
+// Plane releases disagree on the members payload: some wrap each row as
+// `{ member: {...} }`, others return the user fields flattened on the row, and
+// some include null/partial rows (a pending invite with no user yet). RawMember
+// covers both shapes; normalizeMember reconciles them and drops unusable rows.
+interface RawUser {
+  id?: string;
+  display_name?: string;
+  email?: string;
+}
+type RawMember = ({ member?: RawUser | null } & RawUser) | null | undefined;
+
+// normalizeMember pulls the user out of either shape and returns undefined for a
+// row that carries no id (so the caller can filter it out). It reads the nested
+// `member` first, falling back to the fields on the row itself.
+function normalizeMember(raw: RawMember): IssueUser | undefined {
+  if (!raw) return undefined;
+  const user = raw.member ?? raw;
+  if (!user.id) return undefined;
+  return { id: user.id, display_name: user.display_name ?? user.id, email: user.email };
 }
 
 export class UsersService {
@@ -22,8 +39,11 @@ export class UsersService {
       this.api.workspacePath("members"),
     );
     const list = Array.isArray(res) ? res : res.results;
-    const users = list.map((m) => m.member);
-    await this.cache.set(key, users);
+    const users = list.map(normalizeMember).filter((u): u is IssueUser => u !== undefined);
+    // Do not cache an empty result: an unexpected payload shape (or a transient
+    // empty response) would otherwise serve an empty assignee picker for the
+    // whole TTL. Caching only non-empty lists lets the next open retry instead.
+    if (users.length > 0) await this.cache.set(key, users);
     return users;
   }
 
