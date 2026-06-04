@@ -13,10 +13,19 @@ import {
   type SelectOption,
   type SelectState,
 } from "./select-modal.js";
+import { applyKey, type TextBuffer } from "./text-buffer.js";
 
-// The editable fields, in the order the arrows cycle through them.
-export type EditField = "state" | "assignee" | "priority" | "labels";
-export const EDIT_FIELDS: EditField[] = ["state", "assignee", "priority", "labels"];
+// The editable fields, in the order the arrows cycle through them. `title` and
+// `description` are free-text fields edited inline; the rest open a picker.
+export type EditField = "title" | "description" | "state" | "assignee" | "priority" | "labels";
+export const EDIT_FIELDS: EditField[] = [
+  "title",
+  "description",
+  "state",
+  "assignee",
+  "priority",
+  "labels",
+];
 
 const PRIORITIES: IssuePriority[] = ["urgent", "high", "medium", "low", "none"];
 
@@ -31,6 +40,10 @@ export interface IssueEditorController {
   picker:
     | { kind: EditField; options: SelectOption[]; state: SelectState; multi: boolean }
     | undefined;
+  // textEdit is set while a free-text field (title/description) is being edited
+  // inline: the field and its working buffer. ctrl+s commits it to the draft,
+  // esc discards the in-progress text. title is single-line, description multi.
+  textEdit: { field: "title" | "description"; buffer: TextBuffer } | undefined;
   dirty: boolean;
   saving: boolean;
   // confirmingExit is true while the "discard changes?" prompt is showing.
@@ -89,10 +102,11 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
   const [issue, setIssue] = useState<Issue | undefined>();
   const [original, setOriginal] = useState<EditorDraft | undefined>();
   const [draft, setDraft] = useState<EditorDraft | undefined>();
-  const [field, setField] = useState<EditField>("state");
+  const [field, setField] = useState<EditField>("title");
   const [saving, setSaving] = useState(false);
   const [confirmingExit, setConfirmingExit] = useState(false);
   const [picker, setPicker] = useState<IssueEditorController["picker"]>();
+  const [textEdit, setTextEdit] = useState<IssueEditorController["textEdit"]>();
   // id -> human name, seeded from the issue and extended as each picker loads.
   // Lets the form render a freshly-picked value by name instead of its raw id.
   const [names, setNames] = useState<Record<string, string>>({});
@@ -122,8 +136,9 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
     setIssue(target);
     setOriginal(snapshot);
     setDraft({ ...snapshot, assignee_ids: [...snapshot.assignee_ids] });
-    setField("state");
+    setField("title");
     setPicker(undefined);
+    setTextEdit(undefined);
     setConfirmingExit(false);
     // Seed the name lookup from the issue's own state/assignees/labels.
     setNames({
@@ -137,6 +152,7 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
   const close = useCallback(() => {
     setActive(false);
     setPicker(undefined);
+    setTextEdit(undefined);
     setConfirmingExit(false);
   }, []);
 
@@ -172,6 +188,30 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
       depsRef.current.onError(`${target.key}: ${(err as Error).message}`);
     }
   }, [issue, draft, field, openWith]);
+
+  // openField acts on the focused field: a text field (title/description) opens
+  // the inline text editor seeded from the draft; everything else opens a picker.
+  const openField = useCallback(() => {
+    if (!draft) return;
+    if (field === "title" || field === "description") {
+      const text = field === "title" ? draft.name : draft.description;
+      setTextEdit({ field, buffer: { text, caret: text.length } });
+      return;
+    }
+    void openPicker();
+  }, [draft, field, openPicker]);
+
+  // commitTextEdit writes the in-progress buffer back to the draft and closes the
+  // inline editor (ctrl+s). title is collapsed to a single line.
+  const commitTextEdit = useCallback(() => {
+    setTextEdit((te) => {
+      if (!te) return undefined;
+      const value =
+        te.field === "title" ? te.buffer.text.replace(/\n/g, " ").trim() : te.buffer.text;
+      setDraft((d) => (d ? { ...d, [te.field === "title" ? "name" : "description"]: value } : d));
+      return undefined;
+    });
+  }, []);
 
   const applyPickerOutcome = useCallback((kind: EditField, value: string | string[]) => {
     setDraft((d) => {
@@ -239,9 +279,21 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
         );
       if (key.upArrow || input === "k")
         return setField((f) => EDIT_FIELDS[Math.max(0, EDIT_FIELDS.indexOf(f) - 1)]!);
-      if (key.return) void openPicker();
+      if (key.return) openField();
     },
-    [runSave, dirty, close, openPicker],
+    [runSave, dirty, close, openField],
+  );
+
+  // While the inline text editor is open, every keystroke edits the buffer except
+  // ctrl+s (commit to the draft) and esc (discard the in-progress text). This is
+  // a separate mode because j/k/enter are literal input here, not navigation.
+  const handleTextEditKey = useCallback(
+    (current: NonNullable<IssueEditorController["textEdit"]>, input: string, key: InkKey) => {
+      if (key.ctrl && input === "s") return commitTextEdit();
+      if (key.escape) return setTextEdit(undefined);
+      setTextEdit({ ...current, buffer: applyKey(current.buffer, input, key) });
+    },
+    [commitTextEdit],
   );
 
   const handleConfirmKey = useCallback(
@@ -257,10 +309,20 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
     (input: string, key: InkKey) => {
       if (saving) return;
       if (confirmingExit) return handleConfirmKey(input, key);
+      if (textEdit) return handleTextEditKey(textEdit, input, key);
       if (picker) return handlePickerKey(picker, input, key);
       handleFormKey(input, key);
     },
-    [saving, confirmingExit, picker, handleConfirmKey, handlePickerKey, handleFormKey],
+    [
+      saving,
+      confirmingExit,
+      textEdit,
+      picker,
+      handleConfirmKey,
+      handleTextEditKey,
+      handlePickerKey,
+      handleFormKey,
+    ],
   );
 
   return {
@@ -269,6 +331,7 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
     draft,
     field,
     picker,
+    textEdit,
     dirty,
     saving,
     confirmingExit,

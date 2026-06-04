@@ -241,13 +241,15 @@ bindings scroll the Markdown description; `o` opens the issue in the
 browser; `Esc` closes back to the list.
 
 `e` (from the list or the detail modal) opens an edit modal for the selected
-issue. `j`/`k`/arrows move focus across the editable fields (state, assignee,
-priority, labels); `Enter` opens a picker for the focused field. The assignee
-and label pickers are multi-select — `Enter` toggles an entry and `ctrl+s`
-confirms the set (an empty set clears it); state and priority confirm on
-`Enter`. Inside a picker, `Esc` returns to the form. `ctrl+s` in the form saves
-every change in a single request; `Esc` closes, asking to confirm first if there
-are unsaved changes.
+issue. `j`/`k`/arrows move focus across the editable fields (title, description,
+state, assignee, priority, labels); `Enter` acts on the focused field. Title and
+description open an inline text editor (`ctrl+s` applies, `Esc` cancels;
+description is multiline with `Enter` for newline). State, assignee, priority and
+labels open a picker — the assignee and label pickers are multi-select (`Enter`
+toggles an entry, `ctrl+s` confirms the set, an empty set clears it), state and
+priority confirm on `Enter`. Inside a picker, `Esc` returns to the form. `ctrl+s`
+in the form saves every change in a single request; `Esc` closes, asking to
+confirm first if there are unsaved changes.
 
 Issue descriptions are stored as HTML on Plane and rendered inline as
 Markdown by a small custom renderer (headings, lists, code, links,

@@ -5,6 +5,8 @@ import type { UpdateIssueParams } from "../plane/work-items.js";
 // assignee_ids and label_ids are treated as sets (order-insensitive) for both
 // dirty detection and the save patch, matching how Plane stores them.
 export interface EditorDraft {
+  name: string;
+  description: string;
   state_id: string;
   priority: IssuePriority;
   assignee_ids: string[];
@@ -15,6 +17,8 @@ export interface EditorDraft {
 // a draft equal to this snapshot, so "dirty" means "diverged from this".
 export function editorOriginal(issue: Issue): EditorDraft {
   return {
+    name: issue.name,
+    description: issue.description ?? "",
     state_id: issue.state.id,
     priority: issue.priority,
     assignee_ids: issue.assignees.map((a) => a.id),
@@ -31,6 +35,8 @@ function sameSet(a: string[], b: string[]): boolean {
 // isDraftDirty reports whether the draft diverges from the original in any of the
 // three fields. Assignees compare as sets so reordering alone is not a change.
 export function isDraftDirty(original: EditorDraft, draft: EditorDraft): boolean {
+  if (original.name !== draft.name) return true;
+  if (original.description !== draft.description) return true;
   if (original.state_id !== draft.state_id) return true;
   if (original.priority !== draft.priority) return true;
   if (!sameSet(original.assignee_ids, draft.assignee_ids)) return true;
@@ -45,6 +51,8 @@ export function buildUpdatePatch(
   draft: EditorDraft,
 ): UpdateIssueParams["patch"] {
   const patch: UpdateIssueParams["patch"] = {};
+  if (original.name !== draft.name) patch.name = draft.name;
+  if (original.description !== draft.description) patch.description = draft.description;
   if (original.state_id !== draft.state_id) patch.state_id = draft.state_id;
   if (original.priority !== draft.priority) patch.priority = draft.priority;
   if (!sameSet(original.assignee_ids, draft.assignee_ids)) patch.assignee_ids = draft.assignee_ids;

@@ -37,19 +37,39 @@ function issue(overrides: Partial<Issue> = {}): Issue {
 
 describe("editorOriginal", () => {
   // Scenario 8: opening the editor materializes the issue's current values.
-  it("should snapshot the issue's current state, priority, assignees and labels", () => {
-    const original = editorOriginal(issue({ labels: [{ id: "l-1", name: "bug" }] as never }));
+  it("should snapshot the issue's current fields", () => {
+    const original = editorOriginal(
+      issue({ description: "the body", labels: [{ id: "l-1", name: "bug" }] as never }),
+    );
     expect(original).toEqual({
+      name: "Some issue",
+      description: "the body",
       state_id: "s-todo",
       priority: "medium",
       assignee_ids: ["u-1"],
       label_ids: ["l-1"],
     });
   });
+
+  it("should default a missing description to an empty string", () => {
+    expect(editorOriginal(issue()).description).toBe("");
+  });
 });
 
 describe("isDraftDirty", () => {
   // Scenario 10: changing a field marks the draft dirty.
+  it("should report dirty when the title changes", () => {
+    const original = editorOriginal(issue());
+    const draft: EditorDraft = { ...original, name: "New title" };
+    expect(isDraftDirty(original, draft)).toBe(true);
+  });
+
+  it("should report dirty when the description changes", () => {
+    const original = editorOriginal(issue({ description: "old" }));
+    const draft: EditorDraft = { ...original, description: "new" };
+    expect(isDraftDirty(original, draft)).toBe(true);
+  });
+
   it("should report dirty when the state changes", () => {
     const original = editorOriginal(issue());
     const draft: EditorDraft = { ...original, state_id: "s-doing" };
@@ -103,6 +123,15 @@ describe("buildUpdatePatch", () => {
     const original = editorOriginal(issue({ labels: [{ id: "l-1", name: "bug" }] as never }));
     const draft: EditorDraft = { ...original, label_ids: [] };
     expect(buildUpdatePatch(original, draft)).toEqual({ label_ids: [] });
+  });
+
+  it("should include name and description when they change", () => {
+    const original = editorOriginal(issue({ description: "old" }));
+    const draft: EditorDraft = { ...original, name: "New title", description: "new body" };
+    expect(buildUpdatePatch(original, draft)).toEqual({
+      name: "New title",
+      description: "new body",
+    });
   });
 
   // Scenario 13: no changes => empty patch (the dashboard treats it as a no-op).

@@ -117,7 +117,11 @@ describe("dashboard edit flow (e2e)", () => {
     await tick();
     expect(lastFrame()).toContain("edit ENG-1");
 
-    stdin.write("\r"); // enter opens the state picker (state is the first field)
+    stdin.write("j"); // title -> description
+    await tick();
+    stdin.write("j"); // description -> state
+    await tick();
+    stdin.write("\r"); // enter opens the state picker
     await tick();
     expect(lastFrame()).toContain("set state");
 
@@ -150,7 +154,11 @@ describe("dashboard edit flow (e2e)", () => {
 
     stdin.write("e");
     await tick();
-    stdin.write("j"); // move focus state -> assignee
+    stdin.write("j"); // title -> description
+    await tick();
+    stdin.write("j"); // description -> state
+    await tick();
+    stdin.write("j"); // state -> assignee
     await tick();
     stdin.write("\r"); // open the assignee picker
     await tick();
@@ -179,6 +187,10 @@ describe("dashboard edit flow (e2e)", () => {
 
     stdin.write("e");
     await tick();
+    stdin.write("j"); // title -> description
+    await tick();
+    stdin.write("j"); // description -> state
+    await tick();
     stdin.write("j"); // state -> assignee
     await tick();
     stdin.write("j"); // assignee -> priority
@@ -200,6 +212,33 @@ describe("dashboard edit flow (e2e)", () => {
 
     expect(update).toHaveBeenCalledTimes(1);
     expect(update).toHaveBeenCalledWith("ENG-1", { label_ids: ["l-1"] });
+    unmount();
+  });
+
+  // Title edits inline: enter opens a single-line editor (title is the first
+  // field), typed text is applied with ctrl+s, and the save sends `name`.
+  it("edits the title inline and saves name", async () => {
+    const { ctx, logger, update } = harness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write("e"); // title is focused first
+    await tick();
+    stdin.write("\r"); // open the inline title editor
+    await tick();
+    expect(lastFrame()).toContain("edit title");
+
+    stdin.write("!"); // append to the title buffer
+    await tick();
+    stdin.write("\x13"); // ctrl+s applies the text back to the form
+    await tick();
+    expect(lastFrame()).toContain("title: title ENG-1!");
+
+    stdin.write("\x13"); // ctrl+s saves the issue
+    await tick();
+
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith("ENG-1", { name: "title ENG-1!" });
     unmount();
   });
 
@@ -244,6 +283,10 @@ describe("dashboard edit flow (e2e)", () => {
 
     stdin.write("e");
     await tick();
+    stdin.write("j"); // title -> description
+    await tick();
+    stdin.write("j"); // description -> state
+    await tick();
     stdin.write("\r"); // open state picker
     await tick();
     stdin.write("j"); // move to a different state
@@ -269,6 +312,10 @@ describe("dashboard edit flow (e2e)", () => {
     await tick();
 
     stdin.write("e");
+    await tick();
+    stdin.write("j"); // title -> description
+    await tick();
+    stdin.write("j"); // description -> state
     await tick();
     stdin.write("\r"); // open state picker
     await tick();

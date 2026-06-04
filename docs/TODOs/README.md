@@ -14,15 +14,20 @@ item lands.
 
 In-dashboard editing (build on the shipped edit modal):
 
-| TODO                                       | Summary                                                                       |
-| :----------------------------------------- | :---------------------------------------------------------------------------- |
-| [edit-issue-full.md](edit-issue-full.md)   | Add **title** and **description** to the edit modal (labels already shipped). |
-| [create-issue-tui.md](create-issue-tui.md) | Create an issue from the TUI, reusing the edit form and pickers.              |
+| TODO                                       | Summary                                                          |
+| :----------------------------------------- | :--------------------------------------------------------------- |
+| [create-issue-tui.md](create-issue-tui.md) | Create an issue from the TUI, reusing the edit form and pickers. |
 
 ## Done
 
 These shipped; their planning docs were removed once implemented.
 
+- **Edit title and description** — the edit modal now has `title` and
+  `description` as inline free-text fields (focused first): `enter` opens a text
+  editor over the form (description multiline), `ctrl+s` applies it back, `esc`
+  cancels. They feed the same single PATCH as the other fields, sending the
+  Markdown verbatim (matching the CLI `issue edit`; no lossy Markdown→HTML
+  conversion). See `src/tui/use-issue-editor.ts`, `src/tui/issue-editor.tsx`.
 - **Label picker** — labels are now a fourth editable field in the edit modal,
   via a multi-select `SelectModal` seeded with the issue's current labels (an
   empty set clears them). Backed by a new `LabelsService` (per-project cached

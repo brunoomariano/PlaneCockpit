@@ -166,6 +166,7 @@ function renderEditorContent(
       saving={editor.saving}
       confirmingExit={editor.confirmingExit}
       names={editor.names}
+      textEdit={editor.textEdit}
     />
   );
 }
