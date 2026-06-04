@@ -12,7 +12,21 @@ item lands.
 
 ## Index
 
-_No open items right now._
+In-dashboard editing (build on the shipped edit modal):
+
+| TODO                                       | Summary                                                                         |
+| :----------------------------------------- | :------------------------------------------------------------------------------ |
+| [edit-issue-full.md](edit-issue-full.md)   | Add **title**, **description** and **labels** to the edit modal.                |
+| [label-picker.md](label-picker.md)         | A per-project `LabelsService` + multi-select label picker (unblocks the above). |
+| [create-issue-tui.md](create-issue-tui.md) | Create an issue from the TUI, reusing the edit form and pickers.                |
+
+Correctness / resilience:
+
+| TODO                                                                   | Summary                                                                      |
+| :--------------------------------------------------------------------- | :--------------------------------------------------------------------------- |
+| [resolve-me-robustness.md](resolve-me-robustness.md)                   | Route `me()`/`resolveAssignee` through the members payload normalization.    |
+| [self-hosted-timeout-resilience.md](self-hosted-timeout-resilience.md) | Isolate per-project fetch failures; show a degraded view instead of failing. |
+| [in-place-cache-patch.md](in-place-cache-patch.md)                     | Patch the edited row in place instead of refetching the whole view on save.  |
 
 ## Done
 
