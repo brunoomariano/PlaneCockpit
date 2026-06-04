@@ -18,6 +18,14 @@ Scale / search:
 | :--------------------------------------------- | :-------------------------------------------------------------------------------------------- |
 | [server-side-search.md](server-side-search.md) | Push filtering/search to the server so it covers the whole project, not just the loaded page. |
 
+Hygiene / debt (from the repo sweep):
+
+| TODO                                                               | Summary                                                                                    |
+| :----------------------------------------------------------------- | :----------------------------------------------------------------------------------------- |
+| [code-hygiene-and-gates.md](code-hygiene-and-gates.md)             | Unused exports, the red `deadcode:strict`/`quality` gate, a duplicated TTL, missing TSDoc. |
+| [refactor-dashboard-component.md](refactor-dashboard-component.md) | Break up the ~900-line Dashboard god-component into per-feature hooks.                     |
+| [process-and-doc-alignment.md](process-and-doc-alignment.md)       | Commit conventions, the pino-vs-FileLogger contradiction, and the absent `infra/`.         |
+
 ## Done
 
 These shipped; their planning docs were removed once implemented.
