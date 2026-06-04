@@ -36,6 +36,7 @@ export default defineConfig({
         "src/config/profiles.ts",
         "src/config/schema.ts",
         "src/plane/filters.ts",
+        "src/plane/projects.ts",
         "src/plane/resolver.ts",
         "src/plane/states.ts",
         "src/plane/labels.ts",

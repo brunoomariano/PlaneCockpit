@@ -44,14 +44,36 @@ at the adapter boundary — never in the domain or the UI.
 - Centralize the row normalization where two adapters share a shape (members vs
   /users/me already share `normalizeMember`).
 
+## Observed against the self-hosted instance (plane.senfio.com.br)
+
+Confirmed empirically (logs + a full CRUD on INFRA), not assumed:
+
+- **Members** arrive flattened (no `{ member }` wrapper) and include null rows —
+  `UsersService.normalizeMember` handles both, with `/users/me` routed through it.
+- **Issue read** (`?expand=state,assignees,labels`) returns relations as expanded
+  objects; the **create** response returns `state` as a bare UUID string (no
+  expand on POST), so `toIssue` must accept both — now covered.
+- **Write field names:** the issues endpoint accepts `state` / `assignees` /
+  `labels` (the `*_id(s)` names are silently ignored, 200 + unchanged) and
+  persists the description only via `description_html` (a plain `description` is
+  ignored). Both confirmed by editing each field on INFRA and reading it back.
+- **States/labels** came back as `{ results }` pages; the adapter also accepts a
+  bare array for releases that return one.
+
 ## Acceptance checklist
 
-- [ ] Each listed adapter has a test covering the array and `{ results }` shapes.
-- [ ] Adapters drop null/partial rows instead of emitting id-less domain objects.
-- [ ] `/users/me` is verified against a real payload and the shape is recorded.
-- [ ] The accepted write field names (state/assignees/labels) are confirmed and
-      asserted by `toApiBody` tests.
-- [ ] Observed payload samples (redacted) are recorded in this doc for reference.
+- [x] Each listed adapter has a test covering the array and `{ results }` shapes.
+- [x] Adapters drop null/partial rows instead of emitting id-less domain objects.
+- [x] `/users/me` is verified against a real payload and the shape is recorded.
+- [x] The accepted write field names (state/assignees/labels) are confirmed and
+      asserted by `toApiBody` / request-body tests.
+- [x] Observed payload samples are recorded in this doc for reference.
+
+## Out of scope / follow-up
+
+- **Cycle/module on write** are not exercised yet (no TUI/CLI path mutates them);
+  revisit when [quick-state-transition.md] or a cycle action lands. The read path
+  already tolerates `cycle_id` / `module_ids` being absent.
 
 ## References
 

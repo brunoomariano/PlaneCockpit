@@ -19,16 +19,18 @@ TUI navigation & quick actions:
 | [quick-state-transition.md](quick-state-transition.md) | Advance/retreat the selected issue's state with a named-transition confirm. |
 | [structured-tui-filter.md](structured-tui-filter.md)   | gh-dash-style `key:value` filter bar (`ass:joe`, `label:bug`, …) over rows. |
 
-Correctness / resilience:
-
-| TODO                                                           | Summary                                                             |
-| :------------------------------------------------------------- | :------------------------------------------------------------------ |
-| [audit-self-hosted-payloads.md](audit-self-hosted-payloads.md) | Sweep every adapter for self-hosted payload variance and harden it. |
-
 ## Done
 
 These shipped; their planning docs were removed once implemented.
 
+- **Self-hosted payload audit** — hardened every read adapter against the shape
+  variance seen on the self-hosted instance and locked it with tests: projects
+  (array vs `{ results }`, `workspace` vs `workspace_id`, null/partial rows
+  dropped), states/labels (bare array vs page), and the issue read path
+  (`toIssue`: relations as expanded objects or bare UUID strings, `priority: null`,
+  description from html/stripped). The observed shapes are recorded in
+  [audit-self-hosted-payloads.md](audit-self-hosted-payloads.md). See
+  `src/plane/projects.ts` and the `work-items.to-issue` / `projects` tests.
 - **CLI: change state and labels** — `plc issue transition <key> <state>` moves an
   issue to a state and `plc issue label <key> [labels...]` sets its labels
   (replace semantics; no args clears), both resolving the value by name

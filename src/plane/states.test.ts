@@ -86,6 +86,18 @@ describe("StatesService", () => {
     expect(await cache.get(cacheKeys.states("acme", "id-OPS"))).not.toBeNull();
   });
 
+  // Some Plane releases return the states as a bare array instead of a
+  // { results } page; the adapter must accept both.
+  it("should accept a bare-array response", async () => {
+    const api = {
+      workspace: "acme",
+      workspacePath: (...segments: string[]) => `/workspaces/acme/${segments.join("/")}`,
+      request: vi.fn(async () => [{ id: "s1", name: "Todo", group: "unstarted" }]),
+    } as unknown as PlaneApiClient;
+    const states = await new StatesService(api, new MemoryCacheStore()).list(project("ENG"));
+    expect(states).toEqual([{ id: "s1", name: "Todo", group: "unstarted" }]);
+  });
+
   // The cache entry is bounded by the short states/labels TTL: once it expires,
   // the next call re-fetches, so a state created in Plane appears without a clear.
   it("should re-fetch after the TTL expires", async () => {

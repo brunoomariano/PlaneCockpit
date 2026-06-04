@@ -84,6 +84,18 @@ describe("LabelsService", () => {
     expect(await cache.get(cacheKeys.labels("acme", "id-OPS"))).not.toBeNull();
   });
 
+  // Some Plane releases return the labels as a bare array instead of a
+  // { results } page; the adapter must accept both.
+  it("should accept a bare-array response", async () => {
+    const api = {
+      workspace: "acme",
+      workspacePath: (...segments: string[]) => `/workspaces/acme/${segments.join("/")}`,
+      request: vi.fn(async () => [{ id: "l1", name: "bug" }]),
+    } as unknown as PlaneApiClient;
+    const labels = await new LabelsService(api, new MemoryCacheStore()).list(project("ENG"));
+    expect(labels).toEqual([{ id: "l1", name: "bug" }]);
+  });
+
   // Bounded by the short states/labels TTL: once it expires the next call
   // re-fetches, so a label created in Plane appears without a manual clear.
   it("should re-fetch after the TTL expires", async () => {
