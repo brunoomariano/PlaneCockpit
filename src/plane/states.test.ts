@@ -85,4 +85,25 @@ describe("StatesService", () => {
     expect(await cache.get(cacheKeys.states("acme", "id-ENG"))).not.toBeNull();
     expect(await cache.get(cacheKeys.states("acme", "id-OPS"))).not.toBeNull();
   });
+
+  // The cache entry is bounded by the short states/labels TTL: once it expires,
+  // the next call re-fetches, so a state created in Plane appears without a clear.
+  it("should re-fetch after the TTL expires", async () => {
+    const { api, requests } = fakeClient({
+      "id-ENG": [{ id: "s1", name: "Todo", group: "unstarted" }],
+    });
+    let now = 1_000;
+    const cache = new MemoryCacheStore({ now: () => now });
+    const svc = new StatesService(api, cache);
+
+    await svc.list(project("ENG"));
+    await svc.list(project("ENG")); // cached
+    expect(requests).toHaveLength(1);
+
+    // Advance past the 300s TTL: the entry has expired, so the next call hits
+    // the API again.
+    now += 301_000;
+    await svc.list(project("ENG"));
+    expect(requests).toHaveLength(2);
+  });
 });

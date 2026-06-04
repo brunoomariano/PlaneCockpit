@@ -2,6 +2,7 @@ import type { IssueState, IssueStateGroup } from "../types/issue.js";
 import type { Project } from "../types/project.js";
 import type { CacheStore } from "../cache/types.js";
 import { cacheKeys } from "../cache/keys.js";
+import { STATES_LABELS_TTL_SECONDS } from "../config/defaults.js";
 import type { PlaneApiClient, PaginatedResponse } from "./client.js";
 
 interface RawState {
@@ -34,7 +35,9 @@ export class StatesService {
     );
     const list = Array.isArray(res) ? res : res.results;
     const states = list.map(toState);
-    await this.cache.set(key, states);
+    // Explicit short TTL: a state created in Plane reappears within minutes,
+    // regardless of how high the profile-wide cache.ttl is set for issues.
+    await this.cache.set(key, states, STATES_LABELS_TTL_SECONDS);
     return states;
   }
 }

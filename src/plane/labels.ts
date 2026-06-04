@@ -2,6 +2,7 @@ import type { IssueLabel } from "../types/issue.js";
 import type { Project } from "../types/project.js";
 import type { CacheStore } from "../cache/types.js";
 import { cacheKeys } from "../cache/keys.js";
+import { STATES_LABELS_TTL_SECONDS } from "../config/defaults.js";
 import type { PlaneApiClient, PaginatedResponse } from "./client.js";
 
 interface RawLabel {
@@ -33,7 +34,9 @@ export class LabelsService {
     );
     const list = Array.isArray(res) ? res : res.results;
     const labels = list.map(toLabel);
-    await this.cache.set(key, labels);
+    // Explicit short TTL: a label created in Plane reappears within minutes,
+    // regardless of how high the profile-wide cache.ttl is set for issues.
+    await this.cache.set(key, labels, STATES_LABELS_TTL_SECONDS);
     return labels;
   }
 }

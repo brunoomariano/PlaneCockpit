@@ -83,4 +83,21 @@ describe("LabelsService", () => {
     expect(await cache.get(cacheKeys.labels("acme", "id-ENG"))).not.toBeNull();
     expect(await cache.get(cacheKeys.labels("acme", "id-OPS"))).not.toBeNull();
   });
+
+  // Bounded by the short states/labels TTL: once it expires the next call
+  // re-fetches, so a label created in Plane appears without a manual clear.
+  it("should re-fetch after the TTL expires", async () => {
+    const { api, requests } = fakeClient({ "id-ENG": [{ id: "l1", name: "bug" }] });
+    let now = 1_000;
+    const cache = new MemoryCacheStore({ now: () => now });
+    const svc = new LabelsService(api, cache);
+
+    await svc.list(project("ENG"));
+    await svc.list(project("ENG")); // cached
+    expect(requests).toHaveLength(1);
+
+    now += 301_000; // past the 300s TTL
+    await svc.list(project("ENG"));
+    expect(requests).toHaveLength(2);
+  });
 });

@@ -27,15 +27,19 @@ CLI parity:
 
 Correctness / resilience:
 
-| TODO                                                           | Summary                                                                       |
-| :------------------------------------------------------------- | :---------------------------------------------------------------------------- |
-| [per-project-cache-ttl.md](per-project-cache-ttl.md)           | Bound the states/labels caches with a TTL so new ones appear without a clear. |
-| [audit-self-hosted-payloads.md](audit-self-hosted-payloads.md) | Sweep every adapter for self-hosted payload variance and harden it.           |
+| TODO                                                           | Summary                                                             |
+| :------------------------------------------------------------- | :------------------------------------------------------------------ |
+| [audit-self-hosted-payloads.md](audit-self-hosted-payloads.md) | Sweep every adapter for self-hosted payload variance and harden it. |
 
 ## Done
 
 These shipped; their planning docs were removed once implemented.
 
+- **Explicit TTL on states/labels caches** — `StatesService`/`LabelsService` now
+  cache with their own short TTL (300s) instead of inheriting the profile-wide
+  `cache.ttl`, so a high global list TTL never strands a freshly-created state or
+  label in the pickers — it reappears within minutes without `plc cache clear`.
+  See `STATES_LABELS_TTL_SECONDS` in `src/config/defaults.ts`.
 - **Fix: descriptions were silently dropped** — the issue endpoint ignores a
   plain `description` field (returns 200, body unchanged); Plane only persists a
   description sent as `description_html`. Both create and update now convert the
