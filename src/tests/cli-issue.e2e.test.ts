@@ -61,11 +61,20 @@ describe("cli issue (e2e, built binary)", () => {
     expect(stdout).toContain("--yes");
   });
 
-  // transition takes a <key> and <state> argument.
-  it("shows the state argument on `issue transition --help`", async () => {
+  // transition takes a <key> and <state> argument, and supports json output.
+  it("shows the state argument and --json on `issue transition --help`", async () => {
     const { code, stdout } = await runCli(["issue", "transition", "--help"]);
     expect(code).toBe(0);
     expect(stdout).toContain("state");
+    expect(stdout).toContain("--json");
+  });
+
+  // The mutating commands expose --json/--yaml for scripting, like list/view.
+  it("exposes --json on `issue create` and `issue label --help`", async () => {
+    const create = await runCli(["issue", "create", "--help"]);
+    expect(create.stdout).toContain("--json");
+    const label = await runCli(["issue", "label", "--help"]);
+    expect(label.stdout).toContain("--json");
   });
 
   // Invalid priority is rejected before any network call, with a non-zero exit

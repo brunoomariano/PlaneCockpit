@@ -99,6 +99,8 @@ export function registerIssue(program: Command): void {
     .option("-t, --title <title>", "issue title")
     .option("--body-file <path>", "read the description from a file ('-' for stdin)")
     .option("--priority <p>", "priority (urgent|high|medium|low|none)")
+    .option("--json", "output as json")
+    .option("--yaml", "output as yaml")
     .action(async function (this: Command, opts: CreateOptions) {
       await withContext(this, { ...this.opts(), ...opts }, async ({ ctx, format }) => {
         const project = opts.project ?? firstDefaultProject(ctx.runtime.profile.defaults?.projects);
@@ -116,6 +118,8 @@ export function registerIssue(program: Command): void {
     .option("--title <title>", "new title")
     .option("--description <text>", "new description")
     .option("--priority <p>", "new priority (urgent|high|medium|low|none)")
+    .option("--json", "output as json")
+    .option("--yaml", "output as yaml")
     .action(async function (
       this: Command,
       key: string,
@@ -146,6 +150,8 @@ export function registerIssue(program: Command): void {
   issue
     .command("transition <key> <state>")
     .description("move an issue to a state (by name or id, within its project)")
+    .option("--json", "output as json")
+    .option("--yaml", "output as yaml")
     .action(async function (this: Command, key: string, stateSpec: string) {
       await withContext(this, this.opts(), async ({ ctx, format }) => {
         const project = await ctx.projects.findByIdentifier(
@@ -162,6 +168,8 @@ export function registerIssue(program: Command): void {
   issue
     .command("label <key> [labels...]")
     .description("set an issue's labels (by name or id; no labels clears them)")
+    .option("--json", "output as json")
+    .option("--yaml", "output as yaml")
     .action(async function (this: Command, key: string, labelSpecs: string[]) {
       await withContext(this, this.opts(), async ({ ctx, format }) => {
         const project = await ctx.projects.findByIdentifier(

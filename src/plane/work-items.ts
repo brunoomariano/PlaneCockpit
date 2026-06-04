@@ -14,6 +14,11 @@ import type { Project } from "../types/project.js";
 import { htmlToMarkdown } from "../utils/html-to-markdown.js";
 import { textToHtml } from "../utils/text-to-html.js";
 
+// Plane returns relations as bare UUID strings unless `?expand=` asks for them.
+// Every read/write that produces an Issue passes this so the response carries
+// state/assignee/label names (a PATCH/POST without it surfaced bare UUIDs).
+const EXPAND_RELATIONS = { expand: "state,assignees,labels" } as const;
+
 // Plane's list endpoint expands `state` only when `?expand=state` is set; otherwise
 // it returns a UUID string. Same with `assignees` and `labels` (UUID arrays).
 // The adapter normalizes both shapes so the domain model is consistent.
@@ -168,7 +173,7 @@ export class WorkItemsService {
       order_by: serverOrderBy(view?.sort),
       per_page: perPage,
       // Ask Plane to inline these relations so we don't get bare UUIDs in the response.
-      expand: "state,assignees,labels",
+      ...EXPAND_RELATIONS,
     };
 
     const issues = await collectPages<Issue>(
@@ -197,7 +202,7 @@ export class WorkItemsService {
     // includes description_html by default.
     const raw = await this.api.request<RawWorkItem>(
       this.api.workspacePath("projects", project.id, "issues", issueId),
-      { query: { expand: "state,assignees,labels" } },
+      { query: EXPAND_RELATIONS },
     );
     return toIssue(raw, project.identifier, project.id);
   }
@@ -220,16 +225,21 @@ export class WorkItemsService {
       },
     );
     await this.invalidateProjectIssues(params.project.id);
-    return toIssue(raw, params.project.identifier, params.project.id);
+    // The POST response does not expand relations (state comes back as a bare
+    // UUID on this deployment, even with ?expand=), so re-read to return an
+    // Issue carrying the state/assignee/label names.
+    return this.retrieve(params.project, raw.id);
   }
 
   async update(params: UpdateIssueParams): Promise<Issue> {
-    const raw = await this.api.request<RawWorkItem>(
+    await this.api.request<RawWorkItem>(
       this.api.workspacePath("projects", params.project.id, "issues", params.issueId),
       { method: "PATCH", body: toApiBody(params.patch) },
     );
     await this.invalidateProjectIssues(params.project.id);
-    return toIssue(raw, params.project.identifier, params.project.id);
+    // The PATCH response does not reliably expand relations, so re-read to
+    // return an Issue with names rather than bare UUIDs.
+    return this.retrieve(params.project, params.issueId);
   }
 
   async delete(project: Project, issueId: string): Promise<void> {
