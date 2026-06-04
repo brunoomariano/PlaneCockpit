@@ -12,16 +12,37 @@ item lands.
 
 ## Index
 
-In-dashboard editing (build on the shipped edit modal):
+TUI navigation & quick actions:
 
-| TODO                                       | Summary                                                          |
-| :----------------------------------------- | :--------------------------------------------------------------- |
-| [create-issue-tui.md](create-issue-tui.md) | Create an issue from the TUI, reusing the edit form and pickers. |
+| TODO                                                   | Summary                                                                     |
+| :----------------------------------------------------- | :-------------------------------------------------------------------------- |
+| [quick-state-transition.md](quick-state-transition.md) | Advance/retreat the selected issue's state with a named-transition confirm. |
+| [structured-tui-filter.md](structured-tui-filter.md)   | gh-dash-style `key:value` filter bar (`ass:joe`, `label:bug`, …) over rows. |
+
+CLI parity:
+
+| TODO                                             | Summary                                                                 |
+| :----------------------------------------------- | :---------------------------------------------------------------------- |
+| [cli-state-and-label.md](cli-state-and-label.md) | `plc issue transition` and `plc issue label` (scriptable state/labels). |
+| [cli-delete-issue.md](cli-delete-issue.md)       | `plc issue delete` with a destructive-action confirmation (`--yes`).    |
+
+Correctness / resilience:
+
+| TODO                                                           | Summary                                                                       |
+| :------------------------------------------------------------- | :---------------------------------------------------------------------------- |
+| [per-project-cache-ttl.md](per-project-cache-ttl.md)           | Bound the states/labels caches with a TTL so new ones appear without a clear. |
+| [audit-self-hosted-payloads.md](audit-self-hosted-payloads.md) | Sweep every adapter for self-hosted payload variance and harden it.           |
 
 ## Done
 
 These shipped; their planning docs were removed once implemented.
 
+- **Create an issue from the TUI** — `n` opens a create modal that reuses the edit
+  form and pickers. It first picks the target project (inferred when the view
+  resolves to one, a picker when several), then composes title/description/state/
+  assignee/priority/labels and posts via `issues.create` in one request. Title is
+  required (guarded with a status-bar hint); state/labels load against the chosen
+  project. See `src/tui/use-issue-creator.ts`, `src/tui/issue-creator.tsx`.
 - **Edit title and description** — the edit modal now has `title` and
   `description` as inline free-text fields (focused first): `enter` opens a text
   editor over the form (description multiline), `ctrl+s` applies it back, `esc`
