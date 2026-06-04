@@ -108,11 +108,32 @@ export interface CreateIssueParams {
 export interface UpdateIssueParams {
   project: Project;
   issueId: string;
-  patch: Partial<Pick<Issue, "name" | "description" | "priority">> & {
-    state_id?: string;
-    assignee_ids?: string[];
-    label_ids?: string[];
-  };
+  patch: UpdateIssuePatch;
+}
+
+// UpdateIssuePatch is the domain-facing patch: it names relations by id
+// (state_id, assignee_ids, label_ids). toApiBody renames them to what the Plane
+// issues endpoint expects (state, assignees, labels) before the request.
+export type UpdateIssuePatch = Partial<Pick<Issue, "name" | "description" | "priority">> & {
+  state_id?: string;
+  assignee_ids?: string[];
+  label_ids?: string[];
+};
+
+// toApiBody translates a domain update patch into the Plane API body. The
+// endpoint expects `state`/`assignees`/`labels` (not the *_id(s) domain names),
+// and previously the PATCH sent the domain patch verbatim, so state and assignee
+// edits returned 200 but were silently ignored. Only keys present in the patch
+// are emitted, so a single-field edit never blanks out the others.
+export function toApiBody(patch: UpdateIssuePatch): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+  if (patch.name !== undefined) body.name = patch.name;
+  if (patch.description !== undefined) body.description = patch.description;
+  if (patch.priority !== undefined) body.priority = patch.priority;
+  if (patch.state_id !== undefined) body.state = patch.state_id;
+  if (patch.assignee_ids !== undefined) body.assignees = patch.assignee_ids;
+  if (patch.label_ids !== undefined) body.labels = patch.label_ids;
+  return body;
 }
 
 export class WorkItemsService {
@@ -199,7 +220,7 @@ export class WorkItemsService {
   async update(params: UpdateIssueParams): Promise<Issue> {
     const raw = await this.api.request<RawWorkItem>(
       this.api.workspacePath("projects", params.project.id, "issues", params.issueId),
-      { method: "PATCH", body: params.patch },
+      { method: "PATCH", body: toApiBody(params.patch) },
     );
     await this.invalidateProjectIssues(params.project.id);
     return toIssue(raw, params.project.identifier, params.project.id);
