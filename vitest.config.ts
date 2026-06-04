@@ -45,6 +45,7 @@ export default defineConfig({
         "src/utils/formatting.ts",
         "src/utils/html-to-markdown.ts",
         "src/utils/markdown-to-ansi.ts",
+        "src/utils/text-to-html.ts",
         "src/utils/log-paths.ts",
         "src/utils/urls.ts",
       ],

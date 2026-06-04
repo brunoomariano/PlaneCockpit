@@ -12,6 +12,7 @@ import { extractNextCursor } from "./client.js";
 import { collectPages } from "../utils/async.js";
 import type { Project } from "../types/project.js";
 import { htmlToMarkdown } from "../utils/html-to-markdown.js";
+import { textToHtml } from "../utils/text-to-html.js";
 
 // Plane's list endpoint expands `state` only when `?expand=state` is set; otherwise
 // it returns a UUID string. Same with `assignees` and `labels` (UUID arrays).
@@ -123,13 +124,14 @@ export type UpdateIssuePatch = Partial<Pick<Issue, "name" | "description" | "pri
 
 // toApiBody translates a domain update patch into the Plane API body. The
 // endpoint expects `state`/`assignees`/`labels` (not the *_id(s) domain names),
-// and previously the PATCH sent the domain patch verbatim, so state and assignee
-// edits returned 200 but were silently ignored. Only keys present in the patch
-// are emitted, so a single-field edit never blanks out the others.
+// and the description must be sent as `description_html` — Plane stores
+// descriptions as HTML and silently ignores a plain `description` field (it
+// returns 200 but the body never changes). Only keys present in the patch are
+// emitted, so a single-field edit never blanks out the others.
 export function toApiBody(patch: UpdateIssuePatch): Record<string, unknown> {
   const body: Record<string, unknown> = {};
   if (patch.name !== undefined) body.name = patch.name;
-  if (patch.description !== undefined) body.description = patch.description;
+  if (patch.description !== undefined) body.description_html = textToHtml(patch.description);
   if (patch.priority !== undefined) body.priority = patch.priority;
   if (patch.state_id !== undefined) body.state = patch.state_id;
   if (patch.assignee_ids !== undefined) body.assignees = patch.assignee_ids;
@@ -207,7 +209,9 @@ export class WorkItemsService {
         method: "POST",
         body: {
           name: params.name,
-          description: params.description,
+          // Same as update: the description must be HTML, not a plain string.
+          description_html:
+            params.description !== undefined ? textToHtml(params.description) : undefined,
           priority: params.priority,
           state: params.state_id,
           assignees: params.assignee_ids,
@@ -226,6 +230,13 @@ export class WorkItemsService {
     );
     await this.invalidateProjectIssues(params.project.id);
     return toIssue(raw, params.project.identifier, params.project.id);
+  }
+
+  async delete(project: Project, issueId: string): Promise<void> {
+    await this.api.request(this.api.workspacePath("projects", project.id, "issues", issueId), {
+      method: "DELETE",
+    });
+    await this.invalidateProjectIssues(project.id);
   }
 
   async comment(project: Project, issueId: string, comment: string): Promise<void> {

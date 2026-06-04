@@ -37,12 +37,17 @@ describe("toApiBody", () => {
     expect(toApiBody({ priority: "none" })).toEqual({ priority: "none" });
   });
 
-  // Passthrough fields (name, description) keep their names.
-  it("should pass through name and description unchanged", () => {
+  // name passes through; description is converted to description_html, since
+  // Plane silently ignores a plain `description` field on the issues endpoint.
+  it("should pass through name and send description as description_html", () => {
     expect(toApiBody({ name: "New title", description: "body" })).toEqual({
       name: "New title",
-      description: "body",
+      description_html: "<p>body</p>",
     });
+  });
+
+  it("should send empty description_html when the description is cleared", () => {
+    expect(toApiBody({ description: "" })).toEqual({ description_html: "" });
   });
 
   it("should produce an empty body for an empty patch", () => {
