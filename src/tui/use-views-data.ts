@@ -21,6 +21,11 @@ export interface ViewData {
   loading: boolean;
   error: string | undefined;
   loaded: boolean;
+  // Identifiers of the view's projects whose fetch failed on the last load. A
+  // non-empty list means the rows are a *partial* result (some projects timed
+  // out / errored), which the dashboard surfaces as a degraded view rather than
+  // a clean empty one.
+  failedProjects: string[];
 }
 
 const EMPTY_VIEW_DATA: ViewData = {
@@ -28,6 +33,7 @@ const EMPTY_VIEW_DATA: ViewData = {
   loading: false,
   error: undefined,
   loaded: false,
+  failedProjects: [],
 };
 
 // ViewsData is what the dashboard consumes: the per-view slices plus the loaders.
@@ -40,6 +46,11 @@ export interface ViewsData {
   load: (viewIdx: number) => Promise<string[]>;
   // Refreshes every view at once (the 'R' keybinding), preserving current rows.
   refreshAll: () => void;
+  // Replaces the row with the same key in a view's rows with `updated`, so a
+  // successful edit reflects immediately without refetching the whole view
+  // (selection/scroll are preserved because the row identity is unchanged). A
+  // no-op when the view has no row with that key.
+  patchIssue: (viewIdx: number, updated: Issue) => void;
 }
 
 interface UseViewsDataOptions {
@@ -99,7 +110,7 @@ export function useViewsData(opts: UseViewsDataOptions): ViewsData {
         // Every declared project is invalid: nothing to load. The navbar already
         // shows the error marker; mark the view loaded-but-empty.
         logger.warn("view resolved to no valid projects", { view: view.name });
-        patch(viewIdx, { loading: false, issues: [], loaded: true });
+        patch(viewIdx, { loading: false, issues: [], loaded: true, failedProjects: [] });
         return [];
       }
 
@@ -111,14 +122,29 @@ export function useViewsData(opts: UseViewsDataOptions): ViewsData {
 
       try {
         logger.debug("loading view", { view: view.name, projects });
-        const data = await issuesService.list(
+        // Resilient fetch: a single project timing out leaves the others
+        // visible. failedProjects marks the view as partial (degraded) instead
+        // of empty; the per-project errors are already logged by the API trace.
+        const { issues: data, failedProjects } = await issuesService.listResilient(
           projects,
           view,
           view.query_limit ?? 100,
           defaultsSort,
           controller.signal,
         );
-        patch(viewIdx, { loading: false, issues: data, loaded: true, error: undefined });
+        patch(viewIdx, {
+          loading: false,
+          issues: data,
+          loaded: true,
+          error: undefined,
+          failedProjects,
+        });
+        if (failedProjects.length > 0) {
+          logger.warn("view loaded with partial failures", {
+            view: view.name,
+            failedProjects,
+          });
+        }
         logger.debug("view loaded", { view: view.name, count: data.length });
         return data.map((i) => i.key);
       } catch (err) {
@@ -151,5 +177,22 @@ export function useViewsData(opts: UseViewsDataOptions): ViewsData {
     void mapWithConcurrency(indices, REFRESH_ALL_CONCURRENCY, (idx) => load(idx));
   }, [load]);
 
-  return useMemo(() => ({ byView, load, refreshAll }), [byView, load, refreshAll]);
+  const patchIssue = useCallback((viewIdx: number, updated: Issue) => {
+    setByView((prev) => {
+      const current = prev[viewIdx];
+      if (!current) return prev;
+      const idx = current.issues.findIndex((i) => i.key === updated.key);
+      if (idx < 0) return prev;
+      const issues = [...current.issues];
+      issues[idx] = updated;
+      const copy = [...prev];
+      copy[viewIdx] = { ...current, issues };
+      return copy;
+    });
+  }, []);
+
+  return useMemo(
+    () => ({ byView, load, refreshAll, patchIssue }),
+    [byView, load, refreshAll, patchIssue],
+  );
 }

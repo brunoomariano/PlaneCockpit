@@ -13,6 +13,14 @@ import { refineByStateSearch } from "./state-match.js";
 import { refineByStateGroup } from "./state-group-match.js";
 import { refineByAssignee } from "./assignee-match.js";
 
+// ResilientListResult is the aggregate of a per-project-isolated fetch: the
+// merged/sorted issues from the reachable projects, plus the identifiers of any
+// project whose fetch failed (so the caller can render a degraded view).
+export interface ResilientListResult {
+  issues: Issue[];
+  failedProjects: string[];
+}
+
 export class IssuesService {
   readonly resolver: IssueResolver;
 
@@ -54,6 +62,41 @@ export class IssuesService {
     defaultsSort?: SortKey[],
     signal?: AbortSignal,
   ): Promise<Issue[]> {
+    // The CLI consumes this and must fail loudly: a `plc issue list` that
+    // silently dropped a project would be worse than an error. So `list` runs
+    // the resilient fetch and throws if any project failed, while the TUI calls
+    // `listResilient` directly to degrade gracefully (see useViewsData).
+    const { issues, failedProjects } = await this.listResilient(
+      projectIdentifiers,
+      view,
+      queryLimit,
+      defaultsSort,
+      signal,
+    );
+    if (failedProjects.length > 0) {
+      throw new Error(`failed to fetch projects: ${failedProjects.join(", ")}`);
+    }
+    return issues;
+  }
+
+  /**
+   * Like `list`, but isolates per-project failures: each project is fetched
+   * independently, the reachable ones are merged/refined/sorted as usual, and
+   * the identifiers that failed are returned alongside so the caller can show a
+   * degraded ("N of M failed") view instead of an empty or errored one. A slow
+   * self-hosted Plane often times out one project while the others answer; this
+   * keeps those visible. Failures are not swallowed — the WorkItemsService logs
+   * each one with its project + URL via the API trace.
+   */
+  // Same positional shape as `list`; the cap is waived for the same reason.
+  // eslint-disable-next-line max-params
+  async listResilient(
+    projectIdentifiers: string[],
+    view?: ViewDefinition,
+    queryLimit?: number,
+    defaultsSort?: SortKey[],
+    signal?: AbortSignal,
+  ): Promise<ResilientListResult> {
     // Resolve the assignee filter once (e.g. "me" -> the current user's id)
     // before fetching, so the same id set applies across every project.
     const assigneeIds = await this.resolveAssigneeIds(view);
@@ -64,28 +107,37 @@ export class IssuesService {
     const sort = resolveSort(view?.sort, defaultsSort);
     const effectiveView = view ? { ...view, sort } : { name: "", sort };
 
-    // Query each project in parallel. Promise.all rejects on the first error,
-    // propagating the partial failure instead of silently returning an
-    // incomplete set.
-    const perProject = await Promise.all(
+    // Query each project independently. allSettled keeps a single slow/failing
+    // project (a common self-hosted timeout) from rejecting the whole merged
+    // set: the reachable projects still render, the failed identifiers are
+    // collected and surfaced to the caller.
+    const settled = await Promise.allSettled(
       projectIdentifiers.map(async (identifier) => {
         const project = await this.projects.findByIdentifier(identifier);
         return this.workItems.list({ project, view: effectiveView, limit: queryLimit, signal });
       }),
     );
 
+    const fetched: Issue[] = [];
+    const failedProjects: string[] = [];
+    settled.forEach((result, idx) => {
+      if (result.status === "fulfilled") fetched.push(...result.value);
+      else failedProjects.push(projectIdentifiers[idx]!);
+    });
+
     // Merge, refine client-side (state_group + state_search + assignee, since
     // this deployment ignores those query params), and reorder. For a single
     // project the server already returns the view's sort order, so the
     // client-side sort is a no-op there.
-    const byGroup = refineByStateGroup(perProject.flat(), view?.filters?.state_group);
+    const byGroup = refineByStateGroup(fetched, view?.filters?.state_group);
     const byState = refineByStateSearch(byGroup, view?.filters);
     const byAssignee = refineByAssignee(byState, assigneeIds);
     const sorted = sortIssues(byAssignee, sort);
     // Apply queryLimit as an aggregate cap too: it bounds the per-project fetch
     // above, but the merged set can still exceed it, so slice the final ordered
     // result to honor "max N" across all projects.
-    return queryLimit !== undefined ? sorted.slice(0, queryLimit) : sorted;
+    const issues = queryLimit !== undefined ? sorted.slice(0, queryLimit) : sorted;
+    return { issues, failedProjects };
   }
 
   /**

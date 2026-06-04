@@ -239,10 +239,18 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     loading: false,
     error: undefined,
     loaded: false,
+    failedProjects: [],
   };
   const issues = active.issues;
   const loading = active.loading;
-  const error = statusMessage ?? active.error;
+  // A partial load (some projects timed out / errored) is surfaced as a degraded
+  // message so the rows are not mistaken for the whole view. A transient action
+  // message (statusMessage) and a hard view error still take precedence.
+  const partialMessage =
+    active.failedProjects.length > 0
+      ? `partial: ${active.failedProjects.length} project(s) unavailable (${active.failedProjects.join(", ")})`
+      : undefined;
+  const error = statusMessage ?? active.error ?? partialMessage;
 
   // Merge the static markers with each view's live count/loading so the navbar
   // shows "(N)" beside loaded views and a spinner while one is fetching. Count
@@ -330,8 +338,11 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   });
 
   // The edit modal's state and key handling live in a hook; onSave issues one
-  // PATCH with the changed fields, then refreshes the view (preserving the
-  // selection) so the row reflects the new state/priority/assignees in place.
+  // PATCH with the changed fields and reflects the result in place: the updated
+  // row replaces the old one (selection/scroll preserved, no refetch flicker).
+  // A `state` change can move the issue out of the view's state_group filter, so
+  // only that case falls back to a refresh to reconcile; priority/assignee edits
+  // never change view membership and stay a pure in-place patch.
   const editor = useIssueEditor({
     target: currentSummary,
     loadStates: (issue) =>
@@ -344,9 +355,10 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     loadMembers: () => ctx.users.list(),
     onSave: async (issue, patch) => {
       try {
-        await ctx.issues.update(issue.key, patch);
+        const updated = await ctx.issues.update(issue.key, patch);
         setStatusMessage(`updated ${issue.key}`);
-        void load(true);
+        if (patch.state_id !== undefined) void load(true);
+        else viewsData.patchIssue(viewIdx, updated);
       } catch (err) {
         logger.error("edit failed", { issue: issue.key, err: err as Error });
         setStatusMessage(`${issue.key}: ${(err as Error).message}`);

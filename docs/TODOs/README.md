@@ -20,17 +20,24 @@ In-dashboard editing (build on the shipped edit modal):
 | [label-picker.md](label-picker.md)         | A per-project `LabelsService` + multi-select label picker (unblocks the above). |
 | [create-issue-tui.md](create-issue-tui.md) | Create an issue from the TUI, reusing the edit form and pickers.                |
 
-Correctness / resilience:
-
-| TODO                                                                   | Summary                                                                      |
-| :--------------------------------------------------------------------- | :--------------------------------------------------------------------------- |
-| [self-hosted-timeout-resilience.md](self-hosted-timeout-resilience.md) | Isolate per-project fetch failures; show a degraded view instead of failing. |
-| [in-place-cache-patch.md](in-place-cache-patch.md)                     | Patch the edited row in place instead of refetching the whole view on save.  |
-
 ## Done
 
 These shipped; their planning docs were removed once implemented.
 
+- **Per-project failure isolation (degraded views)** — `IssuesService.listResilient`
+  fetches each project independently (`Promise.allSettled`), merging the reachable
+  ones and reporting the identifiers that failed, so a single slow/timing-out
+  project no longer empties a multi-project view. The TUI shows a
+  `partial: N project(s) unavailable` note (distinct from a clean empty view);
+  `list` (CLI) still fails loudly. `timeout_ms` tuning for slow hosts is
+  documented in [`docs/CONFIGURATION.md`](../CONFIGURATION.md#server-required).
+  See `src/plane/issues.ts` and `src/tui/use-views-data.ts`.
+- **In-place row patch on edit** — a successful edit updates the row from the
+  `issues.update()` result via `useViewsData.patchIssue` instead of refetching
+  the whole view, so selection/scroll are preserved with no refetch flicker. A
+  `state` change (which can move the issue out of the view's filter) still falls
+  back to a refresh to reconcile; priority/assignee edits stay a pure in-place
+  patch. See `src/tui/use-views-data.ts` and `src/tui/dashboard.tsx`.
 - **Robust `me` / assignee resolution** — `UsersService.me()` now runs `/users/me`
   through the same `normalizeMember` used by `list()`, accepting the nested and
   flattened payload shapes and failing loudly (with workspace context) when no

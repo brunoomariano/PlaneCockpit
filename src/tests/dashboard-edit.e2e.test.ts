@@ -67,6 +67,9 @@ function harness(updateImpl?: () => Promise<Issue>): Harness {
   const update = updateImpl ? vi.fn(updateImpl) : vi.fn().mockResolvedValue(issue("ENG-1"));
   const issues = {
     list: vi.fn().mockResolvedValue([issue("ENG-1"), issue("ENG-2")]),
+    listResilient: vi
+      .fn()
+      .mockResolvedValue({ issues: [issue("ENG-1"), issue("ENG-2")], failedProjects: [] }),
     update,
   };
   const logger = {

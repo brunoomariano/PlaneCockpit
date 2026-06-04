@@ -111,6 +111,18 @@ server:
     reject_unauthorized: false
 ```
 
+On a slow self-hosted cluster the per-project issue fetch can hit the
+`timeout_ms` budget. Two things matter there:
+
+- **Raise `timeout_ms`** (e.g. `30000`–`60000`) so a slow project answers
+  instead of timing out. Timeouts are intentionally not retried — they tend to
+  repeat and only add latency — so the budget itself is the lever.
+- A view that spans several projects **degrades gracefully** when only some
+  time out: the reachable projects still render and the TUI shows a
+  `partial: N project(s) unavailable (…)` note in the status bar, distinguishing
+  a partial load from a genuinely empty view. The CLI (`plc issue list`) instead
+  fails loudly so a script never consumes a silently incomplete set.
+
 ### `auth` (optional)
 
 The recommended path is `plc auth login`, which writes the key to `hosts.yaml`.

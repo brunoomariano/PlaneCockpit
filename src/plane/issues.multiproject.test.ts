@@ -3,8 +3,10 @@
  *
  * `list` takes a list of project identifiers and aggregates the issues from all
  * of them into a single set, reordered client-side by the view's `sort` and
- * truncated by `limit` applied to the total. If any project fetch fails, the
- * error propagates (no silent partial result).
+ * truncated by `limit` applied to the total. `list` (consumed by the CLI) fails
+ * loudly if any project fetch fails; `listResilient` (consumed by the TUI)
+ * isolates per-project failures and reports the failed identifiers so the view
+ * can degrade gracefully instead of going empty.
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -124,21 +126,65 @@ describe("multi-project aggregation", () => {
     expect(out).toHaveLength(4);
   });
 
-  it("should propagate the error when one project fetch fails", async () => {
+  it("should fail loudly from list when one project fetch fails", async () => {
     const svc = makeService({
       ENG: [issue("ENG-1", "ENG")],
       OPS: new Error("403 forbidden on OPS"),
     });
-    // Must propagate the error from work-items (403), not an accidental
-    // "project not found" from the old signature receiving an array.
+    // The CLI path (list) must surface the failure rather than return a partial
+    // set; it names the failed project so the operator can act on it.
     await expect(
       svc.list(["ENG", "OPS"], { name: "Cross", projects: ["ENG", "OPS"] }),
-    ).rejects.toThrow(/403 forbidden on OPS/);
+    ).rejects.toThrow(/OPS/);
   });
 
   it("should keep single-project behavior unchanged", async () => {
     const svc = makeService({ ENG: [issue("ENG-1", "ENG"), issue("ENG-2", "ENG")] });
     const out = await svc.list(["ENG"], { name: "Solo", projects: ["ENG"] });
     expect(out.map((i) => i.key)).toEqual(["ENG-1", "ENG-2"]);
+  });
+});
+
+describe("resilient multi-project aggregation (listResilient)", () => {
+  // A single project timing out must not empty the view: the reachable
+  // projects still render and the failed identifier is reported.
+  it("should return the reachable projects and report the failed one", async () => {
+    const svc = makeService({
+      ENG: [issue("ENG-1", "ENG")],
+      OPS: new Error("timeout"),
+      DESIGN: [issue("DESIGN-1", "DESIGN")],
+    });
+    const out = await svc.listResilient(["ENG", "OPS", "DESIGN"], {
+      name: "Cross",
+      projects: ["ENG", "OPS", "DESIGN"],
+    });
+    expect(out.issues.map((i) => i.key).sort()).toEqual(["DESIGN-1", "ENG-1"]);
+    expect(out.failedProjects).toEqual(["OPS"]);
+  });
+
+  it("should report no failures when every project succeeds", async () => {
+    const svc = makeService({
+      ENG: [issue("ENG-1", "ENG")],
+      OPS: [issue("OPS-1", "OPS")],
+    });
+    const out = await svc.listResilient(["ENG", "OPS"], {
+      name: "Cross",
+      projects: ["ENG", "OPS"],
+    });
+    expect(out.issues.map((i) => i.key).sort()).toEqual(["ENG-1", "OPS-1"]);
+    expect(out.failedProjects).toEqual([]);
+  });
+
+  it("should report every failed project when all fail", async () => {
+    const svc = makeService({
+      ENG: new Error("timeout"),
+      OPS: new Error("503"),
+    });
+    const out = await svc.listResilient(["ENG", "OPS"], {
+      name: "Cross",
+      projects: ["ENG", "OPS"],
+    });
+    expect(out.issues).toEqual([]);
+    expect(out.failedProjects).toEqual(["ENG", "OPS"]);
   });
 });

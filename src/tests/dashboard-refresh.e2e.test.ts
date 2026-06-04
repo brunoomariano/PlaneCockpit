@@ -67,7 +67,15 @@ function baseCtx(list: ReturnType<typeof vi.fn>, views: { name: string }[]): App
         views,
       },
     },
-    issues: { list },
+    // The dashboard fetches through listResilient; wrap the test's `list` mock
+    // so the existing deferred/mockReturnValueOnce mechanics keep driving it.
+    issues: {
+      list,
+      listResilient: vi.fn(async (...args: unknown[]) => ({
+        issues: await (list as (...a: unknown[]) => Promise<Issue[]>)(...args),
+        failedProjects: [],
+      })),
+    },
     workItems: { retrieve: vi.fn().mockResolvedValue(issue("ENG-1")) },
     users: {},
     keybindings: resolveBindings({}),

@@ -50,6 +50,9 @@ function harness(): Harness {
   const comment = vi.fn().mockResolvedValue(undefined);
   const issues = {
     list: vi.fn().mockResolvedValue([issue("ENG-1"), issue("ENG-2")]),
+    listResilient: vi
+      .fn()
+      .mockResolvedValue({ issues: [issue("ENG-1"), issue("ENG-2")], failedProjects: [] }),
     comment,
   };
   const logger = {
