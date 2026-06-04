@@ -12,6 +12,9 @@ export interface IssueEditorProps {
   dirty: boolean;
   saving: boolean;
   confirmingExit: boolean;
+  // names resolves an id (state/assignee/label) to its human name, covering both
+  // the issue's original values and anything picked from a loaded picker.
+  names: Record<string, string>;
 }
 
 // fieldRow renders one editable line, highlighting the focused field and marking
@@ -31,22 +34,22 @@ function fieldRow(opts: {
   );
 }
 
-function assigneeLabel(issue: Issue, draft: EditorDraft): string {
-  const byId = new Map(issue.assignees.map((a) => [a.id, a.display_name]));
-  const names = draft.assignee_ids.map((id) => byId.get(id) ?? id);
-  return names.join(", ") || "—";
+// nameOf resolves an id to its human name via the editor's shared lookup,
+// falling back to the id only when nothing has named it yet.
+function nameOf(names: Record<string, string>, id: string): string {
+  return names[id] ?? id;
 }
 
-function stateLabel(issue: Issue, draft: EditorDraft): string {
-  // The draft holds the state id; show the issue's current name when unchanged,
-  // else the raw id (the picker will have shown the human name on selection).
-  return draft.state_id === issue.state.id ? issue.state.name : draft.state_id;
+function assigneeLabel(draft: EditorDraft, names: Record<string, string>): string {
+  return draft.assignee_ids.map((id) => nameOf(names, id)).join(", ") || "—";
 }
 
-function labelsLabel(issue: Issue, draft: EditorDraft): string {
-  const byId = new Map(issue.labels.map((l) => [l.id, l.name]));
-  const names = draft.label_ids.map((id) => byId.get(id) ?? id);
-  return names.join(", ") || "—";
+function stateLabel(draft: EditorDraft, names: Record<string, string>): string {
+  return nameOf(names, draft.state_id);
+}
+
+function labelsLabel(draft: EditorDraft, names: Record<string, string>): string {
+  return draft.label_ids.map((id) => nameOf(names, id)).join(", ") || "—";
 }
 
 // IssueEditor is the edit modal's pure view: a read-only header (project · key ·
@@ -55,7 +58,7 @@ function labelsLabel(issue: Issue, draft: EditorDraft): string {
 // lives in useIssueEditor.
 export function IssueEditor(props: IssueEditorProps): React.ReactElement {
   const theme = useTheme();
-  const { issue, draft, field } = props;
+  const { issue, draft, field, names } = props;
   return (
     <Box
       flexDirection="column"
@@ -75,13 +78,13 @@ export function IssueEditor(props: IssueEditorProps): React.ReactElement {
       <Box marginTop={1} flexDirection="column">
         {fieldRow({
           label: "state",
-          value: stateLabel(issue, draft),
+          value: stateLabel(draft, names),
           focused: field === "state",
           selectionColor: theme.selection,
         })}
         {fieldRow({
           label: "assignee",
-          value: assigneeLabel(issue, draft),
+          value: assigneeLabel(draft, names),
           focused: field === "assignee",
           selectionColor: theme.selection,
         })}
@@ -93,7 +96,7 @@ export function IssueEditor(props: IssueEditorProps): React.ReactElement {
         })}
         {fieldRow({
           label: "labels",
-          value: labelsLabel(issue, draft),
+          value: labelsLabel(draft, names),
           focused: field === "labels",
           selectionColor: theme.selection,
         })}

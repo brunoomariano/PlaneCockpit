@@ -125,6 +125,10 @@ describe("dashboard edit flow (e2e)", () => {
     await tick();
     stdin.write("\r"); // confirm the highlighted state
     await tick();
+    // The form shows the picked state's name, not its raw id (regression: a
+    // freshly-picked value used to render as its UUID until the next reload).
+    expect(lastFrame()).toContain("state: In Progress");
+    expect(lastFrame()).not.toContain("state: s-doing");
 
     stdin.write("\x13"); // ctrl+s saves
     await tick();

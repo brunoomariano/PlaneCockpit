@@ -165,6 +165,7 @@ function renderEditorContent(
       dirty={editor.dirty}
       saving={editor.saving}
       confirmingExit={editor.confirmingExit}
+      names={editor.names}
     />
   );
 }

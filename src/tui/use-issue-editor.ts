@@ -35,6 +35,10 @@ export interface IssueEditorController {
   saving: boolean;
   // confirmingExit is true while the "discard changes?" prompt is showing.
   confirmingExit: boolean;
+  // names maps every id seen so far (state/assignee/label) to its human name, so
+  // the form can render a freshly-picked value by name instead of its raw id.
+  // It is seeded from the issue and grows as each picker loads its options.
+  names: Record<string, string>;
   open: () => void;
   handleKey: (input: string, key: InkKey) => void;
 }
@@ -89,9 +93,22 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
   const [saving, setSaving] = useState(false);
   const [confirmingExit, setConfirmingExit] = useState(false);
   const [picker, setPicker] = useState<IssueEditorController["picker"]>();
+  // id -> human name, seeded from the issue and extended as each picker loads.
+  // Lets the form render a freshly-picked value by name instead of its raw id.
+  const [names, setNames] = useState<Record<string, string>>({});
 
   const depsRef = useRef(deps);
   depsRef.current = deps;
+
+  // rememberNames merges resolved id->name pairs (from the issue or a picker's
+  // options) into the lookup the form renders from.
+  const rememberNames = useCallback((pairs: Array<[string, string]>) => {
+    setNames((prev) => {
+      const next = { ...prev };
+      for (const [id, name] of pairs) next[id] = name;
+      return next;
+    });
+  }, []);
 
   const dirty = useMemo(
     () => (original && draft ? isDraftDirty(original, draft) : false),
@@ -108,6 +125,12 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
     setField("state");
     setPicker(undefined);
     setConfirmingExit(false);
+    // Seed the name lookup from the issue's own state/assignees/labels.
+    setNames({
+      [target.state.id]: target.state.name,
+      ...Object.fromEntries(target.assignees.map((a) => [a.id, a.display_name])),
+      ...Object.fromEntries(target.labels.map((l) => [l.id, l.name])),
+    });
     setActive(true);
   }, []);
 
@@ -117,54 +140,38 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
     setConfirmingExit(false);
   }, []);
 
-  // openPicker loads the focused field's options (priority is static; state and
-  // members are fetched) and opens the matching picker. A fetch failure is routed
-  // to onError so it surfaces in the status bar instead of leaking as a rejection.
+  // openWith records the options' id->label pairs (so the form can name a picked
+  // value) and opens the picker, seeding its marked set for the multi case.
+  const openWith = useCallback(
+    (kind: EditField, options: SelectOption[], multi: boolean, initial: string[]) => {
+      rememberNames(options.map((o) => [o.value, o.label]));
+      setPicker({ kind, options, multi, state: initialSelectState(options, { multi, initial }) });
+    },
+    [rememberNames],
+  );
+
+  // openPicker loads the focused field's options (priority is static; state,
+  // members and labels are fetched) and opens the matching picker. A fetch
+  // failure is routed to onError so it surfaces in the status bar instead of
+  // leaking as a rejection.
   const openPicker = useCallback(async () => {
     const target = issue;
     if (!target || !draft) return;
     try {
-      if (field === "priority") {
-        const opts = priorityOptions();
-        setPicker({
-          kind: "priority",
-          options: opts,
-          multi: false,
-          state: initialSelectState(opts, { multi: false }),
-        });
-        return;
-      }
+      if (field === "priority") return openWith("priority", priorityOptions(), false, []);
       if (field === "state") {
-        const opts = stateOptions(await depsRef.current.loadStates(target));
-        setPicker({
-          kind: "state",
-          options: opts,
-          multi: false,
-          state: initialSelectState(opts, { multi: false }),
-        });
-        return;
+        return openWith("state", stateOptions(await depsRef.current.loadStates(target)), false, []);
       }
       if (field === "labels") {
         const opts = labelOptions(await depsRef.current.loadLabels(target));
-        setPicker({
-          kind: "labels",
-          options: opts,
-          multi: true,
-          state: initialSelectState(opts, { multi: true, initial: draft.label_ids }),
-        });
-        return;
+        return openWith("labels", opts, true, draft.label_ids);
       }
       const opts = memberOptions(await depsRef.current.loadMembers());
-      setPicker({
-        kind: "assignee",
-        options: opts,
-        multi: true,
-        state: initialSelectState(opts, { multi: true, initial: draft.assignee_ids }),
-      });
+      openWith("assignee", opts, true, draft.assignee_ids);
     } catch (err) {
       depsRef.current.onError(`${target.key}: ${(err as Error).message}`);
     }
-  }, [issue, draft, field]);
+  }, [issue, draft, field, openWith]);
 
   const applyPickerOutcome = useCallback((kind: EditField, value: string | string[]) => {
     setDraft((d) => {
@@ -256,5 +263,17 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
     [saving, confirmingExit, picker, handleConfirmKey, handlePickerKey, handleFormKey],
   );
 
-  return { active, issue, draft, field, picker, dirty, saving, confirmingExit, open, handleKey };
+  return {
+    active,
+    issue,
+    draft,
+    field,
+    picker,
+    dirty,
+    saving,
+    confirmingExit,
+    names,
+    open,
+    handleKey,
+  };
 }
