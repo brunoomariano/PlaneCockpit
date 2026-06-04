@@ -48,8 +48,18 @@ export class UsersService {
   }
 
   async me(): Promise<IssueUser> {
-    const res = await this.api.request<IssueUser>("/users/me");
-    return res;
+    const res = await this.api.request<RawMember>("/users/me");
+    // /users/me has the same shape variance as the members list, so it goes
+    // through the same normalizer. A payload without a usable id fails loudly
+    // with workspace context — returning an id-less user here would let an
+    // assignment PATCH nothing while reporting success.
+    const me = normalizeMember(res);
+    if (!me) {
+      throw new NotFoundError(
+        `current user could not be resolved from /users/me (workspace ${this.api.workspace})`,
+      );
+    }
+    return me;
   }
 
   async resolveAssignee(spec: string): Promise<IssueUser> {

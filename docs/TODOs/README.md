@@ -24,7 +24,6 @@ Correctness / resilience:
 
 | TODO                                                                   | Summary                                                                      |
 | :--------------------------------------------------------------------- | :--------------------------------------------------------------------------- |
-| [resolve-me-robustness.md](resolve-me-robustness.md)                   | Route `me()`/`resolveAssignee` through the members payload normalization.    |
 | [self-hosted-timeout-resilience.md](self-hosted-timeout-resilience.md) | Isolate per-project fetch failures; show a degraded view instead of failing. |
 | [in-place-cache-patch.md](in-place-cache-patch.md)                     | Patch the edited row in place instead of refetching the whole view on save.  |
 
@@ -32,6 +31,12 @@ Correctness / resilience:
 
 These shipped; their planning docs were removed once implemented.
 
+- **Robust `me` / assignee resolution** — `UsersService.me()` now runs `/users/me`
+  through the same `normalizeMember` used by `list()`, accepting the nested and
+  flattened payload shapes and failing loudly (with workspace context) when no
+  usable id is present, instead of returning a half-populated user that would
+  PATCH nothing. `resolveAssignee("me")` inherits this through `me()`. See
+  `src/plane/users.ts`.
 - **Edit action** — `e` opens an edit modal over the selected issue (list and
   detail) with three editable fields: **state**, **assignee** (multi-select) and
   **priority**. Arrows move focus; `enter` opens a per-field `SelectModal`;

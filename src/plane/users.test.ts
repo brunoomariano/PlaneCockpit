@@ -6,11 +6,17 @@
  * flattened on the row itself, and some include null/partial rows (a pending
  * invite with no user yet). list() must accept both shapes and drop rows that
  * carry no usable id, so downstream pickers never see undefined entries.
+ *
+ * me() and resolveAssignee("me") share that same normalization: /users/me can
+ * return either shape too, and a row without a usable id must fail loudly (with
+ * workspace context) instead of yielding a half-populated user that would PATCH
+ * nothing when used as an assignee.
  */
 
 import { describe, it, expect, vi } from "vitest";
 import { UsersService } from "./users.js";
 import { MemoryCacheStore } from "../cache/memory.js";
+import { NotFoundError } from "../utils/errors.js";
 import type { PlaneApiClient } from "./client.js";
 
 function fakeClient(payload: unknown): PlaneApiClient {
@@ -82,5 +88,46 @@ describe("UsersService.list", () => {
     payload = { results: [{ member: { id: "u-1", display_name: "Ana" } }] };
     expect(await svc.list()).toEqual([{ id: "u-1", display_name: "Ana" }]);
     expect(requests).toHaveLength(2);
+  });
+});
+
+describe("UsersService.me", () => {
+  // The flattened /users/me shape (the common one).
+  it("should return the current user from a flattened payload", async () => {
+    const api = fakeClient({ id: "me-uuid", display_name: "bruno", email: "b@x" });
+    const me = await new UsersService(api, new MemoryCacheStore()).me();
+    expect(me).toEqual({ id: "me-uuid", display_name: "bruno", email: "b@x" });
+  });
+
+  // /users/me may also arrive wrapped, mirroring the members endpoint variance.
+  it("should unwrap a nested /users/me payload", async () => {
+    const api = fakeClient({ member: { id: "me-uuid", display_name: "bruno" } });
+    const me = await new UsersService(api, new MemoryCacheStore()).me();
+    expect(me).toEqual({ id: "me-uuid", display_name: "bruno" });
+  });
+
+  // A payload without a usable id must fail loudly (with workspace context),
+  // not return a user with an empty id that would silently PATCH nothing.
+  it("should throw with workspace context when the payload has no id", async () => {
+    const api = fakeClient({ display_name: "no id" });
+    const svc = new UsersService(api, new MemoryCacheStore());
+    await expect(svc.me()).rejects.toThrow(/acme/);
+  });
+});
+
+describe("UsersService.resolveAssignee", () => {
+  // resolveAssignee("me") goes through the robust me() path.
+  it("should resolve 'me' via me()", async () => {
+    const api = fakeClient({ id: "me-uuid", display_name: "bruno" });
+    const me = await new UsersService(api, new MemoryCacheStore()).resolveAssignee("me");
+    expect(me.id).toBe("me-uuid");
+  });
+
+  // A spec that matches no member is a NotFoundError (every listed user already
+  // has a usable id, so a match never yields an id-less user).
+  it("should throw NotFoundError for an unknown spec", async () => {
+    const api = fakeClient({ results: [{ member: { id: "u-1", display_name: "Ana" } }] });
+    const svc = new UsersService(api, new MemoryCacheStore());
+    await expect(svc.resolveAssignee("nobody")).rejects.toBeInstanceOf(NotFoundError);
   });
 });
