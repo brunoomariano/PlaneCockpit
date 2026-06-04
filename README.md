@@ -231,7 +231,8 @@ Default bindings:
 | `Enter`            | open issue detail modal (Markdown)     |
 | `Esc` (in modal)   | close current modal back to list       |
 | `o`                | open the selected issue in the browser |
-| `e`                | edit state / assignee / priority       |
+| `e`                | edit the selected issue                |
+| `n`                | create a new issue                     |
 | `r`                | refresh                                |
 | `/`                | textual filter                         |
 | `q`                | quit                                   |
@@ -250,6 +251,11 @@ toggles an entry, `ctrl+s` confirms the set, an empty set clears it), state and
 priority confirm on `Enter`. Inside a picker, `Esc` returns to the form. `ctrl+s`
 in the form saves every change in a single request; `Esc` closes, asking to
 confirm first if there are unsaved changes.
+
+`n` opens a create modal for a new issue, reusing the same form and pickers. When
+the active view spans several projects it first asks which project to create in
+(a single project is inferred). Fill the fields the same way as editing; a title
+is required. `ctrl+s` creates the issue, `Esc` cancels.
 
 Issue descriptions are stored as HTML on Plane and rendered inline as
 Markdown by a small custom renderer (headings, lists, code, links,

@@ -14,6 +14,12 @@ import {
   type SelectState,
 } from "./select-modal.js";
 import { applyKey, type TextBuffer } from "./text-buffer.js";
+import {
+  priorityOptions,
+  stateOptions,
+  memberOptions,
+  labelOptions,
+} from "./issue-field-options.js";
 
 // The editable fields, in the order the arrows cycle through them. `title` and
 // `description` are free-text fields edited inline; the rest open a picker.
@@ -26,8 +32,6 @@ export const EDIT_FIELDS: EditField[] = [
   "priority",
   "labels",
 ];
-
-const PRIORITIES: IssuePriority[] = ["urgent", "high", "medium", "low", "none"];
 
 // IssueEditorController is what the dashboard consumes: the draft + UI state, a
 // key handler that owns every keystroke while the editor is open, and flags for
@@ -70,26 +74,6 @@ export interface IssueEditorDeps {
   // onError reports a picker-load failure (states/members fetch) so it surfaces
   // in the status bar instead of becoming an unhandled rejection.
   onError: (message: string) => void;
-}
-
-function priorityOptions(): SelectOption[] {
-  return PRIORITIES.map((p) => ({ value: p, label: p }));
-}
-
-function stateOptions(states: IssueState[]): SelectOption[] {
-  return states.map((s) => ({ value: s.id, label: s.name, group: s.group }));
-}
-
-function memberOptions(members: IssueUser[]): SelectOption[] {
-  // Defensive: a member row from a self-hosted Plane may arrive without an id
-  // (pending invite). Drop those so the picker never renders a value-less option.
-  return members
-    .filter((m): m is IssueUser => Boolean(m?.id))
-    .map((m) => ({ value: m.id, label: m.display_name ?? m.id }));
-}
-
-function labelOptions(labels: IssueLabel[]): SelectOption[] {
-  return labels.filter((l) => Boolean(l?.id)).map((l) => ({ value: l.id, label: l.name }));
 }
 
 // useIssueEditor encapsulates the edit modal's state machine: a draft seeded from

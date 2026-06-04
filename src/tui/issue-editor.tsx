@@ -28,8 +28,9 @@ function renderWithCaret(text: string, caret: number): string {
 }
 
 // fieldRow renders one editable line, highlighting the focused field and marking
-// the value with a "›" cursor so the user sees where enter will act.
-function fieldRow(opts: {
+// the value with a "›" cursor so the user sees where enter will act. Shared with
+// the create modal.
+export function fieldRow(opts: {
   label: string;
   value: string;
   focused: boolean;
@@ -37,7 +38,7 @@ function fieldRow(opts: {
 }): React.ReactElement {
   const marker = opts.focused ? "› " : "  ";
   return (
-    <Text color={opts.focused ? opts.selectionColor : undefined} wrap="truncate">
+    <Text key={opts.label} color={opts.focused ? opts.selectionColor : undefined} wrap="truncate">
       {marker}
       {opts.label}: {opts.value}
     </Text>
@@ -46,7 +47,7 @@ function fieldRow(opts: {
 
 // nameOf resolves an id to its human name via the editor's shared lookup,
 // falling back to the id only when nothing has named it yet.
-function nameOf(names: Record<string, string>, id: string): string {
+export function nameOf(names: Record<string, string>, id: string): string {
   return names[id] ?? id;
 }
 
@@ -64,14 +65,15 @@ function labelsLabel(draft: EditorDraft, names: Record<string, string>): string 
 
 // descriptionPreview collapses the (possibly multiline) body to a single-line
 // hint for the form row; the full text is edited in the inline editor.
-function descriptionPreview(text: string): string {
+export function descriptionPreview(text: string): string {
   const firstLine = text.split("\n", 1)[0] ?? "";
   if (firstLine.length === 0) return "—";
   return text.includes("\n") ? `${firstLine} …` : firstLine;
 }
 
 // TextFieldEditor is the inline editor shown while a free-text field is open.
-function TextFieldEditor(props: {
+// Shared with the create modal.
+export function TextFieldEditor(props: {
   field: "title" | "description";
   buffer: TextBuffer;
   accent: string;

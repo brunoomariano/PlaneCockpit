@@ -66,16 +66,19 @@ interface Harness {
   ctx: AppContext;
   logger: FileLogger;
   update: ReturnType<typeof vi.fn>;
+  create: ReturnType<typeof vi.fn>;
 }
 
 function harness(updateImpl?: () => Promise<Issue>): Harness {
   const update = updateImpl ? vi.fn(updateImpl) : vi.fn().mockResolvedValue(issue("ENG-1"));
+  const create = vi.fn().mockResolvedValue(issue("ENG-9"));
   const issues = {
     list: vi.fn().mockResolvedValue([issue("ENG-1"), issue("ENG-2")]),
     listResilient: vi
       .fn()
       .mockResolvedValue({ issues: [issue("ENG-1"), issue("ENG-2")], failedProjects: [] }),
     update,
+    create,
   };
   const logger = {
     info: vi.fn(),
@@ -95,6 +98,14 @@ function harness(updateImpl?: () => Promise<Issue>): Harness {
     },
     issues,
     workItems: { retrieve: vi.fn().mockResolvedValue(issue("ENG-1")) },
+    projects: {
+      findByIdentifier: vi.fn(async (identifier: string) => ({
+        id: `id-${identifier}`,
+        identifier,
+        name: identifier,
+        workspace_id: "ws",
+      })),
+    },
     users: { list: vi.fn().mockResolvedValue(MEMBERS) },
     states: { list: vi.fn().mockResolvedValue(STATES) },
     labels: { list: vi.fn().mockResolvedValue(LABELS) },
@@ -102,7 +113,7 @@ function harness(updateImpl?: () => Promise<Issue>): Harness {
     theme: PRESETS.default,
     close: vi.fn().mockResolvedValue(undefined),
   } as unknown as AppContext;
-  return { ctx, logger, update };
+  return { ctx, logger, update, create };
 }
 
 describe("dashboard edit flow (e2e)", () => {
@@ -330,6 +341,53 @@ describe("dashboard edit flow (e2e)", () => {
     // Still in the editor, with the error surfaced in the status bar.
     expect(lastFrame()).toContain("edit ENG-1");
     expect(lastFrame()).toContain("boom");
+    unmount();
+  });
+});
+
+describe("dashboard create flow (e2e)", () => {
+  // With a single configured project the create modal skips the project picker
+  // and opens the form directly; a title plus ctrl+s creates the issue.
+  it("opens with n, fills the title, and creates on ctrl+s", async () => {
+    const { ctx, logger, create } = harness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick(); // initial view load
+
+    stdin.write("n"); // open the create modal (single project -> straight to form)
+    await tick();
+    expect(lastFrame()).toContain("new issue");
+    expect(lastFrame()).toContain("ENG"); // inferred project in the header
+
+    stdin.write("\r"); // open the inline title editor (title focused first)
+    await tick();
+    expect(lastFrame()).toContain("edit title");
+    stdin.write("New bug"); // type the title
+    await tick();
+    stdin.write("\x13"); // ctrl+s applies the title back to the form
+    await tick();
+    expect(lastFrame()).toContain("title: New bug");
+
+    stdin.write("\x13"); // ctrl+s creates the issue
+    await tick();
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(create).toHaveBeenCalledWith("ENG", expect.objectContaining({ name: "New bug" }));
+    unmount();
+  });
+
+  // ctrl+s with a blank title does not call create; the modal stays open.
+  it("blocks create when the title is blank", async () => {
+    const { ctx, logger, create } = harness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write("n");
+    await tick();
+    stdin.write("\x13"); // ctrl+s on an empty title
+    await tick();
+
+    expect(create).not.toHaveBeenCalled();
+    expect(lastFrame()).toContain("new issue"); // still open
     unmount();
   });
 });

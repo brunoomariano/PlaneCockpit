@@ -101,6 +101,7 @@ export interface CreateIssueParams {
   name: string;
   description?: string;
   priority?: IssuePriority;
+  state_id?: string;
   assignee_ids?: string[];
   label_ids?: string[];
 }
@@ -208,6 +209,7 @@ export class WorkItemsService {
           name: params.name,
           description: params.description,
           priority: params.priority,
+          state: params.state_id,
           assignees: params.assignee_ids,
           labels: params.label_ids,
         },

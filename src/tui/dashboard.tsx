@@ -13,13 +13,15 @@ import { HelpModal } from "./help-modal.js";
 import { CommentEditor } from "./comment-editor.js";
 import { useCommentEditor } from "./use-comment-editor.js";
 import { IssueEditor } from "./issue-editor.js";
+import { IssueCreator } from "./issue-creator.js";
 import { SelectModal } from "./select-modal.js";
 import { useIssueEditor } from "./use-issue-editor.js";
+import { useIssueCreator } from "./use-issue-creator.js";
 import { buildIssueUrl } from "../utils/urls.js";
 import { defaultBrowserOpener } from "../utils/browser.js";
 import type { FileLogger } from "../utils/file-logger.js";
 import { dispatch } from "../keybindings/dispatcher.js";
-import { buildViewEntries } from "../config/resolve-view-projects.js";
+import { buildViewEntries, resolveViewProjectsLenient } from "../config/resolve-view-projects.js";
 import { useViewsData } from "./use-views-data.js";
 import type { ActionId } from "../keybindings/registry.js";
 import type { InkKey } from "../keybindings/key-spec.js";
@@ -167,6 +169,41 @@ function renderEditorContent(
       confirmingExit={editor.confirmingExit}
       names={editor.names}
       textEdit={editor.textEdit}
+    />
+  );
+}
+
+const PICKER_TITLES: Record<string, string> = {
+  project: "select project",
+  state: "set state",
+  assignee: "set assignees",
+  priority: "set priority",
+  labels: "set labels",
+};
+
+// renderCreatorContent builds the create modal node: the project picker / a field
+// picker when one is open, otherwise the new-issue form.
+function renderCreatorContent(
+  creator: ReturnType<typeof useIssueCreator>,
+): React.ReactNode | undefined {
+  if (creator.picker) {
+    return (
+      <SelectModal
+        title={PICKER_TITLES[creator.picker.kind] ?? "select"}
+        options={creator.picker.options}
+        state={creator.picker.state}
+        multi={creator.picker.multi}
+      />
+    );
+  }
+  return (
+    <IssueCreator
+      projectIdentifier={creator.projectIdentifier}
+      draft={creator.draft}
+      field={creator.field}
+      saving={creator.saving}
+      names={creator.names}
+      textEdit={creator.textEdit}
     />
   );
 }
@@ -393,12 +430,57 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     },
   });
 
+  // Projects the active view resolves to, used as the create modal's project
+  // choices (a single one is inferred, several open a picker).
+  const activeProjects = useMemo(
+    () => resolveViewProjectsLenient(activeView ?? { name: "" }, defaultProjects).projects,
+    [activeView, defaultProjects],
+  );
+  // The create modal reuses the edit form and pickers but creates instead of
+  // patching. states/labels load against the chosen project (by identifier;
+  // the services resolve the id from the identifier through the cache).
+  const creator = useIssueCreator({
+    projects: activeProjects,
+    loadStates: (identifier) =>
+      ctx.projects.findByIdentifier(identifier).then((p) => ctx.states.list(p)),
+    loadMembers: () => ctx.users.list(),
+    loadLabels: (identifier) =>
+      ctx.projects.findByIdentifier(identifier).then((p) => ctx.labels.list(p)),
+    onCreate: async (identifier, d) => {
+      try {
+        const created = await ctx.issues.create(identifier, {
+          name: d.name,
+          description: d.description || undefined,
+          priority: d.priority,
+          state_id: d.state_id || undefined,
+          assignee_ids: d.assignee_ids,
+          label_ids: d.label_ids,
+        });
+        setStatusMessage(`created ${created.key}`);
+        void load(true);
+      } catch (err) {
+        logger.error("create failed", { project: identifier, err: err as Error });
+        setStatusMessage(`create: ${(err as Error).message}`);
+        throw err;
+      }
+    },
+    onError: (message) => {
+      logger.error("create picker load failed", { message });
+      setStatusMessage(message);
+    },
+  });
+
   // Auto-refresh: re-run load(true) on the configured interval so the list
   // tracks Plane without a keystroke. Paused while any overlay is open (detail,
   // comment, edit, help, filter) so it never refetches under the user's cursor;
   // the timer restarts whenever the view, interval, or overlay state changes.
   const overlayActive =
-    comments.active || editor.active || helpOpen || panel === "detail" || filtering;
+    comments.active ||
+    editor.active ||
+    creator.active ||
+    helpOpen ||
+    panel === "detail" ||
+    filtering;
   const intervalMs = autoRefreshIntervalMs(ctx.runtime.profile.defaults?.auto_refresh_seconds);
   useEffect(() => {
     if (intervalMs === undefined || overlayActive || !activeView) return;
@@ -498,6 +580,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     "list.open-browser": openSelectedInBrowser,
     "list.comment": comments.open,
     "list.edit": editor.open,
+    "list.create": creator.open,
     "view.next": viewNext,
     "view.next-alt": viewNext,
     "view.prev": viewPrev,
@@ -557,6 +640,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   };
 
   useInput((input, key) => {
+    if (creator.active) return creator.handleKey(input, key);
     if (editor.active) return editor.handleKey(input, key);
     if (comments.active) return comments.handleKey(input, key);
     if (helpOpen) return handleHelpKey(input, key);
@@ -578,7 +662,9 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   const listPosition = filtered.length > 0 ? `${selected + 1}/${filtered.length}` : undefined;
 
   const isDetail = panel === "detail";
-  const overlayContent = editor.active ? (
+  const overlayContent = creator.active ? (
+    renderCreatorContent(creator)
+  ) : editor.active ? (
     renderEditorContent(editor)
   ) : comments.active ? (
     renderCommentContent(currentSummary, comments)
@@ -598,16 +684,20 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     content: overlayContent,
     height: terminalRows,
     alignTop: isDetail,
-    padded: comments.active || editor.active,
+    padded: comments.active || editor.active || creator.active,
     statusBar: (
       <StatusBar
         {...statusBarBase}
         loading={
-          editor.active
-            ? editor.saving
-            : overlayLoading(comments.submitting, isDetail, detailLoading, loading)
+          creator.active
+            ? creator.saving
+            : editor.active
+              ? editor.saving
+              : overlayLoading(comments.submitting, isDetail, detailLoading, loading)
         }
-        position={editor.active || (isDetail && !current) ? undefined : listPosition}
+        position={
+          editor.active || creator.active || (isDetail && !current) ? undefined : listPosition
+        }
       />
     ),
   });
