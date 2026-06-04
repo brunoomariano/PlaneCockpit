@@ -253,6 +253,36 @@ describe("dashboard edit flow (e2e)", () => {
     unmount();
   });
 
+  // Description edits inline (the second field): enter opens a multiline editor,
+  // typed text is applied with ctrl+s, and the save sends `description` (which
+  // the work-items adapter then converts to description_html — the field that
+  // was silently dropped before that fix).
+  it("edits the description inline and saves description", async () => {
+    const { ctx, logger, update } = harness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write("e");
+    await tick();
+    stdin.write("j"); // title -> description
+    await tick();
+    stdin.write("\r"); // open the inline description editor
+    await tick();
+    expect(lastFrame()).toContain("edit description");
+
+    stdin.write("a new body");
+    await tick();
+    stdin.write("\x13"); // ctrl+s applies the text back to the form
+    await tick();
+
+    stdin.write("\x13"); // ctrl+s saves the issue
+    await tick();
+
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith("ENG-1", { description: "a new body" });
+    unmount();
+  });
+
   // Scenario 13: ctrl+s with no changes is a no-op (no API call) and just closes.
   it("does not call update when nothing changed", async () => {
     const { ctx, logger, update } = harness();

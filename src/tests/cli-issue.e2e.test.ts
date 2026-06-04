@@ -46,6 +46,28 @@ describe("cli issue (e2e, built binary)", () => {
     expect(stdout).toContain("--body-file");
   });
 
+  // The state/label/delete mutations are wired into the binary's command surface.
+  it("registers the transition, label and delete subcommands", async () => {
+    const { code, stdout } = await runCli(["issue", "--help"]);
+    expect(code).toBe(0);
+    expect(stdout).toContain("transition");
+    expect(stdout).toContain("label");
+    expect(stdout).toContain("delete");
+  });
+
+  it("exposes --yes on `issue delete --help`", async () => {
+    const { code, stdout } = await runCli(["issue", "delete", "--help"]);
+    expect(code).toBe(0);
+    expect(stdout).toContain("--yes");
+  });
+
+  // transition takes a <key> and <state> argument.
+  it("shows the state argument on `issue transition --help`", async () => {
+    const { code, stdout } = await runCli(["issue", "transition", "--help"]);
+    expect(code).toBe(0);
+    expect(stdout).toContain("state");
+  });
+
   // Invalid priority is rejected before any network call, with a non-zero exit
   // and a CONFIG error naming the bad value.
   it("rejects an invalid --priority before hitting the API", async () => {
