@@ -43,9 +43,16 @@ function stateLabel(issue: Issue, draft: EditorDraft): string {
   return draft.state_id === issue.state.id ? issue.state.name : draft.state_id;
 }
 
+function labelsLabel(issue: Issue, draft: EditorDraft): string {
+  const byId = new Map(issue.labels.map((l) => [l.id, l.name]));
+  const names = draft.label_ids.map((id) => byId.get(id) ?? id);
+  return names.join(", ") || "—";
+}
+
 // IssueEditor is the edit modal's pure view: a read-only header (project · key ·
-// updated) above the three editable rows, plus a hint line and the optional
-// discard-changes confirmation. All key handling lives in useIssueEditor.
+// updated) above the editable rows (state, assignee, priority, labels), plus a
+// hint line and the optional discard-changes confirmation. All key handling
+// lives in useIssueEditor.
 export function IssueEditor(props: IssueEditorProps): React.ReactElement {
   const theme = useTheme();
   const { issue, draft, field } = props;
@@ -82,6 +89,12 @@ export function IssueEditor(props: IssueEditorProps): React.ReactElement {
           label: "priority",
           value: draft.priority,
           focused: field === "priority",
+          selectionColor: theme.selection,
+        })}
+        {fieldRow({
+          label: "labels",
+          value: labelsLabel(issue, draft),
+          focused: field === "labels",
           selectionColor: theme.selection,
         })}
       </Box>

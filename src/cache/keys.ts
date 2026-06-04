@@ -10,6 +10,8 @@ export const cacheKeys = {
   users: (slug: string) => workspaceKey(slug, "users"),
   // States are project-scoped in Plane, so they are cached per project id.
   states: (slug: string, projectId: string) => workspaceKey(slug, "project", projectId, "states"),
+  // Labels are project-scoped too, cached per project id.
+  labels: (slug: string, projectId: string) => workspaceKey(slug, "project", projectId, "labels"),
   issuesPage: (slug: string, projectId: string, hash: string) =>
     workspaceKey(slug, "project", projectId, "issues", hash),
 };

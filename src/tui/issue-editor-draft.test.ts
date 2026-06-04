@@ -37,12 +37,13 @@ function issue(overrides: Partial<Issue> = {}): Issue {
 
 describe("editorOriginal", () => {
   // Scenario 8: opening the editor materializes the issue's current values.
-  it("should snapshot the issue's current state, priority and assignees", () => {
-    const original = editorOriginal(issue());
+  it("should snapshot the issue's current state, priority, assignees and labels", () => {
+    const original = editorOriginal(issue({ labels: [{ id: "l-1", name: "bug" }] as never }));
     expect(original).toEqual({
       state_id: "s-todo",
       priority: "medium",
       assignee_ids: ["u-1"],
+      label_ids: ["l-1"],
     });
   });
 });
@@ -64,6 +65,12 @@ describe("isDraftDirty", () => {
   it("should report dirty when assignees change regardless of order", () => {
     const original = editorOriginal(issue({ assignees: [{ id: "u-1", display_name: "Ana" }] }));
     const draft: EditorDraft = { ...original, assignee_ids: ["u-2", "u-1"] };
+    expect(isDraftDirty(original, draft)).toBe(true);
+  });
+
+  it("should report dirty when labels change", () => {
+    const original = editorOriginal(issue({ labels: [{ id: "l-1", name: "bug" }] as never }));
+    const draft: EditorDraft = { ...original, label_ids: ["l-1", "l-2"] };
     expect(isDraftDirty(original, draft)).toBe(true);
   });
 
@@ -90,6 +97,12 @@ describe("buildUpdatePatch", () => {
     const original = editorOriginal(issue());
     const draft: EditorDraft = { ...original, assignee_ids: [] };
     expect(buildUpdatePatch(original, draft)).toEqual({ assignee_ids: [] });
+  });
+
+  it("should include label_ids only when the set changed", () => {
+    const original = editorOriginal(issue({ labels: [{ id: "l-1", name: "bug" }] as never }));
+    const draft: EditorDraft = { ...original, label_ids: [] };
+    expect(buildUpdatePatch(original, draft)).toEqual({ label_ids: [] });
   });
 
   // Scenario 13: no changes => empty patch (the dashboard treats it as a no-op).

@@ -4,7 +4,8 @@ import type { Issue } from "../types/issue.js";
 import type { AppContext } from "../app.js";
 import { StatusBar } from "./status-bar.js";
 import { ViewSelector, SIDE_PANEL_WIDTH, type ViewEntry } from "./view-selector.js";
-import type { ViewLayout } from "../types/views.js";
+import type { ViewLayout, ViewFilters } from "../types/views.js";
+import type { UpdateIssuePatch } from "../plane/work-items.js";
 import { IssueList, resolveLayout } from "./issue-list.js";
 import { IssueDetail, DETAIL_CHROME_ROWS } from "./issue-detail.js";
 import { FilterBox } from "./filter-box.js";
@@ -77,6 +78,23 @@ export function restoredSelection(keys: string[], previousKey: string | undefine
   return idx >= 0 ? idx : 0;
 }
 
+// patchTouchesViewFilter reports whether an edit patch changed a field the
+// active view filters on, in which case the edit may move the issue in or out of
+// the view and the row must be reconciled by a refresh rather than patched in
+// place. Maps each editable field to the filter(s) that key off it; `state_id`
+// covers both the state_group and the client-side state_search filters.
+export function patchTouchesViewFilter(
+  patch: UpdateIssuePatch,
+  filters: ViewFilters | undefined,
+): boolean {
+  if (!filters) return false;
+  if (patch.state_id !== undefined && (filters.state_group || filters.state_search)) return true;
+  if (patch.priority !== undefined && filters.priority) return true;
+  if (patch.assignee_ids !== undefined && filters.assignee) return true;
+  if (patch.label_ids !== undefined && filters.labels) return true;
+  return false;
+}
+
 // renderOverlay wraps whichever full-screen overlay is active (comment editor,
 // help, or detail) in the shared column + status-bar chrome, or returns null when
 // none is active. Centralising the three branches here keeps the Dashboard
@@ -128,6 +146,7 @@ function renderEditorContent(
       state: "set state",
       assignee: "set assignees",
       priority: "set priority",
+      labels: "set labels",
     };
     return (
       <SelectModal
@@ -340,24 +359,25 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   // The edit modal's state and key handling live in a hook; onSave issues one
   // PATCH with the changed fields and reflects the result in place: the updated
   // row replaces the old one (selection/scroll preserved, no refetch flicker).
-  // A `state` change can move the issue out of the view's state_group filter, so
-  // only that case falls back to a refresh to reconcile; priority/assignee edits
-  // never change view membership and stay a pure in-place patch.
+  // When the edited field is one the active view filters on, the change can move
+  // the issue in or out of the view, so that case falls back to a refresh to
+  // reconcile; otherwise it stays a pure in-place patch.
+  const project = (issue: Issue): import("../types/project.js").Project => ({
+    id: issue.project_id,
+    identifier: issue.project_identifier,
+    name: "",
+    workspace_id: "",
+  });
   const editor = useIssueEditor({
     target: currentSummary,
-    loadStates: (issue) =>
-      ctx.states.list({
-        id: issue.project_id,
-        identifier: issue.project_identifier,
-        name: "",
-        workspace_id: "",
-      }),
+    loadStates: (issue) => ctx.states.list(project(issue)),
     loadMembers: () => ctx.users.list(),
+    loadLabels: (issue) => ctx.labels.list(project(issue)),
     onSave: async (issue, patch) => {
       try {
         const updated = await ctx.issues.update(issue.key, patch);
         setStatusMessage(`updated ${issue.key}`);
-        if (patch.state_id !== undefined) void load(true);
+        if (patchTouchesViewFilter(patch, activeView?.filters)) void load(true);
         else viewsData.patchIssue(viewIdx, updated);
       } catch (err) {
         logger.error("edit failed", { issue: issue.key, err: err as Error });

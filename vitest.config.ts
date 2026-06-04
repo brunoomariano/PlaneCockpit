@@ -37,6 +37,7 @@ export default defineConfig({
         "src/plane/filters.ts",
         "src/plane/resolver.ts",
         "src/plane/states.ts",
+        "src/plane/labels.ts",
         "src/plane/users.ts",
         "src/utils/ansi-lines.ts",
         "src/utils/async.ts",

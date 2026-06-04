@@ -4,6 +4,7 @@ import {
   listViewportRows,
   restoredSelection,
   autoRefreshIntervalMs,
+  patchTouchesViewFilter,
   NARROW_BREAKPOINT,
   DEFAULT_AUTO_REFRESH_SECONDS,
 } from "./dashboard.js";
@@ -79,5 +80,33 @@ describe("autoRefreshIntervalMs", () => {
   // 0 disables auto-refresh (no timer), distinct from omitting the value.
   it("returns undefined when set to 0 to disable auto-refresh", () => {
     expect(autoRefreshIntervalMs(0)).toBeUndefined();
+  });
+});
+
+describe("patchTouchesViewFilter", () => {
+  // A patch that changes a field the view filters on may move the issue in/out
+  // of the view, so the dashboard must reconcile by refreshing rather than
+  // patching the row in place.
+  it("is true when the patched state changes and the view filters by state_group", () => {
+    expect(patchTouchesViewFilter({ state_id: "s-done" }, { state_group: ["completed"] })).toBe(
+      true,
+    );
+  });
+
+  it("is true when labels change and the view filters by labels", () => {
+    expect(patchTouchesViewFilter({ label_ids: ["l-1"] }, { labels: ["l-1"] })).toBe(true);
+  });
+
+  it("is true when assignees change and the view filters by assignee", () => {
+    expect(patchTouchesViewFilter({ assignee_ids: ["u-1"] }, { assignee: "me" })).toBe(true);
+  });
+
+  // A field the view does not filter on stays a safe in-place patch.
+  it("is false when the patched field is not a filter of the view", () => {
+    expect(patchTouchesViewFilter({ priority: "high" }, { state_group: ["started"] })).toBe(false);
+  });
+
+  it("is false when the view has no filters", () => {
+    expect(patchTouchesViewFilter({ state_id: "s-done" }, undefined)).toBe(false);
   });
 });

@@ -40,6 +40,11 @@ const MEMBERS: IssueUser[] = [
   { id: "u-2", display_name: "Bruno" },
 ];
 
+const LABELS = [
+  { id: "l-1", name: "bug" },
+  { id: "l-2", name: "chore" },
+];
+
 function issue(key: string): Issue {
   return {
     id: `id-${key}`,
@@ -92,6 +97,7 @@ function harness(updateImpl?: () => Promise<Issue>): Harness {
     workItems: { retrieve: vi.fn().mockResolvedValue(issue("ENG-1")) },
     users: { list: vi.fn().mockResolvedValue(MEMBERS) },
     states: { list: vi.fn().mockResolvedValue(STATES) },
+    labels: { list: vi.fn().mockResolvedValue(LABELS) },
     keybindings: resolveBindings({}),
     theme: PRESETS.default,
     close: vi.fn().mockResolvedValue(undefined),
@@ -157,6 +163,39 @@ describe("dashboard edit flow (e2e)", () => {
 
     expect(update).toHaveBeenCalledTimes(1);
     expect(update).toHaveBeenCalledWith("ENG-1", { assignee_ids: ["u-1"] });
+    unmount();
+  });
+
+  // Opening the label picker lists the project's labels (multi-select) and
+  // saving sends the toggled set as label_ids.
+  it("opens the label picker, toggles a label, and saves label_ids", async () => {
+    const { ctx, logger, update } = harness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write("e");
+    await tick();
+    stdin.write("j"); // state -> assignee
+    await tick();
+    stdin.write("j"); // assignee -> priority
+    await tick();
+    stdin.write("j"); // priority -> labels
+    await tick();
+    stdin.write("\r"); // open the label picker
+    await tick();
+    expect(lastFrame()).toContain("set labels");
+    expect(lastFrame()).toContain("bug");
+    expect(lastFrame()).toContain("chore");
+
+    stdin.write("\r"); // toggle the first label (bug)
+    await tick();
+    stdin.write("\x13"); // ctrl+s confirms the set, back to the form
+    await tick();
+    stdin.write("\x13"); // ctrl+s saves the issue
+    await tick();
+
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith("ENG-1", { label_ids: ["l-1"] });
     unmount();
   });
 

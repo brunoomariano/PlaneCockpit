@@ -12,6 +12,7 @@ import { WorkItemsService } from "./plane/work-items.js";
 import { IssuesService } from "./plane/issues.js";
 import { UsersService } from "./plane/users.js";
 import { StatesService } from "./plane/states.js";
+import { LabelsService } from "./plane/labels.js";
 import { loadKeybindings, type ResolvedBinding } from "./keybindings/load.js";
 import { resolveTheme } from "./tui/theme/resolve.js";
 import type { Theme } from "./tui/theme/tokens.js";
@@ -35,6 +36,7 @@ export interface AppContext {
   issues: IssuesService;
   users: UsersService;
   states: StatesService;
+  labels: LabelsService;
   keybindings: ResolvedBinding[];
   keybindingsSourcePath?: string;
   // Resolved color theme (preset + overrides), shared by the TUI and the CLI
@@ -71,6 +73,7 @@ export async function buildContext(flags: GlobalFlags): Promise<AppContext> {
   const workItems = new WorkItemsService(api, cache);
   const users = new UsersService(api, cache);
   const states = new StatesService(api, cache);
+  const labels = new LabelsService(api, cache);
   const issues = new IssuesService(projects, workItems, users);
   const { bindings: keybindings, sourcePath: keybindingsSourcePath } = await loadKeybindings();
   const runtime: RuntimeConfig = {
@@ -89,6 +92,7 @@ export async function buildContext(flags: GlobalFlags): Promise<AppContext> {
     issues,
     users,
     states,
+    labels,
     keybindings,
     keybindingsSourcePath,
     theme: resolveTheme(profile.theme),

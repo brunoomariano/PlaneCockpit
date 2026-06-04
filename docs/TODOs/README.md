@@ -14,16 +14,21 @@ item lands.
 
 In-dashboard editing (build on the shipped edit modal):
 
-| TODO                                       | Summary                                                                         |
-| :----------------------------------------- | :------------------------------------------------------------------------------ |
-| [edit-issue-full.md](edit-issue-full.md)   | Add **title**, **description** and **labels** to the edit modal.                |
-| [label-picker.md](label-picker.md)         | A per-project `LabelsService` + multi-select label picker (unblocks the above). |
-| [create-issue-tui.md](create-issue-tui.md) | Create an issue from the TUI, reusing the edit form and pickers.                |
+| TODO                                       | Summary                                                                       |
+| :----------------------------------------- | :---------------------------------------------------------------------------- |
+| [edit-issue-full.md](edit-issue-full.md)   | Add **title** and **description** to the edit modal (labels already shipped). |
+| [create-issue-tui.md](create-issue-tui.md) | Create an issue from the TUI, reusing the edit form and pickers.              |
 
 ## Done
 
 These shipped; their planning docs were removed once implemented.
 
+- **Label picker** — labels are now a fourth editable field in the edit modal,
+  via a multi-select `SelectModal` seeded with the issue's current labels (an
+  empty set clears them). Backed by a new `LabelsService` (per-project cached
+  labels, mirroring `StatesService`). The save sends `label_ids`, mapped to the
+  API's `labels`. See `src/plane/labels.ts`, `src/tui/use-issue-editor.ts`, and
+  the plan in [action-edit.md](action-edit.md).
 - **Per-project failure isolation (degraded views)** — `IssuesService.listResilient`
   fetches each project independently (`Promise.allSettled`), merging the reachable
   ones and reporting the identifiers that failed, so a single slow/timing-out

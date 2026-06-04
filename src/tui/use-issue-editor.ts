@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import type { Issue, IssuePriority, IssueState, IssueUser } from "../types/issue.js";
+import type { Issue, IssueLabel, IssuePriority, IssueState, IssueUser } from "../types/issue.js";
 import type { InkKey } from "../keybindings/key-spec.js";
 import {
   editorOriginal,
@@ -14,9 +14,9 @@ import {
   type SelectState,
 } from "./select-modal.js";
 
-// The three editable fields, in the order the arrows cycle through them.
-export type EditField = "state" | "assignee" | "priority";
-export const EDIT_FIELDS: EditField[] = ["state", "assignee", "priority"];
+// The editable fields, in the order the arrows cycle through them.
+export type EditField = "state" | "assignee" | "priority" | "labels";
+export const EDIT_FIELDS: EditField[] = ["state", "assignee", "priority", "labels"];
 
 const PRIORITIES: IssuePriority[] = ["urgent", "high", "medium", "low", "none"];
 
@@ -42,10 +42,11 @@ export interface IssueEditorController {
 export interface IssueEditorDeps {
   // target is the issue under the cursor; the editor refuses to open without one.
   target: Issue | undefined;
-  // states/members feed the state and assignee pickers. They are async because
-  // states are fetched per project and members come from the workspace.
+  // states/members/labels feed the pickers. They are async because states and
+  // labels are fetched per project and members come from the workspace.
   loadStates: (issue: Issue) => Promise<IssueState[]>;
   loadMembers: () => Promise<IssueUser[]>;
+  loadLabels: (issue: Issue) => Promise<IssueLabel[]>;
   // onSave runs the single PATCH; it must throw on failure so the editor stays
   // open and the dashboard surfaces the error.
   onSave: (issue: Issue, patch: ReturnType<typeof buildUpdatePatch>) => Promise<void>;
@@ -68,6 +69,10 @@ function memberOptions(members: IssueUser[]): SelectOption[] {
   return members
     .filter((m): m is IssueUser => Boolean(m?.id))
     .map((m) => ({ value: m.id, label: m.display_name ?? m.id }));
+}
+
+function labelOptions(labels: IssueLabel[]): SelectOption[] {
+  return labels.filter((l) => Boolean(l?.id)).map((l) => ({ value: l.id, label: l.name }));
 }
 
 // useIssueEditor encapsulates the edit modal's state machine: a draft seeded from
@@ -139,6 +144,16 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
         });
         return;
       }
+      if (field === "labels") {
+        const opts = labelOptions(await depsRef.current.loadLabels(target));
+        setPicker({
+          kind: "labels",
+          options: opts,
+          multi: true,
+          state: initialSelectState(opts, { multi: true, initial: draft.label_ids }),
+        });
+        return;
+      }
       const opts = memberOptions(await depsRef.current.loadMembers());
       setPicker({
         kind: "assignee",
@@ -158,6 +173,7 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
       if (kind === "priority" && typeof value === "string")
         return { ...d, priority: value as IssuePriority };
       if (kind === "assignee" && Array.isArray(value)) return { ...d, assignee_ids: value };
+      if (kind === "labels" && Array.isArray(value)) return { ...d, label_ids: value };
       return d;
     });
     setPicker(undefined);
