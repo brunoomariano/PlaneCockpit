@@ -1,0 +1,242 @@
+/**
+ * Block 4 — Dashboard edit flow (e2e).
+ *
+ * Exercises the whole edit action through the rendered Dashboard: `e` opens the
+ * editor over the selected issue; arrows move focus; enter opens a field picker;
+ * a single ctrl+s save sends one issues.update() PATCH; and escaping a dirty
+ * draft asks for confirmation before discarding. Mirrors the comment e2e setup.
+ */
+
+import { describe, it, expect, vi } from "vitest";
+import React from "react";
+import { render } from "ink-testing-library";
+import { Dashboard } from "../tui/dashboard.js";
+import type { AppContext } from "../app.js";
+import type { Issue, IssueState, IssueUser } from "../types/issue.js";
+import { resolveBindings } from "../keybindings/load.js";
+import type { FileLogger } from "../utils/file-logger.js";
+import { ThemeProvider } from "../tui/theme/context.js";
+import { PRESETS } from "../tui/theme/presets.js";
+
+function renderDashboard(ctx: AppContext, logger: FileLogger): ReturnType<typeof render> {
+  const dashboard = React.createElement(Dashboard, { ctx, logger });
+  return render(
+    React.createElement(ThemeProvider, { theme: PRESETS.default, children: dashboard }),
+  );
+}
+
+// A delay lets Ink flush effects (and the async state/member loads the picker
+// needs) between keystrokes so assertions see the settled frame.
+const tick = (ms = 120): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+const STATES: IssueState[] = [
+  { id: "s-todo", name: "Todo", group: "unstarted" },
+  { id: "s-doing", name: "In Progress", group: "started" },
+  { id: "s-done", name: "Done", group: "completed" },
+];
+
+const MEMBERS: IssueUser[] = [
+  { id: "u-1", display_name: "Ana" },
+  { id: "u-2", display_name: "Bruno" },
+];
+
+function issue(key: string): Issue {
+  return {
+    id: `id-${key}`,
+    sequence_id: 1,
+    project_id: "p1",
+    project_identifier: "ENG",
+    key,
+    name: `title ${key}`,
+    state: { id: "s-todo", name: "Todo", group: "unstarted" },
+    priority: "medium",
+    assignees: [],
+    labels: [],
+    created_at: "",
+    updated_at: "2024-01-02T00:00:00Z",
+  };
+}
+
+interface Harness {
+  ctx: AppContext;
+  logger: FileLogger;
+  update: ReturnType<typeof vi.fn>;
+}
+
+function harness(updateImpl?: () => Promise<Issue>): Harness {
+  const update = updateImpl ? vi.fn(updateImpl) : vi.fn().mockResolvedValue(issue("ENG-1"));
+  const issues = {
+    list: vi.fn().mockResolvedValue([issue("ENG-1"), issue("ENG-2")]),
+    update,
+  };
+  const logger = {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  } as unknown as FileLogger;
+  const ctx = {
+    runtime: {
+      profile_name: "test",
+      no_cache: false,
+      profile: {
+        server: { base_url: "https://x", workspace_slug: "acme" },
+        defaults: { projects: ["ENG"], auto_refresh_seconds: 0 },
+        views: [{ name: "All" }],
+      },
+    },
+    issues,
+    workItems: { retrieve: vi.fn().mockResolvedValue(issue("ENG-1")) },
+    users: { list: vi.fn().mockResolvedValue(MEMBERS) },
+    states: { list: vi.fn().mockResolvedValue(STATES) },
+    keybindings: resolveBindings({}),
+    theme: PRESETS.default,
+    close: vi.fn().mockResolvedValue(undefined),
+  } as unknown as AppContext;
+  return { ctx, logger, update };
+}
+
+describe("dashboard edit flow (e2e)", () => {
+  // Scenario 15 + 12: `e` opens the editor; picking a new state and saving with
+  // ctrl+s sends one update() PATCH carrying only the changed field.
+  it("opens with e, changes the state, and saves one PATCH on ctrl+s", async () => {
+    const { ctx, logger, update } = harness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick(); // initial view load
+
+    stdin.write("e"); // open editor on ENG-1
+    await tick();
+    expect(lastFrame()).toContain("edit ENG-1");
+
+    stdin.write("\r"); // enter opens the state picker (state is the first field)
+    await tick();
+    expect(lastFrame()).toContain("set state");
+
+    stdin.write("j"); // move to "In Progress"
+    await tick();
+    stdin.write("\r"); // confirm the highlighted state
+    await tick();
+
+    stdin.write("\x13"); // ctrl+s saves
+    await tick();
+
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith("ENG-1", { state_id: "s-doing" });
+    // Editor closed: the list header is visible again.
+    expect(lastFrame()).toContain("TITLE");
+    unmount();
+  });
+
+  // Regression: opening the assignee picker must list the workspace members and
+  // saving sends the toggled set as assignee_ids (the picker used to crash when a
+  // member row arrived without the `{ member }` wrapper — see UsersService).
+  it("opens the assignee picker, toggles a member, and saves assignee_ids", async () => {
+    const { ctx, logger, update } = harness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write("e");
+    await tick();
+    stdin.write("j"); // move focus state -> assignee
+    await tick();
+    stdin.write("\r"); // open the assignee picker
+    await tick();
+    expect(lastFrame()).toContain("set assignees");
+    expect(lastFrame()).toContain("Ana");
+    expect(lastFrame()).toContain("Bruno");
+
+    stdin.write("\r"); // toggle the first member (Ana)
+    await tick();
+    stdin.write("\x13"); // ctrl+s confirms the set, back to the form
+    await tick();
+    stdin.write("\x13"); // ctrl+s saves the issue
+    await tick();
+
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith("ENG-1", { assignee_ids: ["u-1"] });
+    unmount();
+  });
+
+  // Scenario 13: ctrl+s with no changes is a no-op (no API call) and just closes.
+  it("does not call update when nothing changed", async () => {
+    const { ctx, logger, update } = harness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write("e");
+    await tick();
+    stdin.write("\x13"); // ctrl+s on a pristine draft
+    await tick();
+
+    expect(update).not.toHaveBeenCalled();
+    expect(lastFrame()).toContain("TITLE");
+    unmount();
+  });
+
+  // Scenario 16: esc on a pristine draft closes the editor straight away.
+  it("closes immediately on esc when there are no changes", async () => {
+    const { ctx, logger, update } = harness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write("e");
+    await tick();
+    expect(lastFrame()).toContain("edit ENG-1");
+    stdin.write("\x1b"); // esc
+    await tick();
+
+    expect(update).not.toHaveBeenCalled();
+    expect(lastFrame()).not.toContain("edit ENG-1");
+    unmount();
+  });
+
+  // Scenario 17: esc on a dirty draft asks for confirmation; n keeps editing.
+  it("asks for confirmation on esc when the draft is dirty", async () => {
+    const { ctx, logger, update } = harness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write("e");
+    await tick();
+    stdin.write("\r"); // open state picker
+    await tick();
+    stdin.write("j"); // move to a different state
+    await tick();
+    stdin.write("\r"); // confirm -> draft now dirty
+    await tick();
+
+    stdin.write("\x1b"); // esc -> should prompt, not close
+    await tick();
+    expect(lastFrame()).toContain("discard changes?");
+
+    stdin.write("n"); // keep editing
+    await tick();
+    expect(lastFrame()).toContain("edit ENG-1");
+    expect(update).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  // Scenario 14: a failing save keeps the editor open and surfaces the error.
+  it("keeps the editor open and reports the error when the save fails", async () => {
+    const { ctx, logger, update } = harness(() => Promise.reject(new Error("boom")));
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write("e");
+    await tick();
+    stdin.write("\r"); // open state picker
+    await tick();
+    stdin.write("j");
+    await tick();
+    stdin.write("\r"); // confirm a change
+    await tick();
+    stdin.write("\x13"); // ctrl+s -> save rejects
+    await tick();
+
+    expect(update).toHaveBeenCalledTimes(1);
+    // Still in the editor, with the error surfaced in the status bar.
+    expect(lastFrame()).toContain("edit ENG-1");
+    expect(lastFrame()).toContain("boom");
+    unmount();
+  });
+});

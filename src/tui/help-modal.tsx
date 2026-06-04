@@ -17,6 +17,7 @@ const CONTEXT_TITLES: Record<ActionContext, string> = {
   filter: "Filter",
   help: "Help modal",
   detail: "Issue detail",
+  edit: "Issue edit",
 };
 
 // A single help row: one or more key specs that trigger the same behavior, with

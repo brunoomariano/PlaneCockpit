@@ -11,6 +11,9 @@ import { FilterBox } from "./filter-box.js";
 import { HelpModal } from "./help-modal.js";
 import { CommentEditor } from "./comment-editor.js";
 import { useCommentEditor } from "./use-comment-editor.js";
+import { IssueEditor } from "./issue-editor.js";
+import { SelectModal } from "./select-modal.js";
+import { useIssueEditor } from "./use-issue-editor.js";
 import { buildIssueUrl } from "../utils/urls.js";
 import { defaultBrowserOpener } from "../utils/browser.js";
 import type { FileLogger } from "../utils/file-logger.js";
@@ -110,6 +113,40 @@ function renderCommentContent(
   if (!issue) return undefined;
   return (
     <CommentEditor issueKey={issue.key} buffer={comments.buffer} submitting={comments.submitting} />
+  );
+}
+
+// renderEditorContent builds the edit modal node: the inner SelectModal when a
+// field picker is open, otherwise the field form. The hook guarantees an issue
+// and draft while active, so the guard only narrows the optional types.
+function renderEditorContent(
+  editor: ReturnType<typeof useIssueEditor>,
+): React.ReactNode | undefined {
+  if (!editor.issue || !editor.draft) return undefined;
+  if (editor.picker) {
+    const titles: Record<string, string> = {
+      state: "set state",
+      assignee: "set assignees",
+      priority: "set priority",
+    };
+    return (
+      <SelectModal
+        title={titles[editor.picker.kind] ?? "select"}
+        options={editor.picker.options}
+        state={editor.picker.state}
+        multi={editor.picker.multi}
+      />
+    );
+  }
+  return (
+    <IssueEditor
+      issue={editor.issue}
+      draft={editor.draft}
+      field={editor.field}
+      dirty={editor.dirty}
+      saving={editor.saving}
+      confirmingExit={editor.confirmingExit}
+    />
   );
 }
 
@@ -292,11 +329,42 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     },
   });
 
+  // The edit modal's state and key handling live in a hook; onSave issues one
+  // PATCH with the changed fields, then refreshes the view (preserving the
+  // selection) so the row reflects the new state/priority/assignees in place.
+  const editor = useIssueEditor({
+    target: currentSummary,
+    loadStates: (issue) =>
+      ctx.states.list({
+        id: issue.project_id,
+        identifier: issue.project_identifier,
+        name: "",
+        workspace_id: "",
+      }),
+    loadMembers: () => ctx.users.list(),
+    onSave: async (issue, patch) => {
+      try {
+        await ctx.issues.update(issue.key, patch);
+        setStatusMessage(`updated ${issue.key}`);
+        void load(true);
+      } catch (err) {
+        logger.error("edit failed", { issue: issue.key, err: err as Error });
+        setStatusMessage(`${issue.key}: ${(err as Error).message}`);
+        throw err;
+      }
+    },
+    onError: (message) => {
+      logger.error("edit picker load failed", { message });
+      setStatusMessage(message);
+    },
+  });
+
   // Auto-refresh: re-run load(true) on the configured interval so the list
   // tracks Plane without a keystroke. Paused while any overlay is open (detail,
-  // comment, help, filter) so it never refetches under the user's cursor; the
-  // timer restarts whenever the view, interval, or overlay state changes.
-  const overlayActive = comments.active || helpOpen || panel === "detail" || filtering;
+  // comment, edit, help, filter) so it never refetches under the user's cursor;
+  // the timer restarts whenever the view, interval, or overlay state changes.
+  const overlayActive =
+    comments.active || editor.active || helpOpen || panel === "detail" || filtering;
   const intervalMs = autoRefreshIntervalMs(ctx.runtime.profile.defaults?.auto_refresh_seconds);
   useEffect(() => {
     if (intervalMs === undefined || overlayActive || !activeView) return;
@@ -395,6 +463,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     "list.open-detail": () => setPanel("detail"),
     "list.open-browser": openSelectedInBrowser,
     "list.comment": comments.open,
+    "list.edit": editor.open,
     "view.next": viewNext,
     "view.next-alt": viewNext,
     "view.prev": viewPrev,
@@ -434,6 +503,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
       "detail.bottom": () => setDetailScroll(Number.MAX_SAFE_INTEGER),
       "detail.open-browser": openSelectedInBrowser,
       "detail.comment": comments.open,
+      "detail.edit": editor.open,
       "global.help": () => setHelpOpen((open) => !open),
       "global.refresh": () => void load(true),
       "global.refresh-all": () => viewsData.refreshAll(),
@@ -453,6 +523,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   };
 
   useInput((input, key) => {
+    if (editor.active) return editor.handleKey(input, key);
     if (comments.active) return comments.handleKey(input, key);
     if (helpOpen) return handleHelpKey(input, key);
     if (panel === "detail") return handleDetailKey(input, key);
@@ -473,7 +544,9 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   const listPosition = filtered.length > 0 ? `${selected + 1}/${filtered.length}` : undefined;
 
   const isDetail = panel === "detail";
-  const overlayContent = comments.active ? (
+  const overlayContent = editor.active ? (
+    renderEditorContent(editor)
+  ) : comments.active ? (
     renderCommentContent(currentSummary, comments)
   ) : helpOpen ? (
     <HelpModal bindings={ctx.keybindings} onClose={() => setHelpOpen(false)} />
@@ -491,12 +564,16 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     content: overlayContent,
     height: terminalRows,
     alignTop: isDetail,
-    padded: comments.active,
+    padded: comments.active || editor.active,
     statusBar: (
       <StatusBar
         {...statusBarBase}
-        loading={overlayLoading(comments.submitting, isDetail, detailLoading, loading)}
-        position={isDetail && !current ? undefined : listPosition}
+        loading={
+          editor.active
+            ? editor.saving
+            : overlayLoading(comments.submitting, isDetail, detailLoading, loading)
+        }
+        position={editor.active || (isDetail && !current) ? undefined : listPosition}
       />
     ),
   });

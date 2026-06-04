@@ -12,14 +12,21 @@ item lands.
 
 ## Index
 
-| TODO                             | Summary                                                                     |
-| :------------------------------- | :-------------------------------------------------------------------------- |
-| [action-edit.md](action-edit.md) | TUI/CLI action to edit an issue's **state**, **assignee** and **priority**. |
+_No open items right now._
 
 ## Done
 
 These shipped; their planning docs were removed once implemented.
 
+- **Edit action** — `e` opens an edit modal over the selected issue (list and
+  detail) with three editable fields: **state**, **assignee** (multi-select) and
+  **priority**. Arrows move focus; `enter` opens a per-field `SelectModal`;
+  `ctrl+s` saves every change in one `issues.update()` PATCH; `esc` confirms
+  before discarding a dirty draft. Backed by a new `StatesService` (per-project
+  cached states), a reusable `SelectModal`, and `useIssueEditor`. Auto-refresh
+  pauses while editing and the row refreshes in place on save. See
+  `src/tui/use-issue-editor.ts`, `src/tui/select-modal.tsx`,
+  `src/plane/states.ts`, and the plan in [action-edit.md](action-edit.md).
 - **Themeable colors** — semantic tokens (`selection`, `accent`, `danger`,
   `warning`, `success`, `muted`, `priority.*`) replace the color literals across
   the TUI, driven by a `theme` block: a built-in `preset` (`default`,

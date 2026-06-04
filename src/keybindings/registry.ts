@@ -2,7 +2,7 @@
 // vocabulary. Group prefix is also the help context. Adding an action requires
 // extending this list and the dashboard's handler map.
 
-export type ActionContext = "global" | "list" | "view" | "filter" | "help" | "detail";
+export type ActionContext = "global" | "list" | "view" | "filter" | "help" | "detail" | "edit";
 
 export interface ActionDescriptor {
   id: string;
@@ -45,6 +45,7 @@ export const ACTIONS = [
   },
   { id: "list.open-browser", context: "list", description: "open in browser", defaultKey: "o" },
   { id: "list.comment", context: "list", description: "comment on issue", defaultKey: "c" },
+  { id: "list.edit", context: "list", description: "edit issue fields", defaultKey: "e" },
   { id: "view.next", context: "view", description: "next configured view", defaultKey: "]" },
   { id: "view.prev", context: "view", description: "previous configured view", defaultKey: "[" },
   { id: "view.next-alt", context: "view", description: "next view (arrow)", defaultKey: "right" },
@@ -114,12 +115,21 @@ export const ACTIONS = [
     defaultKey: "o",
   },
   { id: "detail.comment", context: "detail", description: "comment on issue", defaultKey: "c" },
+  { id: "detail.edit", context: "detail", description: "edit issue fields", defaultKey: "e" },
   {
     id: "detail.close",
     context: "detail",
     description: "close detail modal",
     defaultKey: "escape",
   },
+  {
+    id: "edit.open-field",
+    context: "edit",
+    description: "open the focused field picker",
+    defaultKey: "enter",
+  },
+  { id: "edit.save", context: "edit", description: "save all changes", defaultKey: "ctrl+s" },
+  { id: "edit.cancel", context: "edit", description: "close the editor", defaultKey: "escape" },
 ] as const satisfies readonly ActionDescriptor[];
 
 export type ActionId = (typeof ACTIONS)[number]["id"];

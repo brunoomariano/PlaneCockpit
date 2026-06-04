@@ -231,6 +231,7 @@ Default bindings:
 | `Enter`            | open issue detail modal (Markdown)     |
 | `Esc` (in modal)   | close current modal back to list       |
 | `o`                | open the selected issue in the browser |
+| `e`                | edit state / assignee / priority       |
 | `r`                | refresh                                |
 | `/`                | textual filter                         |
 | `q`                | quit                                   |
@@ -238,6 +239,15 @@ Default bindings:
 Inside the detail modal, the same `j`/`k`/arrows/`PgUp`/`PgDn`/`g`/`G`
 bindings scroll the Markdown description; `o` opens the issue in the
 browser; `Esc` closes back to the list.
+
+`e` (from the list or the detail modal) opens an edit modal for the selected
+issue. `j`/`k`/arrows move focus across the three editable fields (state,
+assignee, priority); `Enter` opens a picker for the focused field. The assignee
+picker is multi-select — `Enter` toggles a member and `ctrl+s` confirms the set
+(an empty set unassigns everyone); state and priority confirm on `Enter`. Inside
+a picker, `Esc` returns to the form. `ctrl+s` in the form saves every change in a
+single request; `Esc` closes, asking to confirm first if there are unsaved
+changes.
 
 Issue descriptions are stored as HTML on Plane and rendered inline as
 Markdown by a small custom renderer (headings, lists, code, links,
