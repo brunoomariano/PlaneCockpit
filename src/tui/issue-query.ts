@@ -4,7 +4,7 @@ import type { Issue } from "../types/issue.js";
 // token matches; a bare word is `text` (title/key substring, the legacy
 // behaviour). Enum-ish fields (group/priority/project) match exactly; name
 // fields (assignee/state/label) and text match case-insensitive substrings.
-export type QueryKey = "text" | "ass" | "state" | "group" | "prio" | "label" | "proj";
+type QueryKey = "text" | "ass" | "state" | "group" | "prio" | "label" | "proj";
 
 export interface QueryTerm {
   key: QueryKey;

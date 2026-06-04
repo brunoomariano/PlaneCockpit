@@ -33,7 +33,7 @@
     "deadcode": "knip --include files,dependencies",
     "deadcode:strict": "knip",
     "quality": "pnpm run lint && pnpm run deadcode:strict",
-    "ci": "pnpm run fmt:check && pnpm run lint && pnpm run typecheck && pnpm run test:cov && pnpm run deadcode && pnpm run audit && pnpm run schema:check && pnpm run build"
+    "ci": "pnpm run fmt:check && pnpm run lint && pnpm run typecheck && pnpm run test:cov && pnpm run deadcode:strict && pnpm run audit && pnpm run schema:check && pnpm run build"
   },
   "dependencies": {
     "@inquirer/prompts": "^8.5.0",

@@ -31,7 +31,7 @@ export interface SelectState {
 // SelectOutcome is what a keystroke may resolve to: a single value, a confirmed
 // multi set, or a cancel. Absent (undefined) means the keystroke only moved the
 // cursor or toggled a mark and the picker stays open.
-export type SelectOutcome =
+type SelectOutcome =
   | { type: "confirm-single"; value: string }
   | { type: "confirm-multi"; values: string[] }
   | { type: "cancel" };

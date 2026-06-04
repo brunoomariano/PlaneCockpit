@@ -20,7 +20,7 @@ export const PRIORITY_COLUMN_WIDTH = 6;
 // Fixed width of the TITLE column so every row's title fills the same span up to
 // the ASSIGN column on the right, keeping the table edge aligned regardless of
 // how long individual titles are. The +2 accounts for cli-table3 cell padding.
-export const TITLE_COLUMN_WIDTH = 60;
+const TITLE_COLUMN_WIDTH = 60;
 
 const PRIORITY_LABEL: Record<IssuePriority, string> = {
   urgent: "URGENT",

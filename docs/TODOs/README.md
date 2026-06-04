@@ -20,16 +20,22 @@ Scale / search:
 
 Hygiene / debt (from the repo sweep):
 
-| TODO                                                               | Summary                                                                                    |
-| :----------------------------------------------------------------- | :----------------------------------------------------------------------------------------- |
-| [code-hygiene-and-gates.md](code-hygiene-and-gates.md)             | Unused exports, the red `deadcode:strict`/`quality` gate, a duplicated TTL, missing TSDoc. |
-| [refactor-dashboard-component.md](refactor-dashboard-component.md) | Break up the ~900-line Dashboard god-component into per-feature hooks.                     |
-| [process-and-doc-alignment.md](process-and-doc-alignment.md)       | Commit conventions, the pino-vs-FileLogger contradiction, and the absent `infra/`.         |
+| TODO                                                               | Summary                                                                            |
+| :----------------------------------------------------------------- | :--------------------------------------------------------------------------------- |
+| [refactor-dashboard-component.md](refactor-dashboard-component.md) | Break up the ~900-line Dashboard god-component into per-feature hooks.             |
+| [process-and-doc-alignment.md](process-and-doc-alignment.md)       | Commit conventions, the pino-vs-FileLogger contradiction, and the absent `infra/`. |
 
 ## Done
 
 These shipped; their planning docs were removed once implemented.
 
+- **Code hygiene + strict deadcode gate** — demoted the unused exports knip
+  flagged (no cross-module/test use), so `deadcode:strict` passes and now runs in
+  the CI pipeline (replacing the files/deps-only `deadcode`), making future dead
+  exports fail the build. Also documented the states/labels TTL as a deliberate
+  fixed cap (not a duplication of `DEFAULT_CACHE_TTL_SECONDS`) and gave `findView`
+  a TSDoc + explicit return type. See `package.json` (ci script) and the sweep
+  plan in this folder's history.
 - **Structured filter bar** — `/` filters the loaded rows with a gh-dash-style
   `key:value` query (`ass:`/`state:`/`group:`/`prio:`/`label:`/`proj:`, plus bare
   words for title/key). Tokens AND across keys and OR within a key; `ass:me`

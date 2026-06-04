@@ -44,7 +44,7 @@ export type ColumnAlign = "left" | "center" | "right";
 
 // Per-column layout intent. The responsive solver still decides what fits; these
 // set intent (fixed width, which column grows, alignment, whether to show it).
-export interface ColumnLayout {
+interface ColumnLayout {
   width?: number;
   grow?: boolean;
   align?: ColumnAlign;

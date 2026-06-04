@@ -1,8 +1,8 @@
 import type { IssueLabel, IssuePriority, IssueState, IssueUser } from "../types/issue.js";
 import type { SelectOption } from "./select-modal.js";
 
-// The five priorities, in descending order, shared by the edit and create flows.
-export const PRIORITIES: IssuePriority[] = ["urgent", "high", "medium", "low", "none"];
+// The five priorities, in descending order, behind priorityOptions().
+const PRIORITIES: IssuePriority[] = ["urgent", "high", "medium", "low", "none"];
 
 // Builders turning each domain list into picker options. Shared by useIssueEditor
 // and useIssueCreator so both render the same option shapes (and the same

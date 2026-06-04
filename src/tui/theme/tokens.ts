@@ -7,9 +7,9 @@ import type { IssuePriority } from "../../types/issue.js";
 
 // A color is any string Ink/chalk accepts: hex (#rrggbb), a named color (red),
 // or an ANSI-256 index as a string ("203"). Validation lives in the schema.
-export type ThemeColor = string;
+type ThemeColor = string;
 
-export type PriorityColors = Record<IssuePriority, ThemeColor>;
+type PriorityColors = Record<IssuePriority, ThemeColor>;
 
 // Theme is the fully-resolved palette: every token has a concrete color.
 export interface Theme {

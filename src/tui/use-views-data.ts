@@ -16,7 +16,7 @@ const REFRESH_ALL_CONCURRENCY = 3;
 // fetch is in flight (the skeleton only shows before the first successful load).
 // `loaded` flips true once a fetch has completed at least once, so the navbar
 // can tell "never loaded" (show nothing/loading) from "loaded, currently zero".
-export interface ViewData {
+interface ViewData {
   issues: Issue[];
   loading: boolean;
   error: string | undefined;

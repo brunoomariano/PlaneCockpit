@@ -18,6 +18,7 @@ import { resolveTheme } from "./tui/theme/resolve.js";
 import type { Theme } from "./tui/theme/tokens.js";
 import type { CacheStore } from "./cache/types.js";
 import type { ProfileConfig, RuntimeConfig } from "./types/config.js";
+import type { ViewDefinition } from "./types/views.js";
 
 export interface GlobalFlags {
   profile?: string;
@@ -102,6 +103,8 @@ export async function buildContext(flags: GlobalFlags): Promise<AppContext> {
   };
 }
 
-export function findView(profile: ProfileConfig, name: string) {
+// findView returns the profile's view with the given name, or undefined when no
+// view matches (or the profile declares none).
+export function findView(profile: ProfileConfig, name: string): ViewDefinition | undefined {
   return profile.views?.find((v) => v.name === name);
 }
