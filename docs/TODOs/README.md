@@ -20,15 +20,25 @@ Scale / search:
 
 Hygiene / debt (from the repo sweep):
 
-| TODO                                                               | Summary                                                                            |
-| :----------------------------------------------------------------- | :--------------------------------------------------------------------------------- |
-| [refactor-dashboard-component.md](refactor-dashboard-component.md) | Break up the ~900-line Dashboard god-component into per-feature hooks.             |
-| [process-and-doc-alignment.md](process-and-doc-alignment.md)       | Commit conventions, the pino-vs-FileLogger contradiction, and the absent `infra/`. |
+| TODO                                                               | Summary                                                                |
+| :----------------------------------------------------------------- | :--------------------------------------------------------------------- |
+| [refactor-dashboard-component.md](refactor-dashboard-component.md) | Break up the ~900-line Dashboard god-component into per-feature hooks. |
 
 ## Done
 
 These shipped; their planning docs were removed once implemented.
 
+- **Process / doc alignment + publish hygiene** — reconciled the `AGENTS.md`
+  logging guidance (now names `FileLogger`, not the absent `pino`) and softened
+  the `infra/` mention to "does not exist yet". For the npm publish: stopped
+  shipping `dist/cli.js.map` (it embedded the full source via `sourcesContent`),
+  added a `LICENSE` file (package declared MIT with no file) and the
+  `repository`/`homepage`/`bugs`/`keywords`/`author` metadata, and fixed the `ci`
+  script to `build` before `test:cov` so the e2e suite no longer runs against a
+  stale binary. Tarball dropped 128.8 kB → 44.0 kB. The commit-trailer/English
+  rule was already correctly documented in `docs/CONTRIBUTING.md`; the fix there
+  is forward-looking (no history rewrite). See `package.json`, `LICENSE`,
+  `AGENTS.md`.
 - **Code hygiene + strict deadcode gate** — demoted the unused exports knip
   flagged (no cross-module/test use), so `deadcode:strict` passes and now runs in
   the CI pipeline (replacing the files/deps-only `deadcode`), making future dead
