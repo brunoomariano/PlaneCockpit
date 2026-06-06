@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Box, Text, useApp, useInput, useStdout } from "ink";
+import { Box, Text, useApp, useInput } from "ink";
 import { useTheme } from "./theme/context.js";
 import type { Issue } from "../types/issue.js";
 import type { AppContext } from "../app.js";
 import { StatusBar } from "./status-bar.js";
 import { ViewSelector, SIDE_PANEL_WIDTH, type ViewEntry } from "./view-selector.js";
-import type { ViewLayout, ViewFilters } from "../types/views.js";
-import type { UpdateIssuePatch } from "../plane/work-items.js";
+import type { ViewLayout } from "../types/views.js";
 import { IssueList, resolveLayout } from "./issue-list.js";
 import { IssueDetail, DETAIL_CHROME_ROWS } from "./issue-detail.js";
 import { FilterBox } from "./filter-box.js";
@@ -23,9 +22,13 @@ import { defaultBrowserOpener } from "../utils/browser.js";
 import type { FileLogger } from "../utils/file-logger.js";
 import { dispatch } from "../keybindings/dispatcher.js";
 import { buildViewEntries, resolveViewProjectsLenient } from "../config/resolve-view-projects.js";
-import { neighbourState } from "../plane/state-order.js";
-import { parseQuery, matchesQuery, formatListPosition } from "./issue-query.js";
+import { formatListPosition } from "./issue-query.js";
 import { useViewsData } from "./use-views-data.js";
+import { useTerminalSize } from "./use-terminal-size.js";
+import { useIssueFilter } from "./use-issue-filter.js";
+import { useQuickTransition } from "./use-quick-transition.js";
+import { useDetailPanel } from "./use-detail-panel.js";
+import { patchTouchesViewFilter } from "./view-filter-reconcile.js";
 import type { ActionId } from "../keybindings/registry.js";
 import type { InkKey } from "../keybindings/key-spec.js";
 
@@ -81,23 +84,6 @@ export function restoredSelection(keys: string[], previousKey: string | undefine
   if (!previousKey) return 0;
   const idx = keys.indexOf(previousKey);
   return idx >= 0 ? idx : 0;
-}
-
-// patchTouchesViewFilter reports whether an edit patch changed a field the
-// active view filters on, in which case the edit may move the issue in or out of
-// the view and the row must be reconciled by a refresh rather than patched in
-// place. Maps each editable field to the filter(s) that key off it; `state_id`
-// covers both the state_group and the client-side state_search filters.
-export function patchTouchesViewFilter(
-  patch: UpdateIssuePatch,
-  filters: ViewFilters | undefined,
-): boolean {
-  if (!filters) return false;
-  if (patch.state_id !== undefined && (filters.state_group || filters.state_search)) return true;
-  if (patch.priority !== undefined && filters.priority) return true;
-  if (patch.assignee_ids !== undefined && filters.assignee) return true;
-  if (patch.label_ids !== undefined && filters.labels) return true;
-  return false;
 }
 
 // renderOverlay wraps whichever full-screen overlay is active (comment editor,
@@ -250,28 +236,100 @@ function overlayLoading(
   return isDetail ? detailLoading : loading;
 }
 
-// Dashboard wires together state, input routing and the per-mode views. Its
-// branch count is inherent to being the single interactive container (list,
-// detail, help, comment, filter); splitting it further would scatter the shared
-// state and hurt readability, so the complexity cap is waived here — the same
-// trade-off the request lifecycle in plane/client.ts makes.
-// eslint-disable-next-line complexity
+// ActiveOverlayInput is everything renderActiveOverlay needs to pick and frame
+// the single overlay that is showing (if any), keeping that precedence and its
+// status-bar bookkeeping out of the Dashboard body.
+interface ActiveOverlayInput {
+  transition: ReturnType<typeof useQuickTransition>;
+  creator: ReturnType<typeof useIssueCreator>;
+  editor: ReturnType<typeof useIssueEditor>;
+  comments: ReturnType<typeof useCommentEditor>;
+  detail: ReturnType<typeof useDetailPanel>;
+  helpOpen: boolean;
+  isDetail: boolean;
+  currentSummary: Issue | undefined;
+  current: Issue | undefined;
+  detailViewportRows: number;
+  detailModalHeight: number;
+  terminalRows: number;
+  loading: boolean;
+  listPosition: string | undefined;
+  statusBarBase: Omit<React.ComponentProps<typeof StatusBar>, "loading" | "position">;
+  bindings: AppContext["keybindings"];
+  closeHelp: () => void;
+}
+
+// renderActiveOverlay selects the highest-precedence overlay (transition > create
+// > edit > comment > help > detail) and frames it with the shared chrome and a
+// status bar whose spinner/position reflect that overlay. Returns null when none
+// is active, so the dashboard falls through to the list layout.
+function renderActiveOverlay(opts: ActiveOverlayInput): React.ReactElement | null {
+  const { transition, creator, editor, comments, detail, isDetail, current } = opts;
+  const content = transition.pending ? (
+    <TransitionConfirm
+      issueKey={transition.pending.issue.key}
+      from={transition.pending.fromName}
+      to={transition.pending.targetName}
+      saving={transition.pending.saving}
+    />
+  ) : creator.active ? (
+    renderCreatorContent(creator)
+  ) : editor.active ? (
+    renderEditorContent(editor)
+  ) : comments.active ? (
+    renderCommentContent(opts.currentSummary, comments)
+  ) : opts.helpOpen ? (
+    <HelpModal bindings={opts.bindings} onClose={opts.closeHelp} />
+  ) : isDetail ? (
+    <IssueDetail
+      issue={current}
+      loading={detail.loading}
+      variant="modal"
+      scrollTop={detail.scroll}
+      viewportRows={opts.detailViewportRows}
+      height={opts.detailModalHeight}
+    />
+  ) : undefined;
+
+  return renderOverlay({
+    content,
+    height: opts.terminalRows,
+    alignTop: isDetail,
+    padded: comments.active || editor.active || creator.active,
+    statusBar: (
+      <StatusBar
+        {...opts.statusBarBase}
+        loading={overlayStatusLoading(opts)}
+        position={overlayStatusPosition(opts)}
+      />
+    ),
+  });
+}
+
+// overlayStatusLoading picks the spinner flag for the active overlay's status
+// bar: the editor/creator show their own save state; otherwise it follows the
+// detail/list loading flag (a submitting comment always spins).
+function overlayStatusLoading(opts: ActiveOverlayInput): boolean {
+  if (opts.creator.active) return opts.creator.saving;
+  if (opts.editor.active) return opts.editor.saving;
+  return overlayLoading(opts.comments.submitting, opts.isDetail, opts.detail.loading, opts.loading);
+}
+
+// overlayStatusPosition hides the list position while the editor/creator own the
+// screen or the detail panel has no issue yet; otherwise it shows the count.
+function overlayStatusPosition(opts: ActiveOverlayInput): string | undefined {
+  if (opts.editor.active || opts.creator.active) return undefined;
+  if (opts.isDetail && !opts.current) return undefined;
+  return opts.listPosition;
+}
+
+// Dashboard is the composition root: it wires the per-feature hooks (views data,
+// filter, quick transition, detail panel, editor, creator, comments) together,
+// routes input to the active context, and renders the active overlay or the list
+// layout. The per-mode state machines live in their own hooks/files.
 export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   const { exit } = useApp();
-  const { stdout } = useStdout();
-  const [terminalRows, setTerminalRows] = useState(stdout?.rows ?? 24);
-  const [terminalCols, setTerminalCols] = useState(stdout?.columns ?? 80);
-  useEffect(() => {
-    if (!stdout) return;
-    const onResize = (): void => {
-      setTerminalRows(stdout.rows ?? 24);
-      setTerminalCols(stdout.columns ?? 80);
-    };
-    stdout.on("resize", onResize);
-    return () => {
-      stdout.off("resize", onResize);
-    };
-  }, [stdout]);
+  const { rows: terminalRows, columns: terminalCols } = useTerminalSize();
 
   const narrow = isNarrowLayout(terminalCols);
 
@@ -289,23 +347,8 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   // fetch errors live per-view inside useViewsData; this is only for actions
   // that are not tied to a single view's fetch lifecycle.
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
-  const [filtering, setFiltering] = useState(false);
-  const [filter, setFilter] = useState("");
   const [panel, setPanel] = useState<Panel>("list");
   const [helpOpen, setHelpOpen] = useState(false);
-  // detailed holds the full issue (with description) fetched via retrieve(). It
-  // resets when the selection changes; we keep one entry at a time because the
-  // detail panel only shows one issue.
-  const [detailed, setDetailed] = useState<Issue | undefined>();
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailScroll, setDetailScroll] = useState(0);
-  // A pending quick state transition awaiting confirmation: the issue, the
-  // target state, and whether the API call is in flight. While set, the
-  // dashboard shows a "from → to?" confirmation that gates the mutation.
-  const [pendingTransition, setPendingTransition] = useState<
-    | { issue: Issue; targetId: string; targetName: string; fromName: string; saving: boolean }
-    | undefined
-  >();
 
   const activeView = views[viewIdx];
 
@@ -401,29 +444,19 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     }
   }, [ctx, views, logger]);
 
-  // The current user's id, resolved once so the `ass:me` filter token works. A
-  // failure here is non-fatal: ass:me simply matches nothing until it resolves.
-  const [meId, setMeId] = useState<string | undefined>();
-  useEffect(() => {
-    let cancelled = false;
-    ctx.users
-      .me()
-      .then((u) => {
-        if (!cancelled) setMeId(u.id);
-      })
-      .catch((err: Error) => logger.debug("could not resolve current user", { err }));
-    return () => {
-      cancelled = true;
-    };
-  }, [ctx, logger]);
-
-  // The `/` filter is a small structured query (key:value tokens + bare words)
-  // applied client-side to the loaded rows. Parsing/matching live in issue-query.
-  const queryTerms = useMemo(() => parseQuery(filter), [filter]);
-  const filtered = useMemo(() => {
-    if (queryTerms.length === 0) return issues;
-    return issues.filter((i) => matchesQuery(i, queryTerms, { meId }));
-  }, [issues, queryTerms, meId]);
+  // The `/` filter (open/closed state, the typed query, client-side narrowing of
+  // the loaded rows, and `ass:me` resolution) lives in its own hook.
+  const {
+    filter,
+    filtering,
+    filtered,
+    startFilter,
+    handleKey: handleFilterKey,
+  } = useIssueFilter({
+    issues,
+    ctx,
+    logger,
+  });
 
   const currentSummary = filtered[selected];
 
@@ -461,6 +494,17 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     name: "",
     workspace_id: "",
   });
+  // reconcile reflects a committed mutation in the list: a refresh when the
+  // change can move the issue in/out of the view's filter, else a pure in-place
+  // row patch (selection/scroll preserved, no refetch flicker). Shared by the
+  // edit modal and the quick transition.
+  const reconcile = useCallback(
+    (updated: Issue, touchesFilter: boolean): void => {
+      if (touchesFilter) void load(true);
+      else viewsData.patchIssue(viewIdx, updated);
+    },
+    [load, viewsData, viewIdx],
+  );
   const editor = useIssueEditor({
     target: currentSummary,
     loadStates: (issue) => ctx.states.list(project(issue)),
@@ -470,8 +514,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
       try {
         const updated = await ctx.issues.update(issue.key, patch);
         setStatusMessage(`updated ${issue.key}`);
-        if (patchTouchesViewFilter(patch, activeView?.filters)) void load(true);
-        else viewsData.patchIssue(viewIdx, updated);
+        reconcile(updated, patchTouchesViewFilter(patch, activeView?.filters));
       } catch (err) {
         logger.error("edit failed", { issue: issue.key, err: err as Error });
         setStatusMessage(`${issue.key}: ${(err as Error).message}`);
@@ -524,70 +567,31 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     },
   });
 
-  // startTransition resolves the selected issue's project states, finds the
-  // neighbour one step in `direction`, and opens the confirmation. A no-op at
-  // the ends (no neighbour) shows a hint instead of erroring; a state-load
-  // failure surfaces in the status bar.
-  const startTransition = useCallback(
-    async (direction: 1 | -1) => {
-      const issue = filtered[selected];
-      if (!issue) return;
-      try {
-        const states = await ctx.states.list(project(issue));
-        const target = neighbourState(states, issue.state.id, direction);
-        if (!target) {
-          setStatusMessage(
-            `${issue.key}: already at the ${direction === 1 ? "last" : "first"} state`,
-          );
-          return;
-        }
-        setPendingTransition({
-          issue,
-          targetId: target.id,
-          targetName: target.name,
-          fromName: issue.state.name,
-          saving: false,
-        });
-      } catch (err) {
-        logger.error("state transition load failed", { issue: issue.key, err: err as Error });
-        setStatusMessage(`${issue.key}: ${(err as Error).message}`);
-      }
-    },
-    [filtered, selected, ctx, logger],
-  );
-
-  // applyTransition commits the confirmed move with one issues.update and
-  // reconciles the row the same way the edit modal does.
-  const applyTransition = useCallback(async () => {
-    const pending = pendingTransition;
-    if (!pending) return;
-    setPendingTransition({ ...pending, saving: true });
-    try {
-      const patch = { state_id: pending.targetId };
-      const updated = await ctx.issues.update(pending.issue.key, patch);
-      setStatusMessage(`${pending.issue.key} → ${pending.targetName}`);
-      if (patchTouchesViewFilter(patch, activeView?.filters)) void load(true);
-      else viewsData.patchIssue(viewIdx, updated);
-    } catch (err) {
-      logger.error("state transition failed", { issue: pending.issue.key, err: err as Error });
-      setStatusMessage(`${pending.issue.key}: ${(err as Error).message}`);
-    } finally {
-      setPendingTransition(undefined);
-    }
-  }, [pendingTransition, ctx, activeView, load, viewsData, viewIdx, logger]);
+  // The `>` / `<` quick state transition (neighbour resolution, the y/n
+  // confirmation, and the committing update) lives in its own hook; it reconciles
+  // the row through the shared reconcile callback.
+  const transition = useQuickTransition({
+    target: currentSummary,
+    activeView,
+    ctx,
+    logger,
+    setMessage: setStatusMessage,
+    reconcile,
+  });
 
   // Auto-refresh: re-run load(true) on the configured interval so the list
   // tracks Plane without a keystroke. Paused while any overlay is open (detail,
   // comment, edit, help, filter) so it never refetches under the user's cursor;
   // the timer restarts whenever the view, interval, or overlay state changes.
-  const overlayActive =
-    comments.active ||
-    editor.active ||
-    creator.active ||
-    pendingTransition !== undefined ||
-    helpOpen ||
-    panel === "detail" ||
-    filtering;
+  const overlayActive = [
+    comments.active,
+    editor.active,
+    creator.active,
+    transition.active,
+    helpOpen,
+    panel === "detail",
+    filtering,
+  ].some(Boolean);
   const intervalMs = autoRefreshIntervalMs(ctx.runtime.profile.defaults?.auto_refresh_seconds);
   useEffect(() => {
     if (intervalMs === undefined || overlayActive || !activeView) return;
@@ -597,42 +601,15 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     return () => clearInterval(timer);
   }, [intervalMs, overlayActive, activeView, load]);
 
-  // Fetch full issue (with description) only when the detail panel is visible.
-  // The list endpoint omits description_*, so the body needs an extra retrieve.
-  useEffect(() => {
-    if (panel !== "detail" || !currentSummary) {
-      setDetailed(undefined);
-      return;
-    }
-    // Each time a new issue's detail opens, reset the description scroll so the
-    // user starts at the top instead of carrying the previous scroll position.
-    setDetailScroll(0);
-    let cancelled = false;
-    setDetailLoading(true);
-    const project = {
-      id: currentSummary.project_id,
-      identifier: currentSummary.project_identifier,
-      name: "",
-      workspace_id: "",
-    };
-    ctx.workItems
-      .retrieve(project, currentSummary.id)
-      .then((full) => {
-        if (cancelled) return;
-        setDetailed(full);
-      })
-      .catch((err: Error) => {
-        if (cancelled) return;
-        logger.error("retrieve issue failed", { issue: currentSummary.key, err });
-        setStatusMessage(err.message);
-      })
-      .finally(() => {
-        if (!cancelled) setDetailLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [panel, currentSummary, ctx, logger]);
+  // The detail panel's data (full issue with description, fetched on open) and
+  // scroll position live in their own hook; the key dispatch stays below.
+  const detail = useDetailPanel({
+    open: panel === "detail",
+    target: currentSummary,
+    ctx,
+    logger,
+    setMessage: setStatusMessage,
+  });
 
   const viewportRows = listViewportRows({
     terminalRows,
@@ -688,16 +665,13 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     "list.comment": comments.open,
     "list.edit": editor.open,
     "list.create": creator.open,
-    "list.state-next": () => void startTransition(1),
-    "list.state-prev": () => void startTransition(-1),
+    "list.state-next": () => void transition.start(1),
+    "list.state-prev": () => void transition.start(-1),
     "view.next": viewNext,
     "view.next-alt": viewNext,
     "view.prev": viewPrev,
     "view.prev-alt": viewPrev,
-    "filter.start": () => {
-      setFilter("");
-      setFiltering(true);
-    },
+    "filter.start": startFilter,
   };
 
   // Input routing is split per active context (help modal, detail modal, filter
@@ -715,18 +689,16 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   };
 
   const handleDetailKey = (input: string, key: InkKey): void => {
-    const scrollDown = (): void => setDetailScroll((s) => s + 1);
-    const scrollUp = (): void => setDetailScroll((s) => Math.max(0, s - 1));
     const detailHandlers: Partial<Record<ActionId, () => void>> = {
       "detail.close": () => setPanel("list"),
-      "detail.scroll-down": scrollDown,
-      "detail.scroll-down-alt": scrollDown,
-      "detail.scroll-up": scrollUp,
-      "detail.scroll-up-alt": scrollUp,
-      "detail.page-down": () => setDetailScroll((s) => s + detailViewportRows),
-      "detail.page-up": () => setDetailScroll((s) => Math.max(0, s - detailViewportRows)),
-      "detail.top": () => setDetailScroll(0),
-      "detail.bottom": () => setDetailScroll(Number.MAX_SAFE_INTEGER),
+      "detail.scroll-down": () => detail.scrollBy(1),
+      "detail.scroll-down-alt": () => detail.scrollBy(1),
+      "detail.scroll-up": () => detail.scrollBy(-1),
+      "detail.scroll-up-alt": () => detail.scrollBy(-1),
+      "detail.page-down": () => detail.scrollBy(detailViewportRows),
+      "detail.page-up": () => detail.scrollBy(-detailViewportRows),
+      "detail.top": detail.scrollTop,
+      "detail.bottom": detail.scrollBottom,
       "detail.open-browser": openSelectedInBrowser,
       "detail.comment": comments.open,
       "detail.edit": editor.open,
@@ -738,34 +710,26 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     dispatch(ctx.keybindings, ["detail", "global"], detailHandlers, input, key);
   };
 
-  const handleFilterKey = (input: string, key: InkKey): void => {
-    if (key.return || key.escape) {
-      setFiltering(false);
-    } else if (key.backspace || key.delete) {
-      setFilter((f) => f.slice(0, -1));
-    } else if (input && !key.ctrl && !key.meta) {
-      setFilter((f) => f + input);
-    }
-  };
-
-  const handleTransitionKey = (input: string, key: InkKey): void => {
-    if (pendingTransition?.saving) return;
-    if (input === "y" || key.return) return void applyTransition();
-    if (input === "n" || key.escape) setPendingTransition(undefined);
-  };
-
+  // Keystrokes route to the first active context in precedence order; when none
+  // is active they fall through to the list/global dispatch. A data-driven table
+  // keeps this as one loop instead of an if-ladder.
+  type KeyHandler = (input: string, key: InkKey) => void;
+  const keyRoutes: Array<[active: boolean, handle: KeyHandler]> = [
+    [transition.active, transition.handleKey],
+    [creator.active, creator.handleKey],
+    [editor.active, editor.handleKey],
+    [comments.active, comments.handleKey],
+    [helpOpen, handleHelpKey],
+    [panel === "detail", handleDetailKey],
+    [filtering, handleFilterKey],
+  ];
   useInput((input, key) => {
-    if (pendingTransition) return handleTransitionKey(input, key);
-    if (creator.active) return creator.handleKey(input, key);
-    if (editor.active) return editor.handleKey(input, key);
-    if (comments.active) return comments.handleKey(input, key);
-    if (helpOpen) return handleHelpKey(input, key);
-    if (panel === "detail") return handleDetailKey(input, key);
-    if (filtering) return handleFilterKey(input, key);
+    const route = keyRoutes.find(([active]) => active);
+    if (route) return route[1](input, key);
     dispatch(ctx.keybindings, ["global", "list", "view", "filter"], handlers, input, key);
   });
 
-  const current = detailed ?? currentSummary;
+  const current = detail.detailed ?? currentSummary;
 
   // Shared status-bar props. profile/workspace/view are identical across panels;
   // loading and position vary slightly per panel and are passed at each call.
@@ -786,51 +750,24 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   });
 
   const isDetail = panel === "detail";
-  const overlayContent = pendingTransition ? (
-    <TransitionConfirm
-      issueKey={pendingTransition.issue.key}
-      from={pendingTransition.fromName}
-      to={pendingTransition.targetName}
-      saving={pendingTransition.saving}
-    />
-  ) : creator.active ? (
-    renderCreatorContent(creator)
-  ) : editor.active ? (
-    renderEditorContent(editor)
-  ) : comments.active ? (
-    renderCommentContent(currentSummary, comments)
-  ) : helpOpen ? (
-    <HelpModal bindings={ctx.keybindings} onClose={() => setHelpOpen(false)} />
-  ) : isDetail ? (
-    <IssueDetail
-      issue={current}
-      loading={detailLoading}
-      variant="modal"
-      scrollTop={detailScroll}
-      viewportRows={detailViewportRows}
-      height={detailModalHeight}
-    />
-  ) : undefined;
-  const overlay = renderOverlay({
-    content: overlayContent,
-    height: terminalRows,
-    alignTop: isDetail,
-    padded: comments.active || editor.active || creator.active,
-    statusBar: (
-      <StatusBar
-        {...statusBarBase}
-        loading={
-          creator.active
-            ? creator.saving
-            : editor.active
-              ? editor.saving
-              : overlayLoading(comments.submitting, isDetail, detailLoading, loading)
-        }
-        position={
-          editor.active || creator.active || (isDetail && !current) ? undefined : listPosition
-        }
-      />
-    ),
+  const overlay = renderActiveOverlay({
+    transition,
+    creator,
+    editor,
+    comments,
+    detail,
+    helpOpen,
+    isDetail,
+    currentSummary,
+    current,
+    detailViewportRows,
+    detailModalHeight,
+    terminalRows,
+    loading,
+    listPosition,
+    statusBarBase,
+    bindings: ctx.keybindings,
+    closeHelp: () => setHelpOpen(false),
   });
   if (overlay) return overlay;
 

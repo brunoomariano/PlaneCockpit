@@ -4,10 +4,10 @@ import {
   listViewportRows,
   restoredSelection,
   autoRefreshIntervalMs,
-  patchTouchesViewFilter,
   NARROW_BREAKPOINT,
   DEFAULT_AUTO_REFRESH_SECONDS,
 } from "./dashboard.js";
+import { patchTouchesViewFilter } from "./view-filter-reconcile.js";
 
 describe("isNarrowLayout", () => {
   // Narrow stacks the views panel on top; wide keeps it as a left column.
