@@ -1,9 +1,30 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { spawn } from "node:child_process";
 import { join } from "node:path";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 
 const CLI = join(process.cwd(), "dist", "cli.js");
+
+// A minimal valid config so the CLI resolves a profile without depending on the
+// developer's ~/.config/plane-cli/config.yaml. Tests that exercise validation
+// past config loading (e.g. priority parsing) need a config present; without one
+// the CLI fails earlier with "no config file found" — which is environment-
+// dependent and was masking these checks on CI.
+const TEST_CONFIG = `active_profile: test
+profiles:
+  test:
+    server:
+      base_url: https://plane.example.com
+      workspace_slug: acme
+    auth:
+      api_key: test-key
+    defaults:
+      projects: ["ENG"]
+`;
+
+let configDir: string;
+let configPath: string;
 
 interface CliResult {
   code: number;
@@ -13,10 +34,14 @@ interface CliResult {
 
 // runCli invokes the built binary so these are true end-to-end checks of
 // argument parsing and the pre-network validation paths (no Plane server needed).
-// stdin is closed immediately so any prompt fallback fails fast instead of hanging.
+// Every run points at an isolated temp config via --config so the result never
+// depends on the host machine. stdin is closed immediately so any prompt
+// fallback fails fast instead of hanging.
 function runCli(args: string[]): Promise<CliResult> {
   return new Promise((resolve) => {
-    const child = spawn("node", [CLI, ...args], { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn("node", [CLI, "--config", configPath, ...args], {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (c) => (stdout += c.toString()));
@@ -31,6 +56,13 @@ describe("cli issue (e2e, built binary)", () => {
     if (!existsSync(CLI)) {
       throw new Error(`build the CLI first (dist/cli.js missing): run \`make build\``);
     }
+    configDir = mkdtempSync(join(tmpdir(), "plc-e2e-"));
+    configPath = join(configDir, "config.yaml");
+    writeFileSync(configPath, TEST_CONFIG);
+  });
+
+  afterAll(() => {
+    if (configDir) rmSync(configDir, { recursive: true, force: true });
   });
 
   it("exposes --body-file and --priority on `issue create --help`", async () => {

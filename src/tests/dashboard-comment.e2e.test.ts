@@ -151,16 +151,19 @@ describe("dashboard structured filter (e2e)", () => {
     expect(lastFrame()).toContain("title ENG-1");
     expect(lastFrame()).toContain("title ENG-2");
 
-    // A non-matching token empties the visible list but reports the count, so it
-    // reads as "filtered", not "no data".
-    stdin.write(""); // escape closes the input, keeping the filter applied
-    await tick();
-    stdin.write("/");
+    // A non-matching token empties the visible list (reads as "filtered", not "no
+    // data"). Clear the current token in place with backspaces (\x7f) and retype,
+    // keeping the same filter session open — closing and re-opening the input
+    // would race the state flush between writes. The exact "0 of N" count string
+    // is unit-tested in formatListPosition (issue-query.test.ts); here we only
+    // assert the rows are gone, since the status bar wraps at the test width.
+    stdin.write("\x7f".repeat("prio:none".length));
     await tick();
     stdin.write("prio:urgent");
     await tick();
     expect(lastFrame()).not.toContain("title ENG-1");
-    expect(lastFrame()).toContain("0 of 2");
+    expect(lastFrame()).not.toContain("title ENG-2");
+    expect(lastFrame()).toContain("no issues to show");
     unmount();
   });
 
