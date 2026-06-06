@@ -1,0 +1,45 @@
+name: ci
+
+# Full quality pipeline: format, lint, typecheck, build, test (coverage),
+# deadcode, audit, schema drift and the secret scan.
+#
+# For pull requests from forks, configure the repository to hold the run for
+# manual approval: Settings -> Actions -> General -> "Fork pull request
+# workflows from outside collaborators" -> "Require approval for all external
+# contributors". The run then waits for an "Approve and run" before executing.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+# Cancel superseded runs on the same ref to save minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: the pipeline only needs to read the repo.
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so the secret scan covers every commit.
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: CI gates
+        run: pnpm run ci

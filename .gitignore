@@ -7,3 +7,5 @@ coverage/
 .env.local
 *.tsbuildinfo
 .mise.local.toml
+# npm pack output
+*.tgz

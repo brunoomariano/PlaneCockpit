@@ -24,7 +24,7 @@ else
 endif
 
 .PHONY: check
-check: ## quality gates (KIND=lint|typecheck|audit|deadcode|quality|schema; default runs lint+typecheck+test)
+check: ## quality gates (KIND=lint|typecheck|audit|deadcode|quality|schema|secrets; default runs lint+typecheck+test)
 ifeq ($(KIND),lint)
 	$(PNPM) run lint
 else ifeq ($(KIND),typecheck)
@@ -37,6 +37,8 @@ else ifeq ($(KIND),quality)
 	$(PNPM) run quality
 else ifeq ($(KIND),schema)
 	$(PNPM) run schema:check
+else ifeq ($(KIND),secrets)
+	$(PNPM) run secrets:scan
 else
 	$(PNPM) run lint
 	$(PNPM) run typecheck
@@ -71,8 +73,12 @@ run: build ## build and run the compiled cli (`make run ARGS="dash"`)
 
 # ----- ci -----
 
+.PHONY: secrets
+secrets: ## scan the git history for committed secrets (gitleaks via binary or docker)
+	$(PNPM) run secrets:scan
+
 .PHONY: ci
-ci: ## full ci: format, lint, typecheck, test-cov, deadcode, audit, build
+ci: ## full ci: format, lint, typecheck, build, test-cov, deadcode, audit, schema, secrets
 	$(PNPM) run ci
 
 # ----- local install (dogfooding) -----
