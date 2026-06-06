@@ -24,7 +24,7 @@ import type { FileLogger } from "../utils/file-logger.js";
 import { dispatch } from "../keybindings/dispatcher.js";
 import { buildViewEntries, resolveViewProjectsLenient } from "../config/resolve-view-projects.js";
 import { neighbourState } from "../plane/state-order.js";
-import { parseQuery, matchesQuery } from "./issue-query.js";
+import { parseQuery, matchesQuery, formatListPosition } from "./issue-query.js";
 import { useViewsData } from "./use-views-data.js";
 import type { ActionId } from "../keybindings/registry.js";
 import type { InkKey } from "../keybindings/key-spec.js";
@@ -778,13 +778,12 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   // Position shows cursor/visible-count; with an active filter it also reports
   // how many of the loaded rows match, so an over-narrow query (or a zero match)
   // reads as "filtered", not "no data". 0 matches still surfaces the count.
-  const matchSuffix = filter ? ` (${filtered.length} of ${issues.length})` : "";
-  const listPosition =
-    filtered.length > 0
-      ? `${selected + 1}/${filtered.length}${matchSuffix}`
-      : filter
-        ? `0 of ${issues.length}`
-        : undefined;
+  const listPosition = formatListPosition({
+    selected,
+    matched: filtered.length,
+    total: issues.length,
+    filtering: Boolean(filter),
+  });
 
   const isDetail = panel === "detail";
   const overlayContent = pendingTransition ? (

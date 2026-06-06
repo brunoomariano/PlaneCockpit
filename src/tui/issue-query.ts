@@ -85,3 +85,22 @@ export function matchesQuery(issue: Issue, terms: QueryTerm[], ctx: MatchContext
   }
   return true;
 }
+
+// formatListPosition builds the status-bar position text for the list panel.
+// With a filter active it always reports the match count — even zero, so an
+// over-narrow query reads as "filtered" rather than "no data" (`0 of N`). With
+// matches it shows the cursor position and, when filtering, the match suffix.
+// No filter and no rows yields undefined (the status bar omits the segment).
+export function formatListPosition(opts: {
+  selected: number;
+  matched: number;
+  total: number;
+  filtering: boolean;
+}): string | undefined {
+  const { selected, matched, total, filtering } = opts;
+  if (matched > 0) {
+    const suffix = filtering ? ` (${matched} of ${total})` : "";
+    return `${selected + 1}/${matched}${suffix}`;
+  }
+  return filtering ? `0 of ${total}` : undefined;
+}

@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { parseQuery, matchesQuery } from "./issue-query.js";
+import { parseQuery, matchesQuery, formatListPosition } from "./issue-query.js";
 import type { Issue } from "../types/issue.js";
 
 function issue(overrides: Partial<Issue> = {}): Issue {
@@ -90,5 +90,34 @@ describe("matchesQuery", () => {
   it("matches an assignee by display-name substring", () => {
     expect(matchesQuery(issue(), parseQuery("ass:an"))).toBe(true);
     expect(matchesQuery(issue(), parseQuery("ass:zz"))).toBe(false);
+  });
+});
+
+describe("formatListPosition", () => {
+  // Cursor position when not filtering: 1-based index over the loaded rows.
+  it("shows the 1-based cursor over the total when not filtering", () => {
+    expect(formatListPosition({ selected: 0, matched: 2, total: 2, filtering: false })).toBe("1/2");
+  });
+
+  // While filtering, matches append the "(matched of total)" suffix.
+  it("appends the match suffix when filtering with matches", () => {
+    expect(formatListPosition({ selected: 1, matched: 3, total: 5, filtering: true })).toBe(
+      "2/3 (3 of 5)",
+    );
+  });
+
+  // Zero matches under an active filter must still report the count (regression:
+  // a falsy 0 previously rendered as an empty count, "  of N").
+  it("reports 0 of total when a filter matches nothing", () => {
+    expect(formatListPosition({ selected: 0, matched: 0, total: 2, filtering: true })).toBe(
+      "0 of 2",
+    );
+  });
+
+  // No filter and no rows: the status bar omits the segment entirely.
+  it("is undefined with no filter and no rows", () => {
+    expect(
+      formatListPosition({ selected: 0, matched: 0, total: 0, filtering: false }),
+    ).toBeUndefined();
   });
 });
