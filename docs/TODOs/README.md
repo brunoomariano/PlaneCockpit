@@ -18,16 +18,20 @@ Scale / search:
 | :--------------------------------------------- | :-------------------------------------------------------------------------------------------- |
 | [server-side-search.md](server-side-search.md) | Push filtering/search to the server so it covers the whole project, not just the loaded page. |
 
-Hygiene / debt (from the repo sweep):
-
-| TODO                                                               | Summary                                                                |
-| :----------------------------------------------------------------- | :--------------------------------------------------------------------- |
-| [refactor-dashboard-component.md](refactor-dashboard-component.md) | Break up the ~900-line Dashboard god-component into per-feature hooks. |
-
 ## Done
 
 These shipped; their planning docs were removed once implemented.
 
+- **Break up the Dashboard god-component** — `Dashboard` is now a thin
+  composition root: the per-feature state machines moved into named hooks
+  (`useTerminalSize`, `useIssueFilter`, `useQuickTransition`, `useDetailPanel`,
+  alongside the existing `useViewsData`/`useIssueEditor`/`useIssueCreator`), the
+  shared filter-reconcile rule moved to `view-filter-reconcile.ts`, the overlay
+  precedence and its status-bar bookkeeping moved into `renderActiveOverlay`, and
+  the input ladder became a data-driven route table. The complexity waiver
+  (`eslint-disable`) is gone — every function is back under the cap. No behavior
+  change: the dashboard e2e suite (comment/edit/create/transition/filter/refresh)
+  passes unchanged. See `src/tui/use-*.ts` and `src/tui/dashboard.tsx`.
 - **Process / doc alignment + publish hygiene** — reconciled the `AGENTS.md`
   logging guidance (now names `FileLogger`, not the absent `pino`) and softened
   the `infra/` mention to "does not exist yet". For the npm publish: stopped
