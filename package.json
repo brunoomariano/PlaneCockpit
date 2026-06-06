@@ -72,19 +72,19 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^24.12.4",
+    "@types/node": "^25.9.2",
     "@types/react": "^19.2.15",
     "@types/turndown": "^5.0.6",
-    "@vitest/coverage-v8": "^4.1.7",
-    "eslint": "^10.4.0",
+    "@vitest/coverage-v8": "^4.1.8",
+    "eslint": "^10.4.1",
     "ink-testing-library": "^4.0.0",
-    "knip": "^6.14.2",
+    "knip": "^6.16.0",
     "prettier": "^3.8.3",
     "tsup": "^8.5.1",
-    "tsx": "^4.22.3",
+    "tsx": "^4.22.4",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.0",
-    "vite": "^8.0.14",
-    "vitest": "^4.1.7"
+    "typescript-eslint": "^8.60.1",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.8"
   }
 }
