@@ -15,8 +15,8 @@ Guide for humans and LLM agents working in the **Plane Cockpit** repository.
 The project should be organized around the following top-level areas:
 
 - `src/` — TypeScript source code for the Plane Cockpit CLI and TUI (`plc` binary).
-- `infra/` — infrastructure, containers, automations, and operational support.
 - `docs/` — functional documentation, glossary, decisions, and technical plans.
+- `infra/` — infrastructure, containers, automations, and operational support. This area does not exist yet; add it (with a README describing intent) when the first infra artifact lands.
 
 Inside `src/`, follow the layout suggested by the project prompt:
 
@@ -99,8 +99,8 @@ Respect the boundaries of existing modules. When a boundary does not yet exist, 
 
 ## Logs and observability
 
-- Use structured logs (`pino`) for debug and observability.
-- Use plain text only in human-facing CLI output.
+- Use the in-house `FileLogger` (`src/utils/file-logger.ts`) for structured logs (JSON Lines to the state dir). The TUI cannot write to stderr, so logs go to a file rather than the terminal; this is the sanctioned structured logger (we do not depend on `pino`).
+- Use plain text only in human-facing CLI output (stderr for diagnostics).
 - Process logs must carry relevant operational context, such as profile, workspace, project, issue key, and command.
 - Never log API keys, tokens, or other secrets. Mask secrets in logs and only emit stack traces under `--debug`.
 
