@@ -2,5 +2,5 @@
 // version, and author. Update VERSION here when bumping the package version.
 export const PRODUCT_NAME = "Plane Cockpit";
 export const BINARY_NAME = "plc";
-export const VERSION = "0.1.0-beta.1";
+export const VERSION = "0.1.0";
 export const AUTHOR_HANDLE = "@brunoomariano";

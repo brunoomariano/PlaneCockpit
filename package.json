@@ -1,6 +1,6 @@
 {
   "name": "plc-cli",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0",
   "description": "CLI and TUI for Plane (Cloud and self-hosted), inspired by gh and gh dash.",
   "license": "MIT",
   "author": "Bruno Mariano",

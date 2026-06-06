@@ -7,6 +7,12 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-06-05
+
+First public release. CLI and TUI for Plane (Cloud and self-hosted): issues,
+projects, dashboards, multi-profile config, pluggable cache, and a themeable
+`ink` TUI. See the [README](README.md) for the full command surface.
+
 ### Added
 
 - Packaging metadata for npm publishing (`repository`, `homepage`, `bugs`,
@@ -27,11 +33,5 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 - The `ci` script builds before running the test suite so the e2e tests no longer
   run against a stale binary.
 
-## [0.1.0-beta.1]
-
-First public beta. CLI and TUI for Plane (Cloud and self-hosted): issues,
-projects, dashboards, multi-profile config, pluggable cache, and a themeable
-`ink` TUI. See the [README](README.md) for the full command surface.
-
-[unreleased]: https://github.com/brunoomariano/PlaneCockpit/compare/v0.1.0-beta.1...HEAD
-[0.1.0-beta.1]: https://github.com/brunoomariano/PlaneCockpit/releases/tag/v0.1.0-beta.1
+[unreleased]: https://github.com/brunoomariano/PlaneCockpit/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/brunoomariano/PlaneCockpit/releases/tag/v0.1.0
