@@ -12,15 +12,34 @@ self-hosted deployments behind reverse proxies, custom TLS, and custom headers.
 
 ## Install
 
-The published package exposes a `plc` binary:
+The published package exposes a `plc` binary. Pick whichever fits:
+
+**From npm (global install):**
 
 ```bash
 npm install -g plc-cli
-# or
+plc --help
+```
+
+**One-off with npx (no install):**
+
+```bash
 npx plc-cli --help
 ```
 
-End users do not need `mise`; the published artifact is a plain Node binary.
+**From a clone (Makefile):**
+
+```bash
+git clone https://github.com/brunoomariano/PlaneCockpit.git
+cd PlaneCockpit
+make bootstrap   # installs the dev toolchain (mise) + dependencies
+make install     # builds, installs `plc` globally, and seeds an example config
+```
+
+End users installing from npm/npx do not need `mise` or a toolchain: the
+published artifact is a plain Node binary and `better-sqlite3` ships a prebuilt
+native binding. The `make install` path is for working from a checkout
+(dogfooding / development); `make uninstall` removes it. Requires Node `>=24`.
 
 ## Quick start
 
@@ -360,3 +379,8 @@ Run `make help` for the full list.
 ## Contributing
 
 See [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) for commit, tag, and PR guidelines.
+
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — how the codebase is organized and why.
+- [`SECURITY.md`](SECURITY.md) — how to report a vulnerability.
+- [`CHANGELOG.md`](CHANGELOG.md) — notable changes per release.
+- [`AGENTS.md`](AGENTS.md) — conventions for humans and LLM agents.
