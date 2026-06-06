@@ -1,0 +1,58 @@
+name: Bug report
+description: Report something that does not work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you do, and what went wrong?
+      placeholder: Running `plc issue list --view "..."` returns ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: A minimal sequence of commands or config that triggers it.
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Plane deployment
+      options:
+        - Plane Cloud
+        - Self-hosted
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: plc version
+      description: Output of `plc --version`.
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS, Node version, terminal. Run with `--debug` and paste relevant log lines.
+      placeholder: |
+        OS: Arch Linux
+        Node: 24.x
+        Terminal: ...
+  - type: checkboxes
+    id: no-secrets
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have removed any API keys, tokens, or other secrets from the report.
+          required: true
