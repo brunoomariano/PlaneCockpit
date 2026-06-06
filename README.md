@@ -4,7 +4,7 @@
   <img src="docs/assets/img/plc-logo.png" alt="Plane Cockpit logo" width="340" />
 </p>
 
-Plane Cockpit is a terminal client for [Plane](https://plane.so), inspired by `gh` and `gh dash`,
+Plane Cockpit is a terminal client for [Plane](https://github.com/makeplane/plane), inspired by `gh` and `gh dash`,
 distributed as a `plc` binary.
 It provides a fast CLI for daily operations on projects, issues (work items), and dashboards,
 plus a TUI (`plc dash`) for visual exploration. It supports both Plane Cloud and Plane
