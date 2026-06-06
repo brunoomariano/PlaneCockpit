@@ -7,6 +7,22 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-06
+
+### Fixed
+
+- The list status bar now reports `0 of N` when a filter matches nothing, instead
+  of an empty count that read as "no data".
+
+### Changed
+
+- Internal: the Dashboard was decomposed from a single container into per-feature
+  hooks (`useTerminalSize`, `useIssueFilter`, `useQuickTransition`,
+  `useDetailPanel`) with the overlay precedence and key routing isolated; no
+  user-facing behavior change.
+- CI: branch and release-tag rulesets, and environment-independent end-to-end
+  tests (isolated config, width-robust assertions) so the suite is deterministic.
+
 ## [0.1.0] - 2026-06-05
 
 First public release. Plane Cockpit (`plc`) is a CLI and TUI for Plane, for both
@@ -77,5 +93,6 @@ config option.
 - Project documentation: `ARCHITECTURE.md`, `SECURITY.md`, this `CHANGELOG.md`,
   issue / pull-request templates, Dependabot, `.editorconfig`, and `.nvmrc`.
 
-[unreleased]: https://github.com/brunoomariano/PlaneCockpit/compare/v0.1.0...HEAD
+[unreleased]: https://github.com/brunoomariano/PlaneCockpit/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/brunoomariano/PlaneCockpit/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/brunoomariano/PlaneCockpit/releases/tag/v0.1.0
