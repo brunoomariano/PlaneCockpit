@@ -3,7 +3,7 @@ import { NotFoundError, PlaneCliError } from "../utils/errors.js";
 import type { ProjectsService } from "./projects.js";
 import type { WorkItemsService } from "./work-items.js";
 
-const ISSUE_KEY_PATTERN = /^([A-Z][A-Z0-9]*)-(\d+)$/;
+const ISSUE_KEY_PATTERN = /^([A-Z0-9]+)-(\d+)$/;
 
 export interface ResolvedIssue {
   project: Project;
@@ -23,7 +23,7 @@ export class IssueResolver {
     if (!match) {
       throw new PlaneCliError(
         "INVALID_ISSUE_KEY",
-        `invalid issue key: ${key} (expected like ENG-123)`,
+        `invalid issue key: ${key} — expected PROJECT-NUMBER, e.g. ENG-123 or 1XERO-56`,
       );
     }
     const identifier = match[1] ?? "";

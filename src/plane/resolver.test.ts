@@ -32,10 +32,30 @@ describe("IssueResolver", () => {
     expect(resolver.parseKey("  ENG-1  ")).toEqual({ identifier: "ENG", sequence: 1 });
   });
 
-  it("rejects invalid keys", () => {
-    expect(() => resolver.parseKey("eng-1")).toThrow(PlaneCliError);
-    expect(() => resolver.parseKey("ENG-")).toThrow(PlaneCliError);
-    expect(() => resolver.parseKey("123")).toThrow(PlaneCliError);
+  // Regression: Plane allows project identifiers that start with (or are made
+  // entirely of) digits. The original regex required a leading letter, so these
+  // valid keys were rejected before any API call. See "1XERO-56".
+  it.each([
+    ["1XERO-56", { identifier: "1XERO", sequence: 56 }],
+    ["X1-9", { identifier: "X1", sequence: 9 }],
+    ["123-45", { identifier: "123", sequence: 45 }],
+  ])("parses %s (identifier with digits)", (key, expected) => {
+    expect(resolver.parseKey(key)).toEqual(expected);
+  });
+
+  it.each([
+    ["eng-1"], // lowercase identifier
+    ["ENG-"], // missing sequence
+    ["123"], // no hyphen / sequence
+    ["ENG-12a"], // non-numeric sequence
+    ["ENG_12"], // wrong separator
+    [""], // empty
+  ])("rejects invalid key %j", (key) => {
+    expect(() => resolver.parseKey(key)).toThrow(PlaneCliError);
+  });
+
+  it("error message explains the expected format", () => {
+    expect(() => resolver.parseKey("eng-1")).toThrow(/expected PROJECT-NUMBER/);
   });
 
   it("resolves a key to project + uuid", async () => {
