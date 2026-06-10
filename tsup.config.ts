@@ -1,4 +1,9 @@
 import { defineConfig } from "tsup";
+import { createRequire } from "node:module";
+
+// Single source of truth for the version: package.json, injected at build time
+// so the shipped bundle can never disagree with the published package.
+const { version } = createRequire(import.meta.url)("./package.json") as { version: string };
 
 export default defineConfig({
   entry: ["src/cli.ts"],
@@ -11,4 +16,5 @@ export default defineConfig({
   splitting: false,
   shims: false,
   banner: { js: "#!/usr/bin/env node" },
+  define: { __VERSION__: JSON.stringify(version) },
 });
