@@ -98,6 +98,27 @@ install: build ## build, install `plc` globally, and seed config.yaml if absent
 uninstall: ## remove the global install of this checkout
 	$(PNPM) rm -g plc-cli
 
+# ----- release -----
+
+VERSION := $(shell $(NODE) -p "require('./package.json').version")
+
+.PHONY: publish
+publish: ## publish to npm (runs full ci via prepublishOnly; DRY=1 for a dry run)
+ifeq ($(DRY),1)
+	$(PNPM) publish --no-git-checks --dry-run
+else
+	$(PNPM) publish --no-git-checks
+endif
+
+.PHONY: release
+release: ## tag v$(VERSION), push it, and cut a GitHub release from the changelog
+	@if git rev-parse "v$(VERSION)" >/dev/null 2>&1; then \
+		echo "tag v$(VERSION) already exists; bump the version first"; exit 1; \
+	fi
+	git tag -a "v$(VERSION)" -m "v$(VERSION)"
+	git push origin "v$(VERSION)"
+	gh release create "v$(VERSION)" --title "v$(VERSION)" --generate-notes
+
 # ----- maintenance -----
 
 .PHONY: clean
