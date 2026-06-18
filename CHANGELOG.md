@@ -16,6 +16,15 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
   per issue.
 - A new `a` key in the detail modal toggles a state-change activity log,
   listing each transition newest-first (`Backlog → In Progress · 2d ago`).
+- A new `l` key in the detail modal opens a Relations section listing the
+  issue's relations grouped by type (blocking, blocked by, relates to,
+  duplicate of, …), each showing the related issue's key, state, name, and when
+  the relation was added (`ENG-80 · Backlog · Lead Page · 2d ago`). The "when"
+  is reconstructed from the activity log, since the relations endpoint returns
+  only target ids.
+- From the Relations section, `enter` opens the focused related issue's detail
+  in place — including across projects — and `esc` goes back to the issue you
+  came from, so you can walk a chain of relations without leaving the TUI.
 
 ## [0.2.0] - 2026-06-18
 

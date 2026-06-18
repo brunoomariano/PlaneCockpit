@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Issue } from "../types/issue.js";
 import type { IssueActivity } from "../types/activity.js";
+import type { DetailTarget } from "./use-detail-stack.js";
 import { isStateChange } from "../types/activity.js";
 import { timeInCurrentState } from "../plane/state-duration.js";
 import { humanizeDuration } from "../utils/format-duration.js";
@@ -10,13 +10,20 @@ import type { FileLogger } from "../utils/file-logger.js";
 export interface UseActivityLogOptions {
   // True while the detail panel is open; gates the fetch.
   open: boolean;
-  // The issue whose activity log to load, or undefined.
-  target: Issue | undefined;
+  // The active target whose activity log to load, or undefined. Only its identity
+  // is used for the fetch, so the log loads in parallel with the description.
+  target: DetailTarget | undefined;
+  // The target issue's creation timestamp, used as the time-in-state fallback
+  // when it never changed state. Comes from the retrieved issue once loaded.
+  createdAt: string | undefined;
   ctx: AppContext;
   logger: FileLogger;
 }
 
 export interface UseActivityLog {
+  // The full activity log (undefined until loaded / on failure). Exposed so the
+  // relations view can reuse it for the related_at join without a second fetch.
+  activities: IssueActivity[] | undefined;
   // State-change events only (oldest→newest), the activity tab's content.
   stateChanges: IssueActivity[];
   // True while the log fetch is in flight.
@@ -33,7 +40,7 @@ export interface UseActivityLog {
 // user came to read. On error it logs and yields no timing/list — the detail view
 // degrades to exactly what it showed before, rather than surfacing an error.
 export function useActivityLog(opts: UseActivityLogOptions): UseActivityLog {
-  const { open, target, ctx, logger } = opts;
+  const { open, target, createdAt, ctx, logger } = opts;
   const [activities, setActivities] = useState<IssueActivity[] | undefined>();
   const [loading, setLoading] = useState(false);
 
@@ -76,9 +83,9 @@ export function useActivityLog(opts: UseActivityLogOptions): UseActivityLog {
   );
 
   const timeInState = useMemo(() => {
-    if (!activities || !target) return undefined;
-    return humanizeDuration(timeInCurrentState(activities, target.created_at, Date.now()));
-  }, [activities, target]);
+    if (!activities || !createdAt) return undefined;
+    return humanizeDuration(timeInCurrentState(activities, createdAt, Date.now()));
+  }, [activities, createdAt]);
 
-  return { stateChanges, loading, timeInState };
+  return { activities, stateChanges, loading, timeInState };
 }

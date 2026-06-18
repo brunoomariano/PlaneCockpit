@@ -136,6 +136,18 @@ export const ACTIONS = [
     defaultKey: "a",
   },
   {
+    id: "detail.relations",
+    context: "detail",
+    description: "toggle the relations section",
+    defaultKey: "l",
+  },
+  {
+    id: "detail.relation-open",
+    context: "detail",
+    description: "open the focused relation",
+    defaultKey: "enter",
+  },
+  {
     id: "detail.close",
     context: "detail",
     description: "close detail modal",

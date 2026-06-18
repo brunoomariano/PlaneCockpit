@@ -139,3 +139,68 @@ describe("IssueDetail activity mode", () => {
     expect(frame).toContain("loading activity…");
   });
 });
+
+describe("IssueDetail relations mode", () => {
+  const relation = (
+    type: import("../types/relation.js").RelationType,
+    key: string,
+  ): import("../types/relation.js").IssueRelation => ({
+    type,
+    targetId: `id-${key}`,
+    targetKey: key,
+  });
+
+  // Relations mode replaces the description with the grouped relations list and
+  // tags the header.
+  it("renders relations grouped by type with their keys", () => {
+    const frame = renderDetail({
+      issue: issue(),
+      variant: "modal",
+      mode: "relations",
+      viewportRows: 10,
+      relations: [relation("blocked_by", "ENG-94"), relation("relates_to", "ENG-80")],
+    });
+    expect(frame).toContain("relations");
+    expect(frame).toContain("blocked by:");
+    expect(frame).toContain("ENG-94");
+    expect(frame).toContain("relates to:");
+    expect(frame).toContain("ENG-80");
+    expect(frame).not.toContain("the description body");
+  });
+
+  // The focused row carries the selection marker.
+  it("marks the focused relation row", () => {
+    const frame = renderDetail({
+      issue: issue(),
+      variant: "modal",
+      mode: "relations",
+      viewportRows: 10,
+      relations: [relation("relates_to", "ENG-80"), relation("relates_to", "ENG-82")],
+      relationsSelected: 1,
+    });
+    expect(frame).toContain("› ENG-82");
+  });
+
+  it("shows a placeholder when there are no relations", () => {
+    const frame = renderDetail({
+      issue: issue(),
+      variant: "modal",
+      mode: "relations",
+      viewportRows: 10,
+      relations: [],
+    });
+    expect(frame).toContain("(no relations)");
+  });
+
+  it("shows a loading placeholder while relations load", () => {
+    const frame = renderDetail({
+      issue: issue(),
+      variant: "modal",
+      mode: "relations",
+      viewportRows: 10,
+      relations: [],
+      relationsLoading: true,
+    });
+    expect(frame).toContain("loading relations…");
+  });
+});

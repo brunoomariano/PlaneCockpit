@@ -2,14 +2,17 @@ import React, { useMemo } from "react";
 import { Box, Text } from "ink";
 import type { Issue } from "../types/issue.js";
 import type { IssueActivity } from "../types/activity.js";
+import type { IssueRelation } from "../types/relation.js";
+import { RELATION_LABELS } from "../types/relation.js";
 import { markdownToAnsi } from "../utils/markdown-to-ansi.js";
 import { splitAnsiIntoLines } from "../utils/ansi-lines.js";
 import { humanizeDuration } from "../utils/format-duration.js";
+import { formatRelationRow } from "./format-relation.js";
 import { useTheme } from "./theme/context.js";
 
-// DetailMode selects what the scrollable body shows: the issue description
-// ("detail") or its state-change history ("activity"), toggled by the `a` key.
-export type DetailMode = "detail" | "activity";
+// DetailMode selects what the body shows: the issue description ("detail"), its
+// state-change history ("activity", `a`), or its relations ("relations", `l`).
+export type DetailMode = "detail" | "activity" | "relations";
 
 export interface IssueDetailProps {
   issue?: Issue;
@@ -31,6 +34,11 @@ export interface IssueDetailProps {
   stateChanges?: IssueActivity[];
   // True while the activity log fetch is in flight, for the activity placeholder.
   activityLoading?: boolean;
+  // Relations (display-ordered) and the focused row index for the relations body.
+  relations?: IssueRelation[];
+  relationsSelected?: number;
+  // True while the relations fetch is in flight, for the relations placeholder.
+  relationsLoading?: boolean;
 }
 
 // formatStateChange renders one state transition as a single line for the
@@ -128,15 +136,84 @@ function ScrollableBody(props: ScrollableBodyProps): React.ReactElement {
   );
 }
 
+// RelationRow renders one relation line, highlighting it when focused. The line
+// content (key · state · name · related_at) is assembled by formatRelationRow.
+function RelationRow({
+  relation,
+  focused,
+  now,
+}: {
+  relation: IssueRelation;
+  focused: boolean;
+  now: number;
+}): React.ReactElement {
+  const theme = useTheme();
+  return (
+    <Text wrap="truncate" color={focused ? theme.accent : undefined} bold={focused}>
+      {focused ? "› " : "  "}
+      {formatRelationRow(relation, now)}
+    </Text>
+  );
+}
+
+// RelationsBody renders the relations grouped by type with a focused row. The
+// list is already display-ordered, so a heading is emitted whenever the type
+// changes while walking it. A window around the focused row keeps long lists
+// within the viewport without a separate scroll model.
+function RelationsBody(props: {
+  relations: IssueRelation[];
+  selected: number;
+  loading: boolean;
+  viewportRows: number;
+}): React.ReactElement {
+  if (props.relations.length === 0) {
+    return (
+      <Box marginTop={1} flexDirection="column" overflow="hidden">
+        <Text dimColor>{props.loading ? "loading relations…" : "(no relations)"}</Text>
+      </Box>
+    );
+  }
+  const now = Date.now();
+  // Window the rows around the focused index so the selection stays visible.
+  const start = Math.max(
+    0,
+    Math.min(props.selected - 1, props.relations.length - props.viewportRows),
+  );
+  const window = props.relations.slice(Math.max(0, start), Math.max(0, start) + props.viewportRows);
+  let lastType: string | undefined;
+  return (
+    <Box marginTop={1} flexDirection="column" overflow="hidden">
+      {window.map((relation, idx) => {
+        const flatIdx = Math.max(0, start) + idx;
+        const heading = relation.type !== lastType ? RELATION_LABELS[relation.type] : undefined;
+        lastType = relation.type;
+        return (
+          <React.Fragment key={`${relation.type}-${relation.targetId}`}>
+            {heading ? <Text dimColor>{heading}:</Text> : null}
+            <RelationRow relation={relation} focused={flatIdx === props.selected} now={now} />
+          </React.Fragment>
+        );
+      })}
+    </Box>
+  );
+}
+
+const HINT_BY_MODE: Record<DetailMode, string> = {
+  detail: "esc to close · a: activity · l: relations",
+  activity: "esc to close · a: description",
+  relations: "esc back · enter: open · l: description",
+};
+
 function closeHintFor(
   scrollTop: number,
   viewportRows: number,
   total: number,
   mode: DetailMode,
 ): string {
-  const label =
-    mode === "activity" ? "esc to close · a: description" : "esc to close · a: activity";
-  if (total <= viewportRows) return label;
+  const label = HINT_BY_MODE[mode];
+  // The relations body has its own selection model, so the scroll counter only
+  // applies to the text bodies (description / activity).
+  if (mode === "relations" || total <= viewportRows) return label;
   const end = Math.min(scrollTop + viewportRows, total);
   return `${label} · ${scrollTop + 1}-${end}/${total}`;
 }
@@ -156,7 +233,7 @@ function DetailHeader(props: {
     <Box justifyContent="space-between" flexShrink={0}>
       <Text bold>
         {props.issueKey}
-        {props.mode === "activity" ? <Text dimColor> · activity</Text> : null}
+        {props.mode !== "detail" ? <Text dimColor> · {props.mode}</Text> : null}
       </Text>
       {props.variant === "modal" ? (
         <Text dimColor>
@@ -180,15 +257,18 @@ interface ResolvedBody {
   emptyLabel: string;
 }
 
-const BODY_LABELS: Record<DetailMode, { loadingLabel: string; emptyLabel: string }> = {
+// Text bodies only (description / activity). The relations mode renders through
+// RelationsBody, not resolveBody, so it carries no entry here.
+const BODY_LABELS: Record<"detail" | "activity", { loadingLabel: string; emptyLabel: string }> = {
   detail: { loadingLabel: "loading description…", emptyLabel: "(no description)" },
   activity: { loadingLabel: "loading activity…", emptyLabel: "(no state changes)" },
 };
 
 // resolveBody clamps the scroll offset to the line count and selects the visible
-// window and the mode-specific placeholders/loading flag for the active body.
+// window and the mode-specific placeholders/loading flag for the active text body
+// (description or activity); the relations body does not go through here.
 function resolveBody(
-  mode: DetailMode,
+  mode: "detail" | "activity",
   lines: string[],
   props: Pick<IssueDetailProps, "scrollTop" | "viewportRows" | "loading" | "activityLoading">,
 ): ResolvedBody {
@@ -205,6 +285,52 @@ function resolveBody(
     loading: (mode === "activity" ? props.activityLoading : props.loading) ?? false,
     ...BODY_LABELS[mode],
   };
+}
+
+// frameStyle returns the outer Box style for the panel/modal variants, so the
+// variant branching lives in one place instead of three inline ternaries.
+function frameStyle(
+  variant: "panel" | "modal",
+  accent: string,
+): { borderStyle: "double" | "round"; borderColor: string | undefined; paddingY: number } {
+  return variant === "modal"
+    ? { borderStyle: "double", borderColor: accent, paddingY: 1 }
+    : { borderStyle: "round", borderColor: undefined, paddingY: 0 };
+}
+
+// DetailBody picks the body for the active mode: the selectable relations list,
+// or the scrollable text body (description / activity). Extracting it keeps the
+// mode/prop-default branching out of IssueDetail's complexity budget.
+function DetailBody(props: {
+  mode: DetailMode;
+  textBody: ResolvedBody;
+  relations: IssueRelation[];
+  relationsSelected: number;
+  relationsLoading: boolean;
+  relationsViewport: number;
+}): React.ReactElement {
+  if (props.mode === "relations") {
+    return (
+      <RelationsBody
+        relations={props.relations}
+        selected={props.relationsSelected}
+        loading={props.relationsLoading}
+        viewportRows={props.relationsViewport}
+      />
+    );
+  }
+  const b = props.textBody;
+  return (
+    <ScrollableBody
+      loading={b.loading}
+      loadingLabel={b.loadingLabel}
+      emptyLabel={b.emptyLabel}
+      visible={b.visible}
+      hiddenAbove={b.scrollTop}
+      hiddenBelow={b.hiddenBelow}
+      scrollTop={b.scrollTop}
+    />
+  );
 }
 
 export function IssueDetail(props: IssueDetailProps): React.ReactElement {
@@ -238,16 +364,23 @@ export function IssueDetail(props: IssueDetailProps): React.ReactElement {
   }
   const i = props.issue;
 
-  const body = resolveBody(mode, mode === "activity" ? activityLines : descriptionLines, props);
-  const viewportRows = props.viewportRows ?? body.lines.length;
+  // The relations mode renders its own selectable body; the other two share the
+  // scroll machinery via resolveBody. Compute the text body regardless (cheap) so
+  // the header's scroll counter has its numbers, and pick the body element below.
+  const isActivity = mode === "activity";
+  const textBody = resolveBody(
+    isActivity ? "activity" : "detail",
+    isActivity ? activityLines : descriptionLines,
+    props,
+  );
+  const viewportRows = props.viewportRows ?? textBody.lines.length;
+  const relationsViewport = Math.max(1, viewportRows);
 
   return (
     <Box
       flexDirection="column"
-      borderStyle={variant === "modal" ? "double" : "round"}
-      borderColor={variant === "modal" ? theme.accent : undefined}
+      {...frameStyle(variant, theme.accent)}
       paddingX={1}
-      paddingY={variant === "modal" ? 1 : 0}
       width={width}
       height={props.height}
       flexShrink={0}
@@ -257,20 +390,19 @@ export function IssueDetail(props: IssueDetailProps): React.ReactElement {
         issueKey={i.key}
         mode={mode}
         variant={variant}
-        scrollTop={body.scrollTop}
+        scrollTop={textBody.scrollTop}
         viewportRows={viewportRows}
-        total={body.lines.length}
+        total={textBody.lines.length}
       />
       <Text wrap="truncate">{i.name}</Text>
       <IssueMeta issue={i} timeInState={props.timeInState} />
-      <ScrollableBody
-        loading={body.loading}
-        loadingLabel={body.loadingLabel}
-        emptyLabel={body.emptyLabel}
-        visible={body.visible}
-        hiddenAbove={body.scrollTop}
-        hiddenBelow={body.hiddenBelow}
-        scrollTop={body.scrollTop}
+      <DetailBody
+        mode={mode}
+        textBody={textBody}
+        relations={props.relations ?? []}
+        relationsSelected={props.relationsSelected ?? 0}
+        relationsLoading={props.relationsLoading ?? false}
+        relationsViewport={relationsViewport}
       />
     </Box>
   );
