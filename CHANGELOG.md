@@ -7,6 +7,8 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-18
+
 ### Added
 
 - The issue detail modal now shows how long the issue has sat in its current
