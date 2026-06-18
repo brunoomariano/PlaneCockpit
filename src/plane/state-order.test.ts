@@ -61,3 +61,68 @@ describe("neighbourState", () => {
     expect(neighbourState(STATES, "unknown", 1)).toBeUndefined();
   });
 });
+
+// With a state_order list, both navigation and ordering follow the declared slug
+// order instead of the workflow group — so `n`/`p` step through the same
+// sequence the user configured for `sort: state`.
+describe("orderStates / neighbourState with state_order", () => {
+  // "In Progress" (started) before "In Review" (started): the group rank cannot
+  // express this, but a state_order list can.
+  const ORDER = ["backlog", "in progress", "in review", "done"];
+
+  it("orders states by the declared slug order", () => {
+    const states: IssueState[] = [
+      { id: "review", name: "In Review", group: "started" },
+      { id: "doing", name: "In Progress", group: "started" },
+      { id: "backlog", name: "Backlog", group: "backlog" },
+    ];
+    expect(orderStates(states, ORDER).map((s) => s.id)).toEqual(["backlog", "doing", "review"]);
+  });
+
+  it("steps forward through the declared order", () => {
+    const states: IssueState[] = [
+      { id: "doing", name: "In Progress", group: "started" },
+      { id: "review", name: "In Review", group: "started" },
+    ];
+    // Forward from In Progress lands on In Review (declared next), not the other
+    // way around as plain group order would have it for same-group states.
+    expect(neighbourState(states, "doing", 1, ORDER)?.id).toBe("review");
+    expect(neighbourState(states, "review", -1, ORDER)?.id).toBe("doing");
+  });
+
+  // A state not in state_order still navigates: it sorts after the listed ones
+  // (by group), so it has well-defined neighbours instead of falling out.
+  it("places unlisted states after listed ones and still steps into them", () => {
+    const states: IssueState[] = [
+      { id: "blocked", name: "Blocked", group: "started" }, // not in ORDER
+      { id: "doing", name: "In Progress", group: "started" },
+    ];
+    // Listed "In Progress" comes first; "Blocked" (unlisted) follows, so forward
+    // from In Progress reaches Blocked.
+    expect(orderStates(states, ORDER).map((s) => s.id)).toEqual(["doing", "blocked"]);
+    expect(neighbourState(states, "doing", 1, ORDER)?.id).toBe("blocked");
+  });
+
+  // The end-of-order no-op (return undefined, no wrap-around) must still hold
+  // when the order comes from state_order rather than the workflow group.
+  it("is a no-op past the last declared state", () => {
+    const states: IssueState[] = [
+      { id: "backlog", name: "Backlog", group: "backlog" },
+      { id: "review", name: "In Review", group: "started" },
+    ];
+    // "In Review" is the last of these two in ORDER; forward from it is undefined.
+    expect(neighbourState(states, "review", 1, ORDER)).toBeUndefined();
+    expect(neighbourState(states, "backlog", -1, ORDER)).toBeUndefined();
+  });
+
+  // A configured slug that matches none of the project's states is inert: the
+  // remaining order is unaffected. Guards navigation against stale config slugs.
+  it("ignores state_order slugs that no project state has", () => {
+    const states: IssueState[] = [
+      { id: "review", name: "In Review", group: "started" },
+      { id: "doing", name: "In Progress", group: "started" },
+    ];
+    // ORDER also lists "backlog"/"done", which are absent here — order still holds.
+    expect(orderStates(states, ORDER).map((s) => s.id)).toEqual(["doing", "review"]);
+  });
+});

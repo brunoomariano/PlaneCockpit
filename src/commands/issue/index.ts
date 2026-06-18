@@ -57,6 +57,7 @@ export function registerIssue(program: Command): void {
           view,
           limit ?? view?.query_limit,
           ctx.runtime.profile.defaults?.sort,
+          ctx.runtime.profile.defaults?.state_order,
         );
         process.stdout.write(renderIssues(issues, format, ctx.theme));
         process.stdout.write("\n");

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Issue } from "../types/issue.js";
 import type { ViewDefinition } from "../types/views.js";
-import type { SortKey } from "../types/views.js";
+import type { ProfileConfig } from "../types/config.js";
 import type { IssuesService } from "../plane/issues.js";
 import type { FileLogger } from "../utils/file-logger.js";
 import { resolveViewProjectsLenient } from "../config/resolve-view-projects.js";
@@ -56,8 +56,9 @@ export interface ViewsData {
 interface UseViewsDataOptions {
   views: ViewDefinition[];
   issuesService: IssuesService;
-  defaultProjects: string[] | undefined;
-  defaultsSort: SortKey[] | undefined;
+  // The profile's defaults block, the source of the project universe, the
+  // inherited sort, and the state_order used by the client-side `state` sort.
+  defaults: ProfileConfig["defaults"];
   logger: FileLogger;
 }
 
@@ -66,7 +67,10 @@ interface UseViewsDataOptions {
 // lets the navbar show a live count per view and lets a view switch reuse the
 // previous result instead of flashing a skeleton.
 export function useViewsData(opts: UseViewsDataOptions): ViewsData {
-  const { views, issuesService, defaultProjects, defaultsSort, logger } = opts;
+  const { views, issuesService, defaults, logger } = opts;
+  const defaultProjects = defaults?.projects;
+  const defaultsSort = defaults?.sort;
+  const stateOrder = defaults?.state_order;
   const [byView, setByView] = useState<ViewData[]>(() => views.map(() => EMPTY_VIEW_DATA));
 
   // Keep the latest views in a ref so refreshAll can iterate without becoming a
@@ -130,6 +134,7 @@ export function useViewsData(opts: UseViewsDataOptions): ViewsData {
           view,
           view.query_limit ?? 100,
           defaultsSort,
+          stateOrder,
           controller.signal,
         );
         patch(viewIdx, {
@@ -167,7 +172,7 @@ export function useViewsData(opts: UseViewsDataOptions): ViewsData {
         }
       }
     },
-    [issuesService, defaultProjects, defaultsSort, logger, patch],
+    [issuesService, defaultProjects, defaultsSort, stateOrder, logger, patch],
   );
 
   const refreshAll = useCallback(() => {

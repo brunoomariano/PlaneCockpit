@@ -1,5 +1,6 @@
 import type { Issue } from "../types/issue.js";
-import type { SortDirection, SortField, SortKey } from "../types/views.js";
+import type { SortField, SortKey } from "../types/views.js";
+import { buildStateRank, type StateRank } from "./state-rank.js";
 
 // Priority order from highest to lowest. Mirrors the ordering Plane applies
 // server-side when order_by=priority.
@@ -9,16 +10,6 @@ const PRIORITY_RANK: Record<Issue["priority"], number> = {
   medium: 2,
   low: 3,
   none: 4,
-};
-
-// Workflow lifecycle order, mirroring PRIORITY_RANK. `state` sorts by this group
-// rank (backlog → … → cancelled), not by the state's display name.
-const STATE_GROUP_RANK: Record<Issue["state"]["group"], number> = {
-  backlog: 0,
-  unstarted: 1,
-  started: 2,
-  completed: 3,
-  cancelled: 4,
 };
 
 // Built-in fallback applied when neither the view nor defaults.sort declares an
@@ -37,20 +28,27 @@ export const DEFAULT_SORT: SortKey[] = [
 // comparators negate the rank difference to align the two:
 //   - priority asc = none → urgent (urgent is the high end). PRIORITY_RANK has
 //     urgent=0, so asc-by-user is descending-by-rank → negate.
-//   - state asc = backlog → cancelled (lifecycle order). STATE_GROUP_RANK
-//     already runs backlog=0 → cancelled=4, so asc-by-user = ascending-by-rank.
+//   - state asc = the configured `state_order`, then unlisted states by workflow
+//     group (backlog → … → cancelled). StateRank runs low-first, so asc-by-user
+//     = ascending-by-rank. With no state_order it is pure group rank, as before.
 //   - project asc = project_identifier A→Z.
 //   - created_at/updated_at asc = oldest first.
 //   - assign asc = first assignee display_name A→Z; unassigned always last
 //     (handled separately so direction never moves it).
-const ASC_COMPARATORS: Record<SortField, (a: Issue, b: Issue) => number> = {
-  project: (a, b) => a.project_identifier.localeCompare(b.project_identifier),
-  priority: (a, b) => PRIORITY_RANK[b.priority] - PRIORITY_RANK[a.priority],
-  state: (a, b) => STATE_GROUP_RANK[a.state.group] - STATE_GROUP_RANK[b.state.group],
-  created_at: (a, b) => a.created_at.localeCompare(b.created_at),
-  updated_at: (a, b) => a.updated_at.localeCompare(b.updated_at),
-  assign: (a, b) => firstAssignee(a).localeCompare(firstAssignee(b)),
-};
+// The state comparator closes over a StateRank, so the set is built per-sort
+// rather than as a module constant.
+function ascComparators(
+  stateRank: StateRank,
+): Record<SortField, (a: Issue, b: Issue) => number> {
+  return {
+    project: (a, b) => a.project_identifier.localeCompare(b.project_identifier),
+    priority: (a, b) => PRIORITY_RANK[b.priority] - PRIORITY_RANK[a.priority],
+    state: (a, b) => stateRank(a.state) - stateRank(b.state),
+    created_at: (a, b) => a.created_at.localeCompare(b.created_at),
+    updated_at: (a, b) => a.updated_at.localeCompare(b.updated_at),
+    assign: (a, b) => firstAssignee(a).localeCompare(firstAssignee(b)),
+  };
+}
 
 function firstAssignee(issue: Issue): string {
   return issue.assignees[0]?.display_name ?? "";
@@ -59,14 +57,19 @@ function firstAssignee(issue: Issue): string {
 // Compares one key, applying its direction. `assign` pins unassigned issues last
 // regardless of direction (they are a "no value" bucket, not the far end of the
 // order), so it short-circuits before the directional comparison.
-function compareKey(a: Issue, b: Issue, field: SortField, direction: SortDirection): number {
+function compareKey(
+  a: Issue,
+  b: Issue,
+  { field, direction }: SortKey,
+  comparators: Record<SortField, (a: Issue, b: Issue) => number>,
+): number {
   if (field === "assign") {
     const aUnassigned = a.assignees.length === 0;
     const bUnassigned = b.assignees.length === 0;
     if (aUnassigned !== bUnassigned) return aUnassigned ? 1 : -1;
     if (aUnassigned && bUnassigned) return 0;
   }
-  const base = ASC_COMPARATORS[field](a, b);
+  const base = comparators[field](a, b);
   return direction === "desc" ? -base : base;
 }
 
@@ -79,14 +82,23 @@ function compareKey(a: Issue, b: Issue, field: SortField, direction: SortDirecti
  * each key breaks ties of the ones above it. The sort is stable: issues that are
  * equal on every key keep their input order (the order the projects were queried
  * in).
+ *
+ * `stateOrder` is the profile's `defaults.state_order`: a slug list that drives
+ * how the `state` key ranks states (listed slugs first in declared order,
+ * unlisted ones after by workflow group). Absent ⇒ pure workflow-group order.
  */
-export function sortIssues(issues: Issue[], sort: SortKey[] | undefined): Issue[] {
+export function sortIssues(
+  issues: Issue[],
+  sort: SortKey[] | undefined,
+  stateOrder?: string[],
+): Issue[] {
   if (!sort || sort.length === 0) return issues;
 
+  const comparators = ascComparators(buildStateRank(stateOrder));
   // Array.prototype.sort is stable in V8, so ties keep the input order.
   return [...issues].sort((a, b) => {
-    for (const { field, direction } of sort) {
-      const cmp = compareKey(a, b, field, direction);
+    for (const key of sort) {
+      const cmp = compareKey(a, b, key, comparators);
       if (cmp !== 0) return cmp;
     }
     return 0;

@@ -61,7 +61,8 @@ export function useQuickTransition(opts: UseQuickTransitionOptions): UseQuickTra
       if (!issue) return;
       try {
         const states = await ctx.states.list(projectOf(issue));
-        const next = neighbourState(states, issue.state.id, direction);
+        const stateOrder = ctx.runtime.profile.defaults?.state_order;
+        const next = neighbourState(states, issue.state.id, direction, stateOrder);
         if (!next) {
           setMessage(`${issue.key}: already at the ${direction === 1 ? "last" : "first"} state`);
           return;

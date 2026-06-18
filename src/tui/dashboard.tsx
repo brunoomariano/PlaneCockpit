@@ -5,7 +5,9 @@ import type { Issue } from "../types/issue.js";
 import type { AppContext } from "../app.js";
 import { StatusBar } from "./status-bar.js";
 import { ViewSelector, SIDE_PANEL_WIDTH, type ViewEntry } from "./view-selector.js";
-import type { ViewLayout } from "../types/views.js";
+import type { SortKey, ViewDefinition, ViewLayout } from "../types/views.js";
+import type { ProfileConfig } from "../types/config.js";
+import { resolveSort } from "../plane/sort-issues.js";
 import { IssueList, resolveLayout } from "./issue-list.js";
 import { IssueDetail, DETAIL_CHROME_ROWS } from "./issue-detail.js";
 import { FilterBox } from "./filter-box.js";
@@ -323,6 +325,19 @@ function overlayStatusPosition(opts: ActiveOverlayInput): string | undefined {
   return opts.listPosition;
 }
 
+// resolveViewPresentation resolves the active view's layout and sort, each
+// falling back to the profile default then the built-in. Kept out of Dashboard
+// so the optional-chaining lives here rather than inflating the component.
+function resolveViewPresentation(
+  view: ViewDefinition | undefined,
+  defaults: ProfileConfig["defaults"],
+): { layout: ViewLayout; sort: SortKey[] } {
+  return {
+    layout: resolveLayout(view?.layout, defaults?.layout),
+    sort: resolveSort(view?.sort, defaults?.sort),
+  };
+}
+
 // Dashboard is the composition root: it wires the per-feature hooks (views data,
 // filter, quick transition, detail panel, editor, creator, comments) together,
 // routes input to the active context, and renders the active overlay or the list
@@ -352,10 +367,11 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
 
   const activeView = views[viewIdx];
 
-  // Effective column layout for the active view: its own layout, else the
-  // profile default, else empty (the solver falls back to responsive constants).
-  const activeLayout = useMemo(
-    () => resolveLayout(activeView?.layout, ctx.runtime.profile.defaults?.layout),
+  // Effective layout and sort for the active view (each: its own, else the
+  // profile default, else the built-in). Threaded to the list so it can size
+  // columns and show which column the rows are ordered by.
+  const { layout: activeLayout, sort: activeSort } = useMemo(
+    () => resolveViewPresentation(activeView, ctx.runtime.profile.defaults),
     [activeView, ctx],
   );
 
@@ -369,8 +385,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   const viewsData = useViewsData({
     views,
     issuesService: ctx.issues,
-    defaultProjects: ctx.runtime.profile.defaults?.projects,
-    defaultsSort: ctx.runtime.profile.defaults?.sort,
+    defaults: ctx.runtime.profile.defaults,
     logger,
   });
   const active = viewsData.byView[viewIdx] ?? {
@@ -785,6 +800,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
       filtering={filtering}
       viewportRows={viewportRows}
       layout={activeLayout}
+      sort={activeSort}
       loading={loading}
       statusBar={<StatusBar {...statusBarBase} loading={loading} position={listPosition} />}
     />
@@ -809,6 +825,9 @@ interface ListLayoutProps {
   viewportRows: number;
   // Resolved column layout for the active view, threaded to the issue list.
   layout: ViewLayout;
+  // Resolved sort for the active view, threaded to the issue list so its header
+  // can show which column the rows are ordered by.
+  sort: SortKey[];
   loading: boolean;
   statusBar: React.ReactNode;
 }
@@ -839,6 +858,7 @@ function ListLayout(props: ListLayoutProps): React.ReactElement {
             // gets the full width.
             width={props.narrow ? props.width : props.width - SIDE_PANEL_WIDTH}
             layout={props.layout}
+            sort={props.sort}
             loading={props.loading}
           />
           <FilterBox active={props.filtering} value={props.filter} />

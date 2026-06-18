@@ -1,26 +1,19 @@
-import type { IssueState, IssueStateGroup } from "../types/issue.js";
+import type { IssueState } from "../types/issue.js";
+import { buildStateRank } from "./state-rank.js";
 
-// The workflow progression order of state groups. "Forward" moves an issue along
-// this lifecycle (backlog → … → completed), with cancelled last as a terminal
-// off-ramp. States within the same group keep the order the API returned them.
-const GROUP_ORDER: IssueStateGroup[] = [
-  "backlog",
-  "unstarted",
-  "started",
-  "completed",
-  "cancelled",
-];
-
-// orderStates returns the states sorted into workflow order: by group lifecycle,
-// then by their original index within a group (a stable sort preserves it). This
-// is the order the quick-transition bindings step through.
-export function orderStates(states: IssueState[]): IssueState[] {
+// orderStates returns the states sorted into workflow order: by the configured
+// `state_order` (listed slugs first, in declared order), then unlisted states by
+// group lifecycle, with ties broken by their original index (a stable sort
+// preserves it). This is the order the quick-transition bindings step through,
+// so `n`/`p` follow the same sequence the user declares for `sort: state`.
+export function orderStates(states: IssueState[], stateOrder?: string[]): IssueState[] {
+  const rank = buildStateRank(stateOrder);
   return states
     .map((state, index) => ({ state, index }))
     .sort((a, b) => {
-      const ga = GROUP_ORDER.indexOf(a.state.group);
-      const gb = GROUP_ORDER.indexOf(b.state.group);
-      if (ga !== gb) return ga - gb;
+      const ra = rank(a.state);
+      const rb = rank(b.state);
+      if (ra !== rb) return ra - rb;
       return a.index - b.index;
     })
     .map((entry) => entry.state);
@@ -34,8 +27,9 @@ export function neighbourState(
   states: IssueState[],
   currentId: string,
   direction: 1 | -1,
+  stateOrder?: string[],
 ): IssueState | undefined {
-  const ordered = orderStates(states);
+  const ordered = orderStates(states, stateOrder);
   const idx = ordered.findIndex((s) => s.id === currentId);
   if (idx < 0) return undefined;
   const target = idx + direction;

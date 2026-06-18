@@ -49,6 +49,8 @@ export class IssuesService {
    * `defaultsSort` is the profile-level `defaults.sort`; the effective sort is
    * resolved once as `view.sort ?? defaultsSort ?? DEFAULT_SORT` and applied
    * both as the per-project server hint and the authoritative client-side sort.
+   * `stateOrder` is the profile-level `defaults.state_order`, used by the
+   * client-side `state` sort to rank states by the configured slug order.
    */
   // `signal` is threaded down to each per-project fetch so the dashboard can
   // abort an in-flight refresh (e.g. when a new one starts before the previous
@@ -60,6 +62,7 @@ export class IssuesService {
     view?: ViewDefinition,
     queryLimit?: number,
     defaultsSort?: SortKey[],
+    stateOrder?: string[],
     signal?: AbortSignal,
   ): Promise<Issue[]> {
     // The CLI consumes this and must fail loudly: a `plc issue list` that
@@ -71,6 +74,7 @@ export class IssuesService {
       view,
       queryLimit,
       defaultsSort,
+      stateOrder,
       signal,
     );
     if (failedProjects.length > 0) {
@@ -95,6 +99,7 @@ export class IssuesService {
     view?: ViewDefinition,
     queryLimit?: number,
     defaultsSort?: SortKey[],
+    stateOrder?: string[],
     signal?: AbortSignal,
   ): Promise<ResilientListResult> {
     // Resolve the assignee filter once (e.g. "me" -> the current user's id)
@@ -132,7 +137,7 @@ export class IssuesService {
     const byGroup = refineByStateGroup(fetched, view?.filters?.state_group);
     const byState = refineByStateSearch(byGroup, view?.filters);
     const byAssignee = refineByAssignee(byState, assigneeIds);
-    const sorted = sortIssues(byAssignee, sort);
+    const sorted = sortIssues(byAssignee, sort, stateOrder);
     // Apply queryLimit as an aggregate cap too: it bounds the per-project fetch
     // above, but the merged set can still exceed it, so slice the final ordered
     // result to honor "max N" across all projects.

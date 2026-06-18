@@ -40,6 +40,10 @@ export interface ProfileConfig {
     auto_refresh_seconds?: number;
     sort?: SortKey[];
     layout?: ViewLayout;
+    // Global state ordering for `sort: state` and quick-transition navigation:
+    // an ordered list of state slugs (matched case-insensitively). Listed states
+    // sort first in this order; unlisted ones follow by workflow group.
+    state_order?: string[];
   };
   cache?: CacheConfig;
   // Optional theme: a built-in preset plus per-token color overrides. Resolved

@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import type { Issue } from "../types/issue.js";
-import type { ColumnAlign, ColumnId, ViewLayout } from "../types/views.js";
+import type { ColumnAlign, ColumnId, SortField, SortKey, ViewLayout } from "../types/views.js";
 import {
   priorityLabel,
   PRIORITY_COLUMN_WIDTH,
@@ -24,6 +24,9 @@ export interface IssueListProps {
   // Resolved per-column layout intent (view.layout ?? defaults.layout). Absent ⇒
   // the solver uses its built-in responsive constants.
   layout?: ViewLayout;
+  // Resolved sort for the view (resolveSort). Its first (primary) key drives the
+  // header arrow so the user can see which column the list is ordered by.
+  sort?: SortKey[];
   loading?: boolean;
 }
 
@@ -230,6 +233,23 @@ const PRIORITY_LETTER = {
   none: "·",
 } as const;
 
+// Maps a sort field to the column that header-renders it. project/created_at/
+// updated_at have no dedicated column, so sorting by one shows no header arrow.
+const SORT_FIELD_COLUMN: Partial<Record<SortField, ColumnId>> = {
+  priority: "priority",
+  state: "state",
+  assign: "assign",
+};
+
+// sortIndicator resolves the header arrow for a column from the primary sort key:
+// the up arrow for ascending, the down arrow for descending. Returns an empty
+// string unless the column is the one the primary key sorts by.
+export function sortIndicator(column: ColumnId, sort: SortKey[] | undefined): string {
+  const primary = sort?.[0];
+  if (!primary || SORT_FIELD_COLUMN[primary.field] !== column) return "";
+  return primary.direction === "asc" ? " ↑" : " ↓";
+}
+
 // computeViewport keeps `selected` inside the visible window [start, start+rows).
 // When the cursor leaves the window, the window scrolls just enough to bring it back.
 export function computeViewport(
@@ -296,11 +316,15 @@ export function IssueList(props: IssueListProps): React.ReactElement {
           <Text bold>{alignText("KEY", cols.keyWidth, cols.align.key)}</Text>
         </Box>
         <Box {...cell("priority", cols.priorityWidth)}>
-          <Text bold>{cols.compactPriority ? "PR" : "PRIORITY"}</Text>
+          {/* The compact "PR" cell (width 3) has no room for the arrow, so the
+              indicator is only shown on the full "PRIORITY" header. */}
+          <Text bold>
+            {cols.compactPriority ? "PR" : `PRIORITY${sortIndicator("priority", props.sort)}`}
+          </Text>
         </Box>
         {cols.showState ? (
           <Box {...cell("state", cols.stateWidth)}>
-            <Text bold>STATE</Text>
+            <Text bold>STATE{sortIndicator("state", props.sort)}</Text>
           </Box>
         ) : null}
         <Box {...cell("title", cols.title)}>
@@ -308,7 +332,7 @@ export function IssueList(props: IssueListProps): React.ReactElement {
         </Box>
         {cols.showAssign ? (
           <Box {...cell("assign", cols.assignWidth)}>
-            <Text bold>ASSIGN</Text>
+            <Text bold>ASSIGN{sortIndicator("assign", props.sort)}</Text>
           </Box>
         ) : null}
       </Box>

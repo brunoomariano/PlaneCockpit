@@ -230,6 +230,12 @@ export const profileSchema = z.strictObject({
       // Profile-wide default sort, inherited by any view that does not declare
       // its own `sort`. Same shape as a view's sort.
       sort: sortSpecSchema.optional(),
+      // Global state ordering for `sort: state` and the quick-transition
+      // navigation. An ordered list of state slugs (matched case-insensitively,
+      // whitespace-collapsed): listed states sort first in this order, unlisted
+      // ones after by workflow group. Project states are customizable, so this
+      // lets one list rank them across every project.
+      state_order: z.array(z.string().min(1)).optional(),
       // Profile-wide default column layout, inherited by views without a layout.
       layout: layoutSchema.optional(),
     })

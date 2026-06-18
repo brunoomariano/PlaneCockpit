@@ -188,3 +188,61 @@ describe("resilient multi-project aggregation (listResilient)", () => {
     expect(out.failedProjects).toEqual(["ENG", "OPS"]);
   });
 });
+
+// Regression for the state_order wiring: the profile's defaults.state_order must
+// reach the client-side `state` comparator through list / listResilient (the new
+// positional argument), not just the unit-level sortIssues. Two same-group states
+// can only be ordered "In Progress before In Review" via this path.
+describe("state_order reaches the client-side state sort", () => {
+  const review = (key: string, p: string): Issue =>
+    issue(key, p, { state: { id: "rev", name: "In Review", group: "started" } });
+  const doing = (key: string, p: string): Issue =>
+    issue(key, p, { state: { id: "doing", name: "In Progress", group: "started" } });
+  const sortByState = [{ field: "state" as const, direction: "asc" as const }];
+
+  it("orders by state_order through listResilient", async () => {
+    const svc = makeService({
+      ENG: [review("ENG-1", "ENG")],
+      OPS: [doing("OPS-1", "OPS")],
+    });
+    const out = await svc.listResilient(
+      ["ENG", "OPS"],
+      { name: "Cross", projects: ["ENG", "OPS"], sort: sortByState },
+      undefined,
+      undefined,
+      ["in progress", "in review"],
+    );
+    // "In Progress" before "In Review" — impossible with group rank alone (both
+    // are `started`), so this proves state_order threaded through.
+    expect(out.issues.map((i) => i.key)).toEqual(["OPS-1", "ENG-1"]);
+  });
+
+  it("orders by state_order through list (CLI path)", async () => {
+    const svc = makeService({
+      ENG: [review("ENG-1", "ENG"), doing("ENG-2", "ENG")],
+    });
+    const out = await svc.list(
+      ["ENG"],
+      { name: "Solo", projects: ["ENG"], sort: sortByState },
+      undefined,
+      undefined,
+      ["in progress", "in review"],
+    );
+    expect(out.map((i) => i.key)).toEqual(["ENG-2", "ENG-1"]);
+  });
+
+  it("falls back to workflow-group order when no state_order is given", async () => {
+    // Without state_order the two `started` states tie on rank, so the merged
+    // order stays the query order (ENG queried before OPS).
+    const svc = makeService({
+      ENG: [review("ENG-1", "ENG")],
+      OPS: [doing("OPS-1", "OPS")],
+    });
+    const out = await svc.listResilient("ENG OPS".split(" "), {
+      name: "Cross",
+      projects: ["ENG", "OPS"],
+      sort: sortByState,
+    });
+    expect(out.issues.map((i) => i.key)).toEqual(["ENG-1", "OPS-1"]);
+  });
+});

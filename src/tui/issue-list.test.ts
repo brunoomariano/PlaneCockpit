@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { computeViewport, issueColumns, assignLabel } from "./issue-list.js";
+import { computeViewport, issueColumns, assignLabel, sortIndicator } from "./issue-list.js";
 import type { Issue } from "../types/issue.js";
+import type { SortKey } from "../types/views.js";
 
 function issue(assignees: { id: string; display_name: string }[]): Issue {
   return {
@@ -72,6 +73,64 @@ describe("assignLabel", () => {
     expect(assignLabel(issue([{ id: "1", display_name: "a-very-long-name-here" }]), 8)).toBe(
       "a-very-…",
     );
+  });
+});
+
+describe("sortIndicator", () => {
+  const key = (field: SortKey["field"], direction: SortKey["direction"]): SortKey[] => [
+    { field, direction },
+  ];
+
+  // The arrow points up for ascending, down for descending, on the column the
+  // primary key sorts by.
+  it("shows an up arrow on the primary ascending column", () => {
+    expect(sortIndicator("state", key("state", "asc"))).toBe(" ↑");
+  });
+
+  it("shows a down arrow on the primary descending column", () => {
+    expect(sortIndicator("priority", key("priority", "desc"))).toBe(" ↓");
+  });
+
+  // Only the primary (first) key drives the header arrow; lower keys are silent.
+  it("ignores non-primary keys", () => {
+    const sort: SortKey[] = [
+      { field: "state", direction: "asc" },
+      { field: "assign", direction: "desc" },
+    ];
+    expect(sortIndicator("assign", sort)).toBe("");
+  });
+
+  it("is empty on columns the primary key does not sort by", () => {
+    expect(sortIndicator("assign", key("state", "asc"))).toBe("");
+  });
+
+  // project/created_at/updated_at have no dedicated column, so sorting by one
+  // shows no header arrow anywhere.
+  it("is empty for sort fields with no column", () => {
+    expect(sortIndicator("state", key("updated_at", "desc"))).toBe("");
+    expect(sortIndicator("priority", key("project", "asc"))).toBe("");
+  });
+
+  it("is empty when no sort is resolved", () => {
+    expect(sortIndicator("state", undefined)).toBe("");
+    expect(sortIndicator("state", [])).toBe("");
+  });
+
+  // assign is the third column with a sort field; pin both directions so the
+  // mapping for it is covered alongside priority/state.
+  it("annotates the assign column for an assign sort", () => {
+    expect(sortIndicator("assign", key("assign", "asc"))).toBe(" ↑");
+    expect(sortIndicator("assign", key("assign", "desc"))).toBe(" ↓");
+  });
+
+  // key and title have no sort field, so their headers must never show an arrow,
+  // whatever the primary key is. The single-letter "PR" header relies on this for
+  // priority via the renderer, but key/title can never be a sort target at all.
+  it("never annotates the key or title columns", () => {
+    for (const field of ["priority", "state", "assign", "project", "updated_at"] as const) {
+      expect(sortIndicator("key", key(field, "asc"))).toBe("");
+      expect(sortIndicator("title", key(field, "asc"))).toBe("");
+    }
   });
 });
 

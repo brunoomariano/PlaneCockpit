@@ -86,3 +86,28 @@ describe("multi-level sort schema", () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe("defaults.state_order schema", () => {
+  it("should accept a list of state slugs", () => {
+    const result = profileSchema.safeParse(
+      profile({ defaults: { state_order: ["backlog", "in progress", "in review"] } }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it("should reject an empty-string slug", () => {
+    const result = profileSchema.safeParse(profile({ defaults: { state_order: ["backlog", ""] } }));
+    expect(result.success).toBe(false);
+  });
+
+  // An empty list is valid: it means "no override", same as omitting the field.
+  it("should accept an empty list", () => {
+    const result = profileSchema.safeParse(profile({ defaults: { state_order: [] } }));
+    expect(result.success).toBe(true);
+  });
+
+  it("should reject a non-array state_order", () => {
+    const result = profileSchema.safeParse(profile({ defaults: { state_order: "backlog" } }));
+    expect(result.success).toBe(false);
+  });
+});

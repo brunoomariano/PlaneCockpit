@@ -182,7 +182,7 @@ describe("dashboard refresh + per-view counts (e2e)", () => {
     const signals: (AbortSignal | undefined)[] = [];
     const list = vi
       .fn()
-      .mockImplementation((_projects, _view, _limit, _sort, signal?: AbortSignal) => {
+      .mockImplementation((_projects, _view, _limit, _sort, _stateOrder, signal?: AbortSignal) => {
         signals.push(signal);
         // Keep the first fetch pending so the second can supersede it; later
         // calls resolve immediately.
