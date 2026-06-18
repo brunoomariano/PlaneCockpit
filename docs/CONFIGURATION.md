@@ -142,6 +142,7 @@ API key resolution order: `auth.api_key` (inline) → `hosts.yaml` entry.
 | `projects`             | list of strings        | no       | —       | the profile's project universe (project identifiers, e.g. `["ENG"]`)    |
 | `auto_refresh_seconds` | non-negative integer   | no       | `15`    | TUI auto-refresh interval, applied to every view; `0` disables it       |
 | `sort`                 | **Sort** (see below)   | no       | —       | profile-wide default sort, inherited by views that declare no `sort`    |
+| `state_order`          | list of strings        | no       | —       | global state ordering for `sort: state` (see [State order](#state-order)) |
 | `layout`               | **Layout** (see below) | no       | —       | profile-wide default column layout, inherited by views without `layout` |
 
 The TUI scans all of `defaults.projects` by default; the CLI
@@ -301,7 +302,8 @@ Direction semantics:
 
 - `priority desc` means urgent → none (the high-urgency end first); `asc`
   reverses it.
-- `state asc` follows the lifecycle order above, not the state's name.
+- `state asc` follows the workflow-group lifecycle above, not the state's name —
+  unless `defaults.state_order` overrides it (see [State order](#state-order)).
 - `assign` pins unassigned issues **last** regardless of direction (they are a
   "no value" bucket); assigned issues order by first-assignee display name.
 - `name` is **not** a sort field — alphabetical-by-title is rarely the relevant
@@ -317,6 +319,35 @@ the merged multi-project set.
 The legacy scalar form is still accepted: `sort: priority` is read as the
 single key `[{ priority: desc }]` (the field's natural direction), so configs
 that predate this list form keep working.
+
+#### State order
+
+By default `state asc` follows the **workflow group** (backlog → unstarted →
+started → completed → cancelled), not the state's name. Two states in the same
+group (e.g. "In Progress" and "In Review", both `started`) then sort only by the
+order the API returned them, which may not match your workflow.
+
+`defaults.state_order` overrides this with an explicit, profile-wide order. It is
+a list of **state slugs**; a state matches by name, compared case-insensitively
+with surrounding/duplicate whitespace ignored (so `in progress` matches a state
+named "In Progress" or "In  Progress"). Listed states sort first in the declared
+order; any state whose slug is **not** listed sorts after them, ordered by its
+workflow group (the groups are fixed, so unlisted states keep a sensible order).
+You only need to list the states you want to pin — everything else falls back.
+
+```yaml
+defaults:
+  state_order:
+    - backlog
+    - ready
+    - in progress
+    - in review
+    - stopped
+```
+
+`state_order` drives both the `sort: state` row ordering and the in-TUI
+quick-transition navigation (`n` / `p` step through states in this same order).
+With no `state_order` set, both keep the workflow-group order as before.
 
 #### Column layout
 
