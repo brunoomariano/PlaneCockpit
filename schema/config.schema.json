@@ -122,6 +122,13 @@
                   }
                 ]
               },
+              "state_order": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
               "layout": {
                 "type": "object",
                 "propertyNames": {
