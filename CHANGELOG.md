@@ -7,6 +7,38 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-18
+
+### Added
+
+- `defaults.state_order`: a profile-wide list of state slugs that orders issues
+  by your declared sequence instead of only the fixed workflow group, so
+  customizable per-project states sort the way you expect (e.g. "In Progress"
+  before "In Review", which share the `started` group). Slugs match
+  case-insensitively and ignore extra whitespace; listed states come first in
+  order, unlisted ones follow by workflow group. It drives both the `state` sort
+  and the quick-transition (`n` / `p`) navigation. (`e8a0c7d`)
+- A sort-direction arrow (`↑` / `↓`) on the active sort column's header in the
+  TUI list, so the column the rows are ordered by is visible at a glance.
+  (`e8a0c7d`)
+
+## [0.1.3] - 2026-06-10
+
+### Fixed
+
+- `plc --version` now reports the actual package version. It was hardcoded
+  separately, so `0.1.2` shipped still reporting `0.1.1`; the version is now
+  derived from `package.json` at build time. (`4e26994`)
+
+## [0.1.2] - 2026-06-10
+
+### Fixed
+
+- Accept issue keys whose project identifier contains or starts with digits
+  (e.g. `1XERO-56`). They were rejected before any API call — for instance when
+  changing an assignee in the TUI — because the key pattern required a leading
+  letter. (`ba66a55`)
+
 ## [0.1.1] - 2026-06-06
 
 ### Fixed
@@ -93,6 +125,9 @@ config option.
 - Project documentation: `ARCHITECTURE.md`, `SECURITY.md`, this `CHANGELOG.md`,
   issue / pull-request templates, Dependabot, `.editorconfig`, and `.nvmrc`.
 
-[unreleased]: https://github.com/brunoomariano/PlaneCockpit/compare/v0.1.1...HEAD
+[unreleased]: https://github.com/brunoomariano/PlaneCockpit/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/brunoomariano/PlaneCockpit/compare/v0.1.3...v0.2.0
+[0.1.3]: https://github.com/brunoomariano/PlaneCockpit/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/brunoomariano/PlaneCockpit/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/brunoomariano/PlaneCockpit/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/brunoomariano/PlaneCockpit/releases/tag/v0.1.0
