@@ -7,6 +7,11 @@ export const DEFAULT_CACHE_TTL_SECONDS = 300;
 // deliberately a fixed cap independent of cache.ttl — the matching 5-minute value
 // is a coincidence, not a derivation of DEFAULT_CACHE_TTL_SECONDS.
 export const STATES_LABELS_TTL_SECONDS = 300;
+// The activity log grows whenever the issue changes, so it is cached only
+// briefly: long enough that opening the detail and toggling the activity tab
+// (or reopening the same issue) reuses one fetch, short enough that a fresh
+// transition shows up on the next open without a manual clear.
+export const ACTIVITIES_TTL_SECONDS = 60;
 // Single canonical config location. Kept as a list so loadConfig's search loop
 // (and the --config override / test seam) stays uniform, but for now this is the
 // only place the config is read from.

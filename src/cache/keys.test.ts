@@ -15,6 +15,12 @@ describe("cache keys", () => {
     expect(cacheKeys.issuesPage("acme", "p1", "abc")).toBe("plane:acme:project:p1:issues:abc");
   });
 
+  it("builds per-issue activity-log keys", () => {
+    expect(cacheKeys.issueActivities("acme", "p1", "i9")).toBe(
+      "plane:acme:project:p1:issue:i9:activities",
+    );
+  });
+
   it("builds workspace-scoped user keys", () => {
     expect(cacheKeys.users("acme")).toBe("plane:acme:users");
   });
