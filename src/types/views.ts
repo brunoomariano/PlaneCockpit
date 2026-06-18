@@ -26,7 +26,7 @@ export interface ViewFilters {
 // stays available as the in-TUI text filter, a different feature).
 export type SortField = "project" | "priority" | "state" | "created_at" | "updated_at" | "assign";
 
-export type SortDirection = "asc" | "desc";
+type SortDirection = "asc" | "desc";
 
 // One key of a multi-level sort, after normalisation. A view's `sort` is an
 // ordered list of these: the first is the primary key, each following one breaks

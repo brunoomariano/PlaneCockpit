@@ -37,9 +37,7 @@ export const DEFAULT_SORT: SortKey[] = [
 //     (handled separately so direction never moves it).
 // The state comparator closes over a StateRank, so the set is built per-sort
 // rather than as a module constant.
-function ascComparators(
-  stateRank: StateRank,
-): Record<SortField, (a: Issue, b: Issue) => number> {
+function ascComparators(stateRank: StateRank): Record<SortField, (a: Issue, b: Issue) => number> {
   return {
     project: (a, b) => a.project_identifier.localeCompare(b.project_identifier),
     priority: (a, b) => PRIORITY_RANK[b.priority] - PRIORITY_RANK[a.priority],

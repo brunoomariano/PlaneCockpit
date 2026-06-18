@@ -137,13 +137,13 @@ API key resolution order: `auth.api_key` (inline) → `hosts.yaml` entry.
 
 ### `defaults` (optional)
 
-| Field                  | Type                   | Required | Default | Notes                                                                   |
-| ---------------------- | ---------------------- | -------- | ------- | ----------------------------------------------------------------------- |
-| `projects`             | list of strings        | no       | —       | the profile's project universe (project identifiers, e.g. `["ENG"]`)    |
-| `auto_refresh_seconds` | non-negative integer   | no       | `15`    | TUI auto-refresh interval, applied to every view; `0` disables it       |
-| `sort`                 | **Sort** (see below)   | no       | —       | profile-wide default sort, inherited by views that declare no `sort`    |
+| Field                  | Type                   | Required | Default | Notes                                                                     |
+| ---------------------- | ---------------------- | -------- | ------- | ------------------------------------------------------------------------- |
+| `projects`             | list of strings        | no       | —       | the profile's project universe (project identifiers, e.g. `["ENG"]`)      |
+| `auto_refresh_seconds` | non-negative integer   | no       | `15`    | TUI auto-refresh interval, applied to every view; `0` disables it         |
+| `sort`                 | **Sort** (see below)   | no       | —       | profile-wide default sort, inherited by views that declare no `sort`      |
 | `state_order`          | list of strings        | no       | —       | global state ordering for `sort: state` (see [State order](#state-order)) |
-| `layout`               | **Layout** (see below) | no       | —       | profile-wide default column layout, inherited by views without `layout` |
+| `layout`               | **Layout** (see below) | no       | —       | profile-wide default column layout, inherited by views without `layout`   |
 
 The TUI scans all of `defaults.projects` by default; the CLI
 (`plc issue list` without `--project`) uses the first one.
@@ -330,7 +330,7 @@ order the API returned them, which may not match your workflow.
 `defaults.state_order` overrides this with an explicit, profile-wide order. It is
 a list of **state slugs**; a state matches by name, compared case-insensitively
 with surrounding/duplicate whitespace ignored (so `in progress` matches a state
-named "In Progress" or "In  Progress"). Listed states sort first in the declared
+named `In Progress` or `In  Progress`). Listed states sort first in the declared
 order; any state whose slug is **not** listed sorts after them, ordered by its
 workflow group (the groups are fixed, so unlisted states keep a sensible order).
 You only need to list the states you want to pin — everything else falls back.
