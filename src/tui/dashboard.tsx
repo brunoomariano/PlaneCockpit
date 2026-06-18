@@ -9,7 +9,7 @@ import type { SortKey, ViewDefinition, ViewLayout } from "../types/views.js";
 import type { ProfileConfig } from "../types/config.js";
 import { resolveSort } from "../plane/sort-issues.js";
 import { IssueList, resolveLayout } from "./issue-list.js";
-import { IssueDetail, DETAIL_CHROME_ROWS } from "./issue-detail.js";
+import { IssueDetail, DETAIL_CHROME_ROWS, type DetailMode } from "./issue-detail.js";
 import { FilterBox } from "./filter-box.js";
 import { HelpModal } from "./help-modal.js";
 import { CommentEditor } from "./comment-editor.js";
@@ -30,6 +30,7 @@ import { useTerminalSize } from "./use-terminal-size.js";
 import { useIssueFilter } from "./use-issue-filter.js";
 import { useQuickTransition } from "./use-quick-transition.js";
 import { useDetailPanel } from "./use-detail-panel.js";
+import { useActivityLog } from "./use-activity-log.js";
 import { patchTouchesViewFilter } from "./view-filter-reconcile.js";
 import type { ActionId } from "../keybindings/registry.js";
 import type { InkKey } from "../keybindings/key-spec.js";
@@ -247,6 +248,8 @@ interface ActiveOverlayInput {
   editor: ReturnType<typeof useIssueEditor>;
   comments: ReturnType<typeof useCommentEditor>;
   detail: ReturnType<typeof useDetailPanel>;
+  activity: ReturnType<typeof useActivityLog>;
+  detailMode: DetailMode;
   helpOpen: boolean;
   isDetail: boolean;
   currentSummary: Issue | undefined;
@@ -287,6 +290,10 @@ function renderActiveOverlay(opts: ActiveOverlayInput): React.ReactElement | nul
       issue={current}
       loading={detail.loading}
       variant="modal"
+      mode={opts.detailMode}
+      timeInState={opts.activity.timeInState}
+      stateChanges={opts.activity.stateChanges}
+      activityLoading={opts.activity.loading}
       scrollTop={detail.scroll}
       viewportRows={opts.detailViewportRows}
       height={opts.detailModalHeight}
@@ -363,6 +370,10 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   // that are not tied to a single view's fetch lifecycle.
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
   const [panel, setPanel] = useState<Panel>("list");
+  // Which body the detail modal shows (description vs state-change log), toggled
+  // by `a`. Reset to "detail" whenever the panel closes so each issue opens on
+  // its description, never carrying the previous issue's activity view.
+  const [detailMode, setDetailMode] = useState<DetailMode>("detail");
   const [helpOpen, setHelpOpen] = useState(false);
 
   const activeView = views[viewIdx];
@@ -626,6 +637,20 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     setMessage: setStatusMessage,
   });
 
+  // The activity log loads alongside the detail panel in its own hook, so its
+  // fetch never blocks the description. It feeds the "time in state" meta line and
+  // the `a`-toggled activity body. Reset the mode to "detail" whenever the panel
+  // is closed so the next issue opens on its description.
+  const activity = useActivityLog({
+    open: panel === "detail",
+    target: currentSummary,
+    ctx,
+    logger,
+  });
+  useEffect(() => {
+    if (panel !== "detail") setDetailMode("detail");
+  }, [panel]);
+
   const viewportRows = listViewportRows({
     terminalRows,
     filtering,
@@ -717,6 +742,12 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
       "detail.open-browser": openSelectedInBrowser,
       "detail.comment": comments.open,
       "detail.edit": editor.open,
+      // Toggle the description/activity body and reset the scroll so the new body
+      // starts at the top instead of inheriting the previous scroll offset.
+      "detail.activity": () => {
+        setDetailMode((mode) => (mode === "activity" ? "detail" : "activity"));
+        detail.scrollTop();
+      },
       "global.help": () => setHelpOpen((open) => !open),
       "global.refresh": () => void load(true),
       "global.refresh-all": () => viewsData.refreshAll(),
@@ -771,6 +802,8 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     editor,
     comments,
     detail,
+    activity,
+    detailMode,
     helpOpen,
     isDetail,
     currentSummary,
