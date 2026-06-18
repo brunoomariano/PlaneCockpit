@@ -1,6 +1,6 @@
 # Contributing
 
-This document consolidates the contribution guidelines for commits, git tags, and pull requests in this repository.
+This document consolidates the contribution guidelines for commits, the changelog, git tags, and pull requests in this repository.
 
 ## Commit Guidelines
 
@@ -55,6 +55,30 @@ BREAKING CHANGE: clients must send the token in the Authorization header.
 
 - For code changes, prefer running `make ci`.
 - If any check cannot be executed, state the reason when delivering the change.
+
+## Changelog Guidelines
+
+The repository keeps a `CHANGELOG.md` at the root in the
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format, versioned with
+the same SemVer rules as the git tags.
+
+- A change that is visible to a user or operator (a new command, flag, key,
+  config key, behavior, or a fix they would notice) adds an entry under the
+  `[Unreleased]` section in the same commit that delivers it. Internal-only
+  changes (refactors, tests, tooling) do not need an entry.
+- Group entries under the Keep a Changelog headings: `Added`, `Changed`,
+  `Fixed`, `Deprecated`, `Removed`, `Security`.
+- Write entries in behavior language — what the user can now do or what no longer
+  breaks — not in terms of files or functions. Keep the same English-only and
+  no-process rules as commits (no prompts, LLM references, or session notes).
+- Classify by impact the same way as tags: a new backward-compatible capability
+  is a `MINOR` line, a fix is a `PATCH` line, a contract break is `MAJOR` and
+  must be called out explicitly.
+- At release time, the `chore(release)` commit renames `[Unreleased]` to the new
+  `[X.Y.Z] - YYYY-MM-DD` section and re-adds an empty `[Unreleased]` above it.
+  The released section is the source material for the annotated tag body (see
+  `make tag_it` below); keep the two consistent rather than writing the tag from
+  scratch.
 
 ## Git Tag Guidelines
 

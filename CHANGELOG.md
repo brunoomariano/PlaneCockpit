@@ -7,6 +7,16 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- The issue detail modal now shows how long the issue has sat in its current
+  state (`state: Backlog · for 3d 4h`), reconstructed from the activity log
+  since Plane exposes no time-in-state field. The log is fetched in the
+  background — it never blocks or delays the description — and cached briefly
+  per issue.
+- A new `a` key in the detail modal toggles a state-change activity log,
+  listing each transition newest-first (`Backlog → In Progress · 2d ago`).
+
 ## [0.2.0] - 2026-06-18
 
 ### Added
