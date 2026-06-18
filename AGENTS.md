@@ -114,7 +114,8 @@ Respect the boundaries of existing modules. When a boundary does not yet exist, 
 - Several targets take arguments instead of having a dedicated target each:
   - `make fmt CHECK=1` verifies formatting without writing.
   - `make test MODE=watch` (watch mode) and `make test MODE=cov` (coverage, min 95%).
-  - `make check` runs lint + typecheck + test; `make check KIND=lint|typecheck|audit|deadcode|quality` runs a single gate.
+  - `make check` runs lint + typecheck + test (the fast inner-loop gate while iterating); `make check KIND=lint|typecheck|audit|deadcode|quality|schema|secrets` runs a single gate.
+  - `make ci` runs the full pipeline: format, lint, typecheck, build, test (coverage), deadcode, audit, schema, secrets. It is a strict superset of `make check`; the extra gates (formatting, generated-schema drift, dead code, dependency audit, leaked secrets) are only caught here, not by `make check`.
   - `make clean DIST=1` also removes `node_modules`.
   - `make dev ARGS="..."` and `make run ARGS="..."` forward arguments to the cli.
 - If an applicable check does not exist yet, state that in the delivery instead of inventing a command.
@@ -136,6 +137,7 @@ Respect the boundaries of existing modules. When a boundary does not yet exist, 
 ## Delivery checklist
 
 - Verify that the change respects the documented domain, configuration shape, and command surface in `docs/`.
-- Run the tests and checks available for the changed scope.
+- While iterating, `make check` (lint + typecheck + test) is the fast feedback loop.
+- Before declaring a delivery ready — closing a feature, committing for release, or opening a PR — run `make ci`, not just `make check`. Some gates (formatting, generated-schema drift, dead code, dependency audit, leaked secrets) are only enforced by `make ci`, so a change that passes `make check` can still fail CI. Run the full `make ci` and confirm it is green before calling the work done.
 - Update documentation when changing a business rule, contract, payload, configuration key, state, or architectural decision.
 - Do not run `git push` or edit the remote without an explicit request.
