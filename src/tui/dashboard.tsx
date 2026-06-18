@@ -9,7 +9,7 @@ import type { SortKey, ViewDefinition, ViewLayout } from "../types/views.js";
 import type { ProfileConfig } from "../types/config.js";
 import { resolveSort } from "../plane/sort-issues.js";
 import { IssueList, resolveLayout } from "./issue-list.js";
-import { IssueDetail, DETAIL_CHROME_ROWS } from "./issue-detail.js";
+import { IssueDetail, DETAIL_CHROME_ROWS, type DetailMode } from "./issue-detail.js";
 import { FilterBox } from "./filter-box.js";
 import { HelpModal } from "./help-modal.js";
 import { CommentEditor } from "./comment-editor.js";
@@ -30,6 +30,9 @@ import { useTerminalSize } from "./use-terminal-size.js";
 import { useIssueFilter } from "./use-issue-filter.js";
 import { useQuickTransition } from "./use-quick-transition.js";
 import { useDetailPanel } from "./use-detail-panel.js";
+import { useActivityLog } from "./use-activity-log.js";
+import { useRelations } from "./use-relations.js";
+import { useDetailStack, targetFromIssue } from "./use-detail-stack.js";
 import { patchTouchesViewFilter } from "./view-filter-reconcile.js";
 import type { ActionId } from "../keybindings/registry.js";
 import type { InkKey } from "../keybindings/key-spec.js";
@@ -38,8 +41,6 @@ export interface DashboardProps {
   ctx: AppContext;
   logger: FileLogger;
 }
-
-type Panel = "list" | "detail";
 
 // Below this width the fixed side panel (SIDE_PANEL_WIDTH) leaves too little room
 // for a readable issue table beside it, so the layout stacks the views panel on
@@ -247,6 +248,10 @@ interface ActiveOverlayInput {
   editor: ReturnType<typeof useIssueEditor>;
   comments: ReturnType<typeof useCommentEditor>;
   detail: ReturnType<typeof useDetailPanel>;
+  activity: ReturnType<typeof useActivityLog>;
+  relations: ReturnType<typeof useRelations>;
+  relationsSelected: number;
+  detailMode: DetailMode;
   helpOpen: boolean;
   isDetail: boolean;
   currentSummary: Issue | undefined;
@@ -287,6 +292,13 @@ function renderActiveOverlay(opts: ActiveOverlayInput): React.ReactElement | nul
       issue={current}
       loading={detail.loading}
       variant="modal"
+      mode={opts.detailMode}
+      timeInState={opts.activity.timeInState}
+      stateChanges={opts.activity.stateChanges}
+      activityLoading={opts.activity.loading}
+      relations={opts.relations.relations}
+      relationsSelected={opts.relationsSelected}
+      relationsLoading={opts.relations.loading}
       scrollTop={detail.scroll}
       viewportRows={opts.detailViewportRows}
       height={opts.detailModalHeight}
@@ -362,7 +374,17 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   // fetch errors live per-view inside useViewsData; this is only for actions
   // that are not tied to a single view's fetch lifecycle.
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
-  const [panel, setPanel] = useState<Panel>("list");
+  // The detail panel is driven by a navigation stack: opening from the list seeds
+  // it, following a relation pushes onto it, and esc pops (closing on the last
+  // entry). `stack.current` being defined is what "the detail is open" means.
+  const stack = useDetailStack();
+  const detailOpen = stack.current !== undefined;
+  // Which body the detail modal shows (description / activity / relations),
+  // toggled by `a` / `l`. Reset to "detail" whenever the panel closes so each
+  // issue opens on its description, never carrying the previous body.
+  const [detailMode, setDetailMode] = useState<DetailMode>("detail");
+  // Focused relation row index in the relations body; reset on close / mode flip.
+  const [relationsSelected, setRelationsSelected] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
 
   const activeView = views[viewIdx];
@@ -604,7 +626,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     creator.active,
     transition.active,
     helpOpen,
-    panel === "detail",
+    detailOpen,
     filtering,
   ].some(Boolean);
   const intervalMs = autoRefreshIntervalMs(ctx.runtime.profile.defaults?.auto_refresh_seconds);
@@ -617,14 +639,41 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   }, [intervalMs, overlayActive, activeView, load]);
 
   // The detail panel's data (full issue with description, fetched on open) and
-  // scroll position live in their own hook; the key dispatch stays below.
+  // scroll position live in their own hook; the active target is the top of the
+  // navigation stack (the list issue, or a relation pushed onto it).
   const detail = useDetailPanel({
-    open: panel === "detail",
-    target: currentSummary,
+    open: detailOpen,
+    target: stack.current,
     ctx,
     logger,
     setMessage: setStatusMessage,
   });
+
+  // The activity log and relations load alongside the detail panel in their own
+  // hooks, so their fetches never block the description. Activity feeds the "time
+  // in state" line and the `a` body; relations feed the `l` body. createdAt comes
+  // from the retrieved issue (the stack target carries only identity).
+  const activity = useActivityLog({
+    open: detailOpen,
+    target: stack.current,
+    createdAt: detail.detailed?.created_at,
+    ctx,
+    logger,
+  });
+  const relations = useRelations({
+    open: detailOpen,
+    target: stack.current,
+    activities: activity.activities,
+    ctx,
+    logger,
+  });
+  // Reset the body mode and relation cursor whenever the panel closes (so the next
+  // open starts on the description) or the active target changes (so navigating a
+  // relation lands on the new issue's description, not the previous body/cursor).
+  useEffect(() => {
+    setDetailMode("detail");
+    setRelationsSelected(0);
+  }, [stack.current]);
 
   const viewportRows = listViewportRows({
     terminalRows,
@@ -675,7 +724,9 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     "list.page-up": () => setSelected((s) => Math.max(0, s - viewportRows)),
     "list.top": () => setSelected(0),
     "list.bottom": () => setSelected(Math.max(0, filtered.length - 1)),
-    "list.open-detail": () => setPanel("detail"),
+    "list.open-detail": () => {
+      if (currentSummary) stack.open(targetFromIssue(currentSummary));
+    },
     "list.open-browser": openSelectedInBrowser,
     "list.comment": comments.open,
     "list.edit": editor.open,
@@ -703,13 +754,48 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     if (!consumed && (input === "q" || key.escape)) setHelpOpen(false);
   };
 
+  // openFocusedRelation navigates into the relation under the cursor. It prefers
+  // the already-resolved target issue (carrying its project id); if the lazy
+  // retrieve has not landed yet it resolves by key on demand. Either way it pushes
+  // onto the stack so the detail reloads on the related issue with esc as back.
+  const openFocusedRelation = useCallback((): void => {
+    const relation = relations.relations[relationsSelected];
+    if (!relation) return;
+    if (relation.target) {
+      stack.push(targetFromIssue(relation.target));
+      return;
+    }
+    if (!relation.targetKey) return;
+    void ctx.issues
+      .view(relation.targetKey)
+      .then((issue) => stack.push(targetFromIssue(issue)))
+      .catch((err: Error) => {
+        logger.error("open relation failed", { key: relation.targetKey, err });
+        setStatusMessage(`open ${relation.targetKey}: ${err.message}`);
+      });
+  }, [relations.relations, relationsSelected, stack, ctx, logger]);
+
+  // In the relations body, j/k move the relation cursor and enter opens it; in the
+  // text bodies the same keys scroll. The handler map is built per active body so
+  // the shared detail keys (esc, a, l, o, c, e) work in both.
   const handleDetailKey = (input: string, key: InkKey): void => {
+    const relationsMode = detailMode === "relations";
+    const relationCount = relations.relations.length;
     const detailHandlers: Partial<Record<ActionId, () => void>> = {
-      "detail.close": () => setPanel("list"),
-      "detail.scroll-down": () => detail.scrollBy(1),
-      "detail.scroll-down-alt": () => detail.scrollBy(1),
-      "detail.scroll-up": () => detail.scrollBy(-1),
-      "detail.scroll-up-alt": () => detail.scrollBy(-1),
+      // esc pops the navigation stack: back to the issue we came from, or close.
+      "detail.close": () => stack.pop(),
+      "detail.scroll-down": relationsMode
+        ? () => setRelationsSelected((s) => Math.min(relationCount - 1, s + 1))
+        : () => detail.scrollBy(1),
+      "detail.scroll-down-alt": relationsMode
+        ? () => setRelationsSelected((s) => Math.min(relationCount - 1, s + 1))
+        : () => detail.scrollBy(1),
+      "detail.scroll-up": relationsMode
+        ? () => setRelationsSelected((s) => Math.max(0, s - 1))
+        : () => detail.scrollBy(-1),
+      "detail.scroll-up-alt": relationsMode
+        ? () => setRelationsSelected((s) => Math.max(0, s - 1))
+        : () => detail.scrollBy(-1),
       "detail.page-down": () => detail.scrollBy(detailViewportRows),
       "detail.page-up": () => detail.scrollBy(-detailViewportRows),
       "detail.top": detail.scrollTop,
@@ -717,10 +803,23 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
       "detail.open-browser": openSelectedInBrowser,
       "detail.comment": comments.open,
       "detail.edit": editor.open,
+      // Toggle the activity / relations bodies; toggling back returns to the
+      // description. Reset the scroll so the new body starts at the top.
+      "detail.activity": () => {
+        setDetailMode((mode) => (mode === "activity" ? "detail" : "activity"));
+        detail.scrollTop();
+      },
+      "detail.relations": () => {
+        setDetailMode((mode) => (mode === "relations" ? "detail" : "relations"));
+        setRelationsSelected(0);
+        detail.scrollTop();
+      },
+      // enter only acts in the relations body, opening the focused relation.
+      "detail.relation-open": relationsMode ? openFocusedRelation : (): void => {},
       "global.help": () => setHelpOpen((open) => !open),
       "global.refresh": () => void load(true),
       "global.refresh-all": () => viewsData.refreshAll(),
-      "global.quit": () => setPanel("list"),
+      "global.quit": () => stack.close(),
     };
     dispatch(ctx.keybindings, ["detail", "global"], detailHandlers, input, key);
   };
@@ -735,7 +834,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     [editor.active, editor.handleKey],
     [comments.active, comments.handleKey],
     [helpOpen, handleHelpKey],
-    [panel === "detail", handleDetailKey],
+    [detailOpen, handleDetailKey],
     [filtering, handleFilterKey],
   ];
   useInput((input, key) => {
@@ -744,7 +843,11 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     dispatch(ctx.keybindings, ["global", "list", "view", "filter"], handlers, input, key);
   });
 
-  const current = detail.detailed ?? currentSummary;
+  // The detail shows the retrieved full issue. At the root of the stack the list
+  // summary is the same issue, so it serves as instant content before the
+  // retrieve lands; after navigating into a relation the summary is a different
+  // issue, so fall back to nothing (the loading placeholder) instead.
+  const current = detail.detailed ?? (stack.canGoBack ? undefined : currentSummary);
 
   // Shared status-bar props. profile/workspace/view are identical across panels;
   // loading and position vary slightly per panel and are passed at each call.
@@ -764,13 +867,17 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
     filtering: Boolean(filter),
   });
 
-  const isDetail = panel === "detail";
+  const isDetail = detailOpen;
   const overlay = renderActiveOverlay({
     transition,
     creator,
     editor,
     comments,
     detail,
+    activity,
+    relations,
+    relationsSelected,
+    detailMode,
     helpOpen,
     isDetail,
     currentSummary,

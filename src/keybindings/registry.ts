@@ -130,6 +130,24 @@ export const ACTIONS = [
   { id: "detail.comment", context: "detail", description: "comment on issue", defaultKey: "c" },
   { id: "detail.edit", context: "detail", description: "edit issue fields", defaultKey: "e" },
   {
+    id: "detail.activity",
+    context: "detail",
+    description: "toggle the state-change activity log",
+    defaultKey: "a",
+  },
+  {
+    id: "detail.relations",
+    context: "detail",
+    description: "toggle the relations section",
+    defaultKey: "l",
+  },
+  {
+    id: "detail.relation-open",
+    context: "detail",
+    description: "open the focused relation",
+    defaultKey: "enter",
+  },
+  {
     id: "detail.close",
     context: "detail",
     description: "close detail modal",

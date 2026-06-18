@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import type { Issue } from "../types/issue.js";
+import type { DetailTarget } from "./use-detail-stack.js";
 import type { AppContext } from "../app.js";
 import type { FileLogger } from "../utils/file-logger.js";
 
 export interface UseDetailPanelOptions {
   // True while the detail panel is the active mode; gates the retrieve.
   open: boolean;
-  // The selected list row whose full issue the panel shows, or undefined.
-  target: Issue | undefined;
+  // The active target (top of the navigation stack) whose full issue the panel
+  // shows, or undefined. Only its identity is needed; the full issue is fetched.
+  target: DetailTarget | undefined;
   ctx: AppContext;
   logger: FileLogger;
   // setMessage surfaces a retrieve error in the status bar.
