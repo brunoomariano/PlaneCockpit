@@ -17,4 +17,7 @@ export const cacheKeys = {
   // The activity log is per work item, so it is cached per project + issue id.
   issueActivities: (slug: string, projectId: string, issueId: string) =>
     workspaceKey(slug, "project", projectId, "issue", issueId, "activities"),
+  // Relations are per work item too, cached per project + issue id.
+  issueRelations: (slug: string, projectId: string, issueId: string) =>
+    workspaceKey(slug, "project", projectId, "issue", issueId, "relations"),
 };

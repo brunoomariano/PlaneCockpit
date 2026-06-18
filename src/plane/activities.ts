@@ -20,6 +20,8 @@ interface RawActivity {
   field?: string | null;
   old_value?: string | null;
   new_value?: string | null;
+  old_identifier?: string | null;
+  new_identifier?: string | null;
   created_at: string;
   actor?: string | null;
 }
@@ -31,6 +33,8 @@ function toActivity(raw: RawActivity): IssueActivity {
     field: raw.field ?? undefined,
     oldValue: raw.old_value ?? undefined,
     newValue: raw.new_value ?? undefined,
+    oldIdentifier: raw.old_identifier ?? undefined,
+    newIdentifier: raw.new_identifier ?? undefined,
     createdAt: raw.created_at,
     actor: raw.actor ?? undefined,
   };

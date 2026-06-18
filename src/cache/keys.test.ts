@@ -21,6 +21,12 @@ describe("cache keys", () => {
     );
   });
 
+  it("builds per-issue relations keys", () => {
+    expect(cacheKeys.issueRelations("acme", "p1", "i9")).toBe(
+      "plane:acme:project:p1:issue:i9:relations",
+    );
+  });
+
   it("builds workspace-scoped user keys", () => {
     expect(cacheKeys.users("acme")).toBe("plane:acme:users");
   });

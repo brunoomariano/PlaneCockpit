@@ -14,9 +14,15 @@ export interface IssueActivity {
   verb: string;
   // field is the attribute that changed, or undefined for the creation event.
   field?: string;
-  // The value before/after the change, as Plane stored it (names for states).
+  // The value before/after the change, as Plane stored it (names for states,
+  // human-readable issue keys for relations).
   oldValue?: string;
   newValue?: string;
+  // UUIDs of the entities on each side of the change. For a relation event these
+  // hold the related work item's id: an "added" relation puts the target in
+  // oldIdentifier (newIdentifier null), so the relations join keys on these.
+  oldIdentifier?: string;
+  newIdentifier?: string;
   // ISO-8601 timestamp of the change; the clock for "time in state".
   createdAt: string;
   // actor is the id of the member who made the change, when Plane reports one.
