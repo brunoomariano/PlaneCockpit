@@ -72,7 +72,7 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^24.12.4",
+    "@types/node": "^25.9.3",
     "@types/react": "^19.2.15",
     "@types/turndown": "^5.0.6",
     "@vitest/coverage-v8": "^4.1.7",
