@@ -1,5 +1,5 @@
 // KeySpec is the parsed form of a user-facing string like "j", "ctrl+d", "pageDown".
-// It is matched against Ink's (input, key) callback shape inside the dashboard.
+// It is matched against the dashboard's normalized (input, key) callback shape.
 
 import { ConfigError } from "../utils/errors.js";
 
@@ -74,17 +74,19 @@ export function parseKeySpec(raw: string): KeySpec {
     key = NORMALIZE[key] ?? key;
   } else if (key.length === 1) {
     const rawKey = value.split("+").pop() ?? "";
-    key = rawKey;
+    key = rawKey.toLowerCase();
     if (rawKey.length === 1 && rawKey >= "A" && rawKey <= "Z") shift = true;
   } else {
     throw new ConfigError(`unknown key in spec: ${raw}`);
   }
-  return { key, ctrl, shift, meta, raw };
+  const normalizedRaw = shift && key.length === 1 ? `shift+${key}` : raw;
+  return { key, ctrl, shift, meta, raw: normalizedRaw };
 }
 
-// Ink delivers either a printable character in `input` (with key.shift set) or a flag
-// on the `key` object for special keys. matchesKey reconciles both shapes against a KeySpec.
-export interface InkKey {
+// OpenTUI delivers either a printable character in `input` (with key.shift set)
+// or a flag on the `key` object for special keys. matchesKey reconciles both
+// shapes against a KeySpec.
+export interface TuiKey {
   ctrl?: boolean;
   shift?: boolean;
   meta?: boolean;
@@ -101,7 +103,7 @@ export interface InkKey {
   pageDown?: boolean;
 }
 
-const SPECIAL_KEY_TO_INK: Record<string, keyof InkKey> = {
+const SPECIAL_KEY_TO_TUI: Record<string, keyof TuiKey> = {
   enter: "return",
   escape: "escape",
   tab: "tab",
@@ -115,13 +117,14 @@ const SPECIAL_KEY_TO_INK: Record<string, keyof InkKey> = {
   pagedown: "pageDown",
 };
 
-export function matchesKey(spec: KeySpec, input: string, key: InkKey): boolean {
+export function matchesKey(spec: KeySpec, input: string, key: TuiKey): boolean {
   if (Boolean(key.ctrl) !== spec.ctrl) return false;
+  if (Boolean(key.shift) !== spec.shift) return false;
   if (Boolean(key.meta) !== spec.meta) return false;
-  const specialField = SPECIAL_KEY_TO_INK[spec.key.toLowerCase()];
+  const specialField = SPECIAL_KEY_TO_TUI[spec.key.toLowerCase()];
   if (specialField) {
     return Boolean(key[specialField]);
   }
   if (spec.key === "space") return input === " ";
-  return input === spec.key;
+  return input.toLowerCase() === spec.key;
 }

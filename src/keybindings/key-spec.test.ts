@@ -10,7 +10,7 @@ describe("parseKeySpec", () => {
 
   it("treats uppercase letters as shift+letter", () => {
     const spec = parseKeySpec("G");
-    expect(spec).toMatchObject({ key: "G", shift: true });
+    expect(spec).toMatchObject({ key: "g", shift: true, raw: "shift+g" });
   });
 
   it("parses special keys case-insensitively", () => {
@@ -37,6 +37,7 @@ describe("parseKeySpec", () => {
   it("treats explicit shift+letter the same way as uppercase shorthand", () => {
     expect(parseKeySpec("G").shift).toBe(true);
     expect(parseKeySpec("shift+g").shift).toBe(true);
+    expect(parseKeySpec("shift+g").raw).toBe("shift+g");
   });
 
   it("rejects unknown modifiers", () => {
@@ -68,6 +69,13 @@ describe("matchesKey", () => {
     expect(matchesKey(parseKeySpec("ctrl+d"), "d", { ctrl: true })).toBe(true);
     expect(matchesKey(parseKeySpec("ctrl+d"), "d", { ctrl: false })).toBe(false);
     expect(matchesKey(parseKeySpec("d"), "d", { ctrl: true })).toBe(false);
+  });
+
+  it("differentiates shifted and unshifted printable keys", () => {
+    expect(matchesKey(parseKeySpec("g"), "g", { shift: false })).toBe(true);
+    expect(matchesKey(parseKeySpec("G"), "G", { shift: true })).toBe(true);
+    expect(matchesKey(parseKeySpec("G"), "g", { shift: false })).toBe(false);
+    expect(matchesKey(parseKeySpec("g"), "G", { shift: true })).toBe(false);
   });
 
   it("matches space", () => {
