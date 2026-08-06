@@ -28,8 +28,15 @@ describe("htmlToMarkdown", () => {
     expect(block).toContain("console.log(1)");
   });
 
-  it("converts strikethrough", () => {
-    expect(htmlToMarkdown("<s>gone</s>")).toBe("~~gone~~");
+  // All three strikethrough tags must convert. `<strike>` is deprecated and
+  // missing from TypeScript's HTMLElementTagNameMap, so it is easy to drop while
+  // satisfying the compiler — legacy Plane content still contains it.
+  it.each([
+    ["<del>gone</del>", "~~gone~~"],
+    ["<s>gone</s>", "~~gone~~"],
+    ["<strike>gone</strike>", "~~gone~~"],
+  ])("converts strikethrough %s", (html, expected) => {
+    expect(htmlToMarkdown(html)).toBe(expected);
   });
 
   it("converts links", () => {

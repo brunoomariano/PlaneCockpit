@@ -15,8 +15,12 @@ function getService(): TurndownService {
     emDelimiter: "_",
   });
   // Plane renders strikethrough as `<s>`; turndown handles it as a custom rule.
+  // The filter is a predicate rather than a tag list because the deprecated
+  // `<strike>` is absent from TypeScript's HTMLElementTagNameMap, and legacy
+  // Plane content still contains it.
+  const STRIKETHROUGH_TAGS = new Set(["DEL", "S", "STRIKE"]);
   service.addRule("strikethrough", {
-    filter: ["del", "s", "strike"],
+    filter: (node) => STRIKETHROUGH_TAGS.has(node.nodeName),
     replacement: (content) => `~~${content}~~`,
   });
   cached = service;
