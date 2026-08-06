@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { computeViewport, issueColumns, assignLabel, sortIndicator } from "./issue-list.js";
+import {
+  computeViewport,
+  issueColumns,
+  assignLabel,
+  sortIndicator,
+  selectedForeground,
+} from "./issue-list.js";
 import type { Issue } from "../types/issue.js";
 import type { SortKey } from "../types/views.js";
 
@@ -131,6 +137,18 @@ describe("sortIndicator", () => {
       expect(sortIndicator("key", key(field, "asc"))).toBe("");
       expect(sortIndicator("title", key(field, "asc"))).toBe("");
     }
+  });
+});
+
+describe("selectedForeground", () => {
+  it("uses dark text on light selection colors", () => {
+    expect(selectedForeground("cyan")).toBe("black");
+    expect(selectedForeground("#89b4fa")).toBe("black");
+  });
+
+  it("uses light text on dark selection colors", () => {
+    expect(selectedForeground("blue")).toBe("white");
+    expect(selectedForeground("#1f2335")).toBe("white");
   });
 });
 

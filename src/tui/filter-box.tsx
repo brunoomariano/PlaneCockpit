@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Text } from "ink";
+import { Box, Text } from "./opentui-primitives.js";
 import { useTheme } from "./theme/context.js";
 
 export interface FilterBoxProps {
@@ -7,7 +7,7 @@ export interface FilterBoxProps {
   value: string;
 }
 
-export function FilterBox(props: FilterBoxProps): React.ReactElement | null {
+export function FilterBox(props: FilterBoxProps): React.ReactNode {
   const theme = useTheme();
   if (!props.active) return null;
   return (

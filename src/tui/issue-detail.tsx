@@ -1,14 +1,13 @@
 import React, { useMemo } from "react";
-import { Box, Text } from "ink";
+import { Box, Text } from "./opentui-primitives.js";
 import type { Issue } from "../types/issue.js";
 import type { IssueActivity } from "../types/activity.js";
 import type { IssueRelation } from "../types/relation.js";
 import { RELATION_LABELS } from "../types/relation.js";
-import { markdownToAnsi } from "../utils/markdown-to-ansi.js";
-import { splitAnsiIntoLines } from "../utils/ansi-lines.js";
 import { humanizeDuration } from "../utils/format-duration.js";
 import { formatRelationRow } from "./format-relation.js";
 import { useTheme } from "./theme/context.js";
+import { markdownSyntaxStyle } from "./opentui-style.js";
 
 // DetailMode selects what the body shows: the issue description ("detail"), its
 // state-change history ("activity", `a`), or its relations ("relations", `l`).
@@ -67,6 +66,43 @@ const HORIZONTAL_CHROME = 4;
 // + 2 for the up/down hints = ~15. We round up a little to leave breathing room.
 export const DETAIL_CHROME_ROWS = 16;
 
+function wrapMarkdownLine(line: string, width: number): string[] {
+  if (width <= 0 || line.length <= width) return [line];
+  const out: string[] = [];
+  let current = "";
+  for (const word of line.trim().split(/\s+/)) {
+    current = appendWrappedWord(out, current, word, width);
+  }
+  if (current.length > 0) out.push(current);
+  return out.length > 0 ? out : [line];
+}
+
+function splitLongWord(word: string, width: number): string[] {
+  const chunks: string[] = [];
+  for (let i = 0; i < word.length; i += width) chunks.push(word.slice(i, i + width));
+  return chunks;
+}
+
+function appendWrappedWord(out: string[], current: string, word: string, width: number): string {
+  const candidate = current.length === 0 ? word : `${current} ${word}`;
+  if (candidate.length <= width) return candidate;
+  if (current.length > 0) out.push(current);
+  if (word.length <= width) return word;
+  const chunks = splitLongWord(word, width);
+  out.push(...chunks.slice(0, -1));
+  return chunks.at(-1) ?? "";
+}
+
+export function wrapMarkdownLines(markdown: string, width: number): string[] {
+  if (markdown.length === 0) return [];
+  const rows: string[] = [];
+  for (const raw of markdown.split("\n")) {
+    if (raw.length === 0) rows.push("");
+    else rows.push(...wrapMarkdownLine(raw, width));
+  }
+  return rows;
+}
+
 // The fixed metadata block (state, priority, assignees, labels, updated). When
 // the activity log has resolved, the state line also reports how long the issue
 // has sat in its current state; until then the suffix is simply absent.
@@ -76,7 +112,7 @@ function IssueMeta({
 }: {
   issue: Issue;
   timeInState?: string;
-}): React.ReactElement {
+}): React.ReactNode {
   const theme = useTheme();
   return (
     <Box marginTop={1} flexDirection="column" flexShrink={0}>
@@ -110,7 +146,7 @@ interface ScrollableBodyProps {
 // The scrollable body region (description or activity) with the "N more" hints
 // above/below. The loading/empty placeholders are passed in so the same scroll
 // machinery serves both the description and the state-change list.
-function ScrollableBody(props: ScrollableBodyProps): React.ReactElement {
+function ScrollableBody(props: ScrollableBodyProps): React.ReactNode {
   let content: React.ReactNode;
   if (props.loading && props.visible.length === 0) {
     content = <Text dimColor>{props.loadingLabel}</Text>;
@@ -120,19 +156,18 @@ function ScrollableBody(props: ScrollableBodyProps): React.ReactElement {
     content = (
       <>
         {props.hiddenAbove > 0 ? <Text dimColor>↑ {props.hiddenAbove} more</Text> : null}
-        {props.visible.map((line, idx) => (
-          <Text key={`${props.scrollTop}-${idx}`} wrap="truncate">
-            {line.length > 0 ? line : " "}
-          </Text>
-        ))}
+        <markdown
+          content={props.visible.map((line) => line || " ").join("\n")}
+          syntaxStyle={markdownSyntaxStyle()}
+        />
         {props.hiddenBelow > 0 ? <Text dimColor>↓ {props.hiddenBelow} more</Text> : null}
       </>
     );
   }
   return (
-    <Box marginTop={1} flexDirection="column" overflow="hidden">
+    <scrollbox marginTop={1} flexDirection="column" overflow="hidden" scrollY viewportCulling>
       {content}
-    </Box>
+    </scrollbox>
   );
 }
 
@@ -146,7 +181,7 @@ function RelationRow({
   relation: IssueRelation;
   focused: boolean;
   now: number;
-}): React.ReactElement {
+}): React.ReactNode {
   const theme = useTheme();
   return (
     <Text wrap="truncate" color={focused ? theme.accent : undefined} bold={focused}>
@@ -165,7 +200,7 @@ function RelationsBody(props: {
   selected: number;
   loading: boolean;
   viewportRows: number;
-}): React.ReactElement {
+}): React.ReactNode {
   if (props.relations.length === 0) {
     return (
       <Box marginTop={1} flexDirection="column" overflow="hidden">
@@ -182,7 +217,7 @@ function RelationsBody(props: {
   const window = props.relations.slice(Math.max(0, start), Math.max(0, start) + props.viewportRows);
   let lastType: string | undefined;
   return (
-    <Box marginTop={1} flexDirection="column" overflow="hidden">
+    <scrollbox marginTop={1} flexDirection="column" overflow="hidden" scrollY viewportCulling>
       {window.map((relation, idx) => {
         const flatIdx = Math.max(0, start) + idx;
         const heading = relation.type !== lastType ? RELATION_LABELS[relation.type] : undefined;
@@ -194,7 +229,7 @@ function RelationsBody(props: {
           </React.Fragment>
         );
       })}
-    </Box>
+    </scrollbox>
   );
 }
 
@@ -228,7 +263,7 @@ function DetailHeader(props: {
   scrollTop: number;
   viewportRows: number;
   total: number;
-}): React.ReactElement {
+}): React.ReactNode {
   return (
     <Box justifyContent="space-between" flexShrink={0}>
       <Text bold>
@@ -308,7 +343,7 @@ function DetailBody(props: {
   relationsSelected: number;
   relationsLoading: boolean;
   relationsViewport: number;
-}): React.ReactElement {
+}): React.ReactNode {
   if (props.mode === "relations") {
     return (
       <RelationsBody
@@ -333,7 +368,7 @@ function DetailBody(props: {
   );
 }
 
-export function IssueDetail(props: IssueDetailProps): React.ReactElement {
+export function IssueDetail(props: IssueDetailProps): React.ReactNode {
   const theme = useTheme();
   const variant = props.variant ?? "panel";
   const mode = props.mode ?? "detail";
@@ -347,7 +382,7 @@ export function IssueDetail(props: IssueDetailProps): React.ReactElement {
   // body renders newest-first (the latest transition is the most relevant) as one
   // line per state change, already short enough to skip the ANSI wrapping.
   const descriptionLines = useMemo(
-    () => (description ? splitAnsiIntoLines(markdownToAnsi(description), contentWidth) : []),
+    () => (description ? wrapMarkdownLines(description, contentWidth) : []),
     [description, contentWidth],
   );
   const activityLines = useMemo(() => {

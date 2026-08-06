@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { emptyBuffer, applyKey, isBlank } from "./text-buffer.js";
-import type { InkKey } from "../keybindings/key-spec.js";
+import type { TuiKey } from "../keybindings/key-spec.js";
 
-function k(over: Partial<InkKey> = {}): InkKey {
+function k(over: Partial<TuiKey> = {}): TuiKey {
   return {
     upArrow: false,
     downArrow: false,
@@ -19,7 +19,7 @@ function k(over: Partial<InkKey> = {}): InkKey {
     pageDown: false,
     pageUp: false,
     ...over,
-  } as InkKey;
+  } as TuiKey;
 }
 
 describe("applyKey", () => {

@@ -10,8 +10,8 @@
 
 import { describe, it, expect } from "vitest";
 import React from "react";
-import { render } from "ink-testing-library";
-import { IssueDetail, formatStateChange } from "./issue-detail.js";
+import { render } from "./opentui-test-utils.js";
+import { IssueDetail, formatStateChange, wrapMarkdownLines } from "./issue-detail.js";
 import type { Issue } from "../types/issue.js";
 import type { IssueActivity } from "../types/activity.js";
 import { ThemeProvider } from "./theme/context.js";
@@ -74,6 +74,20 @@ describe("formatStateChange", () => {
       now,
     );
     expect(line).toBe("→ Backlog · just now");
+  });
+});
+
+describe("wrapMarkdownLines", () => {
+  it("soft-wraps markdown text at word boundaries", () => {
+    const lines = wrapMarkdownLines("A API usa nome próprio, apontá-lo exige cuidado.", 20);
+
+    expect(lines).toContain("A API usa nome");
+    expect(lines).toContain("próprio, apontá-lo");
+    expect(lines.join("\n")).not.toContain("própri\no,");
+  });
+
+  it("preserves explicit blank lines", () => {
+    expect(wrapMarkdownLines("a\n\nb", 10)).toEqual(["a", "", "b"]);
   });
 });
 

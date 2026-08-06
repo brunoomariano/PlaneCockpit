@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Box, Text, useApp, useInput } from "ink";
+import { Box, Text, useApp, useInput } from "./opentui-primitives.js";
 import { useTheme } from "./theme/context.js";
 import type { Issue } from "../types/issue.js";
 import type { AppContext } from "../app.js";
@@ -35,7 +35,7 @@ import { useRelations } from "./use-relations.js";
 import { useDetailStack, targetFromIssue } from "./use-detail-stack.js";
 import { patchTouchesViewFilter } from "./view-filter-reconcile.js";
 import type { ActionId } from "../keybindings/registry.js";
-import type { InkKey } from "../keybindings/key-spec.js";
+import type { TuiKey } from "../keybindings/key-spec.js";
 
 export interface DashboardProps {
   ctx: AppContext;
@@ -99,7 +99,7 @@ function renderOverlay(opts: {
   alignTop: boolean;
   padded: boolean;
   statusBar: React.ReactNode;
-}): React.ReactElement | null {
+}): React.ReactNode {
   if (!opts.content) return null;
   return (
     <Box flexDirection="column" height={opts.height}>
@@ -207,7 +207,7 @@ function TransitionConfirm(props: {
   from: string;
   to: string;
   saving: boolean;
-}): React.ReactElement {
+}): React.ReactNode {
   const theme = useTheme();
   return (
     <Box
@@ -270,7 +270,7 @@ interface ActiveOverlayInput {
 // > edit > comment > help > detail) and frames it with the shared chrome and a
 // status bar whose spinner/position reflect that overlay. Returns null when none
 // is active, so the dashboard falls through to the list layout.
-function renderActiveOverlay(opts: ActiveOverlayInput): React.ReactElement | null {
+function renderActiveOverlay(opts: ActiveOverlayInput): React.ReactNode {
   const { transition, creator, editor, comments, detail, isDetail, current } = opts;
   const content = transition.pending ? (
     <TransitionConfirm
@@ -354,7 +354,7 @@ function resolveViewPresentation(
 // filter, quick transition, detail panel, editor, creator, comments) together,
 // routes input to the active context, and renders the active overlay or the list
 // layout. The per-mode state machines live in their own hooks/files.
-export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
+export function Dashboard({ ctx, logger }: DashboardProps): React.ReactNode {
   const { exit } = useApp();
   const { rows: terminalRows, columns: terminalCols } = useTerminalSize();
 
@@ -743,7 +743,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   // Input routing is split per active context (help modal, detail modal, filter
   // box, list) so each path stays small. Each handler consumes the keystroke for
   // its context; the top-level callback just dispatches to the active one.
-  const handleHelpKey = (input: string, key: InkKey): void => {
+  const handleHelpKey = (input: string, key: TuiKey): void => {
     const consumed = dispatch(
       ctx.keybindings,
       ["help"],
@@ -778,7 +778,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   // In the relations body, j/k move the relation cursor and enter opens it; in the
   // text bodies the same keys scroll. The handler map is built per active body so
   // the shared detail keys (esc, a, l, o, c, e) work in both.
-  const handleDetailKey = (input: string, key: InkKey): void => {
+  const handleDetailKey = (input: string, key: TuiKey): void => {
     const relationsMode = detailMode === "relations";
     const relationCount = relations.relations.length;
     const detailHandlers: Partial<Record<ActionId, () => void>> = {
@@ -827,7 +827,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactElement {
   // Keystrokes route to the first active context in precedence order; when none
   // is active they fall through to the list/global dispatch. A data-driven table
   // keeps this as one loop instead of an if-ladder.
-  type KeyHandler = (input: string, key: InkKey) => void;
+  type KeyHandler = (input: string, key: TuiKey) => void;
   const keyRoutes: Array<[active: boolean, handle: KeyHandler]> = [
     [transition.active, transition.handleKey],
     [creator.active, creator.handleKey],
@@ -943,7 +943,7 @@ interface ListLayoutProps {
 // the views panel as a left column; narrow ones stack it on top (controlled by
 // `narrow`). The container is pinned to the terminal height with overflow hidden
 // so the fixed views bar / column header never scroll out of view.
-function ListLayout(props: ListLayoutProps): React.ReactElement {
+function ListLayout(props: ListLayoutProps): React.ReactNode {
   return (
     <Box flexDirection="column" height={props.height} overflow="hidden">
       {/* Wide: views panel beside the list (row). Narrow: stacked on top (column). */}

@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Text } from "ink";
+import { Box, Text } from "./opentui-primitives.js";
 import type { Issue } from "../types/issue.js";
 import type { ColumnAlign, ColumnId, SortField, SortKey, ViewLayout } from "../types/views.js";
 import {
@@ -200,8 +200,8 @@ export function issueColumns(width: number, layout: ViewLayout = {}): IssueColum
   });
 
   // Pick the richest candidate whose grow column still meets MIN_TITLE_WIDTH;
-  // otherwise the tightest, with the grow column floored so rows never wrap (Ink
-  // truncates per cell even if the floor nominally exceeds the inner width).
+  // otherwise the tightest, with the grow column floored so rows never wrap
+  // (the cell text truncates even if the floor nominally exceeds the inner width).
   const fitting = spec.candidates.find((c) => growFor(fixedWidths(c)) >= MIN_TITLE_WIDTH);
   if (fitting) return build(fitting, growFor(fixedWidths(fitting)));
   const tightest = spec.candidates[spec.candidates.length - 1]!;
@@ -210,11 +210,29 @@ export function issueColumns(width: number, layout: ViewLayout = {}): IssueColum
 
 // alignText pads `value` to `width` per the column's alignment. left = pad right
 // (padRight), center = padCenter, right = pad left (padLeft). Used for fixed
-// columns; the grow column relies on Ink's flex-grow + truncate instead.
+// columns; the grow column relies on OpenTUI grow + truncate instead.
 function alignText(value: string, width: number, align: ColumnAlign): string {
   if (align === "center") return padCenter(value, width);
   if (align === "right") return padLeft(value, width);
   return padRight(value, width);
+}
+
+export function selectedForeground(background: string): string {
+  const hex = /^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(background);
+  if (hex) {
+    const r = parseInt(hex[1]!, 16);
+    const g = parseInt(hex[2]!, 16);
+    const b = parseInt(hex[3]!, 16);
+    const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    return luminance > 0.45 ? "black" : "white";
+  }
+  if (/^\d{1,3}$/.test(background)) {
+    const n = Number(background);
+    if (n >= 0 && n <= 15) return n >= 8 ? "black" : "white";
+  }
+  return ["yellow", "green", "cyan", "white", "gray", "grey", "whiteBright"].includes(background)
+    ? "black"
+    : "white";
 }
 
 // assignLabel renders the assignees for the ASSIGN column: joined display names,
@@ -267,7 +285,7 @@ export function computeViewport(
   return { start, end: start + rows };
 }
 
-export function IssueList(props: IssueListProps): React.ReactElement {
+export function IssueList(props: IssueListProps): React.ReactNode {
   const theme = useTheme();
   const startRef = React.useRef(0);
   if (props.loading && props.issues.length === 0) {
@@ -276,16 +294,16 @@ export function IssueList(props: IssueListProps): React.ReactElement {
     // once the new data arrives, so the list never blanks out under the cursor.
     const skeletonRows = Math.max(3, Math.min(props.viewportRows, 12));
     return (
-      <Box borderStyle="round" paddingX={1} flexGrow={1} flexDirection="column">
+      <scrollbox border borderStyle="rounded" paddingX={1} flexGrow={1} flexDirection="column">
         <SkeletonRows rows={skeletonRows} />
-      </Box>
+      </scrollbox>
     );
   }
   if (props.issues.length === 0) {
     return (
-      <Box borderStyle="round" paddingX={1} flexGrow={1}>
+      <scrollbox border borderStyle="rounded" paddingX={1} flexGrow={1}>
         <Text dimColor>no issues to show</Text>
-      </Box>
+      </scrollbox>
     );
   }
   const { start, end } = computeViewport(
@@ -307,7 +325,7 @@ export function IssueList(props: IssueListProps): React.ReactElement {
   ): { width?: number; flexGrow?: number; flexShrink?: number } =>
     cols.growColumn === id ? { flexGrow: 1 } : { width, flexShrink: 0 };
   return (
-    <Box flexDirection="column" borderStyle="round" paddingX={1} flexGrow={1}>
+    <scrollbox border borderStyle="rounded" paddingX={1} flexGrow={1} flexDirection="column">
       {/* Each cell is a fixed-width Box with flexShrink={0}; the grow column
           flex-grows so columns never shrink into each other. A 1-col gap
           separates them; the fixed widths reserve room for it. */}
@@ -340,21 +358,22 @@ export function IssueList(props: IssueListProps): React.ReactElement {
       {visible.map((issue, offset) => {
         const idx = start + offset;
         const isSelected = idx === props.selected;
-        const color = isSelected ? theme.selection : undefined;
+        const selectedBg = isSelected ? theme.selection : undefined;
+        const selectedFg = selectedBg ? selectedForeground(selectedBg) : undefined;
         const priorityText = cols.compactPriority
           ? PRIORITY_LETTER[issue.priority]
           : priorityLabel(issue.priority);
         return (
           <Box key={issue.id} columnGap={1}>
             <Box {...cell("key", cols.keyWidth)}>
-              <Text color={color} inverse={isSelected} wrap="truncate">
+              <Text color={selectedFg} backgroundColor={selectedBg} wrap="truncate">
                 {alignText(issue.key, cols.keyWidth, cols.align.key)}
               </Text>
             </Box>
             <Box {...cell("priority", cols.priorityWidth)}>
               <Text
-                color={isSelected ? color : theme.priority[issue.priority]}
-                inverse={isSelected}
+                color={isSelected ? selectedFg : theme.priority[issue.priority]}
+                backgroundColor={selectedBg}
               >
                 {cols.compactPriority
                   ? priorityText
@@ -363,19 +382,19 @@ export function IssueList(props: IssueListProps): React.ReactElement {
             </Box>
             {cols.showState ? (
               <Box {...cell("state", cols.stateWidth)}>
-                <Text color={color} inverse={isSelected} wrap="truncate">
+                <Text color={selectedFg} backgroundColor={selectedBg} wrap="truncate">
                   {alignText(issue.state.name, cols.stateWidth, cols.align.state)}
                 </Text>
               </Box>
             ) : null}
             <Box {...cell("title", cols.title)}>
-              <Text color={color} inverse={isSelected} wrap="truncate">
+              <Text color={selectedFg} backgroundColor={selectedBg} wrap="truncate">
                 {issue.name}
               </Text>
             </Box>
             {cols.showAssign ? (
               <Box {...cell("assign", cols.assignWidth)}>
-                <Text color={color} inverse={isSelected} wrap="truncate">
+                <Text color={selectedFg} backgroundColor={selectedBg} wrap="truncate">
                   {alignText(
                     assignLabel(issue, cols.assignWidth),
                     cols.assignWidth,
@@ -393,6 +412,6 @@ export function IssueList(props: IssueListProps): React.ReactElement {
           <Text dimColor>filter: {props.filter}</Text>
         </Box>
       ) : null}
-    </Box>
+    </scrollbox>
   );
 }

@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Text } from "ink";
+import { Box, Text } from "./opentui-primitives.js";
 import type { Issue } from "../types/issue.js";
 import type { EditorDraft } from "./issue-editor-draft.js";
 import type { EditField } from "./use-issue-editor.js";
@@ -35,7 +35,7 @@ export function fieldRow(opts: {
   value: string;
   focused: boolean;
   selectionColor: string;
-}): React.ReactElement {
+}): React.ReactNode {
   const marker = opts.focused ? "› " : "  ";
   return (
     <Text key={opts.label} color={opts.focused ? opts.selectionColor : undefined} wrap="truncate">
@@ -77,7 +77,7 @@ export function TextFieldEditor(props: {
   field: "title" | "description";
   buffer: TextBuffer;
   accent: string;
-}): React.ReactElement {
+}): React.ReactNode {
   return (
     <Box
       flexDirection="column"
@@ -87,9 +87,13 @@ export function TextFieldEditor(props: {
       paddingY={1}
     >
       <Text bold>edit {props.field}</Text>
-      <Box marginTop={1}>
-        <Text>{renderWithCaret(props.buffer.text, props.buffer.caret) || " "}</Text>
-      </Box>
+      <textarea
+        focused
+        initialValue={renderWithCaret(props.buffer.text, props.buffer.caret) || " "}
+        height={props.field === "description" ? 8 : 3}
+        wrapMode="word"
+        textColor="#ffffff"
+      />
       <Box marginTop={1}>
         <Text dimColor>
           {props.field === "description"
@@ -105,7 +109,7 @@ export function TextFieldEditor(props: {
 // updated) above the editable rows (state, assignee, priority, labels), plus a
 // hint line and the optional discard-changes confirmation. All key handling
 // lives in useIssueEditor.
-export function IssueEditor(props: IssueEditorProps): React.ReactElement {
+export function IssueEditor(props: IssueEditorProps): React.ReactNode {
   const theme = useTheme();
   const { issue, draft, field, names } = props;
   if (props.textEdit) {

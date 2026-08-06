@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Text } from "ink";
+import { Box, Text } from "./opentui-primitives.js";
 import type { FileLogger } from "../utils/file-logger.js";
 import { ThemeContext } from "./theme/context.js";
 
@@ -12,7 +12,7 @@ interface State {
   error?: Error;
 }
 
-// ErrorBoundary catches render-time exceptions thrown by Ink components, which would
+// ErrorBoundary catches render-time exceptions thrown by TUI components, which would
 // otherwise crash the TUI with a stack trace mixed into the terminal canvas. The error
 // is written to the file logger and rendered in a degraded view so the user can quit
 // cleanly and inspect the log.

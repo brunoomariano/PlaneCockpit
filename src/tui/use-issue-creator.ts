@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import type { IssueLabel, IssuePriority, IssueState, IssueUser } from "../types/issue.js";
-import type { InkKey } from "../keybindings/key-spec.js";
+import type { TuiKey } from "../keybindings/key-spec.js";
 import { applyKey, type TextBuffer } from "./text-buffer.js";
 import {
   initialSelectState,
@@ -55,7 +55,7 @@ export interface IssueCreatorController {
   // open starts the flow. With a single project it skips straight to the form;
   // with several it opens the project picker first.
   open: () => void;
-  handleKey: (input: string, key: InkKey) => void;
+  handleKey: (input: string, key: TuiKey) => void;
 }
 
 export interface IssueCreatorDeps {
@@ -229,7 +229,7 @@ export function useIssueCreator(deps: IssueCreatorDeps): IssueCreatorController 
   }, [projectIdentifier, draft, close]);
 
   const handlePickerKey = useCallback(
-    (current: NonNullable<IssueCreatorController["picker"]>, input: string, key: InkKey) => {
+    (current: NonNullable<IssueCreatorController["picker"]>, input: string, key: TuiKey) => {
       const { state, outcome } = reduceSelectKey(
         current.state,
         current.options,
@@ -246,7 +246,7 @@ export function useIssueCreator(deps: IssueCreatorDeps): IssueCreatorController 
   );
 
   const handleTextEditKey = useCallback(
-    (current: NonNullable<IssueCreatorController["textEdit"]>, input: string, key: InkKey) => {
+    (current: NonNullable<IssueCreatorController["textEdit"]>, input: string, key: TuiKey) => {
       if (key.ctrl && input === "s") return commitTextEdit();
       if (key.escape) return setTextEdit(undefined);
       setTextEdit({ ...current, buffer: applyKey(current.buffer, input, key) });
@@ -255,7 +255,7 @@ export function useIssueCreator(deps: IssueCreatorDeps): IssueCreatorController 
   );
 
   const handleFormKey = useCallback(
-    (input: string, key: InkKey) => {
+    (input: string, key: TuiKey) => {
       if (key.ctrl && input === "s") return void runCreate();
       if (key.escape) return close();
       if (key.downArrow || input === "j")
@@ -270,7 +270,7 @@ export function useIssueCreator(deps: IssueCreatorDeps): IssueCreatorController 
   );
 
   const handleKey = useCallback(
-    (input: string, key: InkKey) => {
+    (input: string, key: TuiKey) => {
       if (saving) return;
       // The project step is a single picker; reduceSelectKey handles esc (cancel)
       // which closes the whole modal here since there is no form behind it yet.

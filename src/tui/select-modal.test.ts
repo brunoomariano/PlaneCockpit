@@ -3,7 +3,7 @@
  * the reusable picker.
  *
  * reduceSelectKey is the headless core of the picker: given the current cursor +
- * marked set and an Ink keystroke, it returns the next state plus an optional
+ * marked set and a normalized TUI keystroke, it returns the next state plus an optional
  * outcome (confirm with a value/set, or cancel). The React component is a thin
  * view over it. These tests cover single-select confirm, multi-select toggle and
  * confirm, navigation bounds, and cancel.
@@ -11,7 +11,7 @@
 
 import { describe, it, expect } from "vitest";
 import { reduceSelectKey, initialSelectState, type SelectState } from "./select-modal.js";
-import type { InkKey } from "../keybindings/key-spec.js";
+import type { TuiKey } from "../keybindings/key-spec.js";
 
 const OPTIONS = [
   { value: "a", label: "Alpha" },
@@ -19,8 +19,8 @@ const OPTIONS = [
   { value: "c", label: "Charlie" },
 ];
 
-function press(input: string, key: Partial<InkKey> = {}): InkKey {
-  return key as InkKey;
+function press(input: string, key: Partial<TuiKey> = {}): TuiKey {
+  return key as TuiKey;
 }
 
 describe("reduceSelectKey (single-select)", () => {

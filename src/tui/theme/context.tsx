@@ -16,7 +16,7 @@ interface ThemeProviderProps {
 }
 
 // ThemeProvider makes `theme` available to every descendant via useTheme.
-export function ThemeProvider({ theme, children }: ThemeProviderProps): React.ReactElement {
+export function ThemeProvider({ theme, children }: ThemeProviderProps): React.ReactNode {
   return <ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>;
 }
 

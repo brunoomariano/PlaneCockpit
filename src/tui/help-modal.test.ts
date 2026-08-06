@@ -30,7 +30,7 @@ describe("buildHelpSections", () => {
     const sections = buildHelpSections(bindings, "");
     const nav = sections.find((s) => s.title === "Navigation")!;
     const topBottom = nav.rows.find((r) => r.label === "top / bottom")!;
-    expect(topBottom.keys).toBe("g/G");
+    expect(topBottom.keys).toBe("g/shift+g");
     expect(topBottom.ids).toEqual(["list.top", "detail.top", "list.bottom", "detail.bottom"]);
   });
 

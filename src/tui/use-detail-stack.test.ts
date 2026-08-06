@@ -1,8 +1,8 @@
 /**
  * Block — useDetailStack: the detail panel's navigation stack.
  *
- * Drives the hook through ink-testing-library (no separate renderHook harness in
- * this repo) by rendering a probe component that calls the actions on mount and
+ * Drives the hook through the local OpenTUI test harness by rendering a probe
+ * component that calls the actions on mount and
  * reports the current target / canGoBack state. Covers: open seeds a single
  * entry, push navigates and enables back, pop returns one level and closes on the
  * last entry, push de-dupes the same issue on top, close clears, and
@@ -11,8 +11,8 @@
 
 import { describe, it, expect } from "vitest";
 import React from "react";
-import { render } from "ink-testing-library";
-import { Text } from "ink";
+import { render } from "./opentui-test-utils.js";
+import { Text } from "./opentui-primitives.js";
 import { useDetailStack, targetFromIssue, type DetailTarget } from "./use-detail-stack.js";
 import type { Issue } from "../types/issue.js";
 
@@ -24,7 +24,7 @@ type Stack = ReturnType<typeof useDetailStack>;
 
 // Probe runs a sequence of stack actions once on mount and renders the resulting
 // state so the test can assert on the frame.
-function Probe({ run }: { run: (s: Stack) => void }): React.ReactElement {
+function Probe({ run }: { run: (s: Stack) => void }): React.ReactNode {
   const stack = useDetailStack();
   const ranRef = React.useRef(false);
   if (!ranRef.current) {

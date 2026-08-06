@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Issue } from "../types/issue.js";
 import type { AppContext } from "../app.js";
 import type { FileLogger } from "../utils/file-logger.js";
-import type { InkKey } from "../keybindings/key-spec.js";
+import type { TuiKey } from "../keybindings/key-spec.js";
 import { parseQuery, matchesQuery } from "./issue-query.js";
 
 export interface UseIssueFilterOptions {
@@ -23,7 +23,7 @@ export interface UseIssueFilter {
   startFilter: () => void;
   // handleKey routes a keystroke while the filter input is open: enter/escape
   // close it; backspace/delete trim; other printable input appends.
-  handleKey: (input: string, key: InkKey) => void;
+  handleKey: (input: string, key: TuiKey) => void;
 }
 
 // useIssueFilter owns the `/` filter bar: its open/closed state, the typed
@@ -61,7 +61,7 @@ export function useIssueFilter(opts: UseIssueFilterOptions): UseIssueFilter {
     setFiltering(true);
   };
 
-  const handleKey = (input: string, key: InkKey): void => {
+  const handleKey = (input: string, key: TuiKey): void => {
     if (key.return || key.escape) {
       setFiltering(false);
     } else if (key.backspace || key.delete) {

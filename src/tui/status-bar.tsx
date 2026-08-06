@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Text } from "ink";
+import { Box, Text } from "./opentui-primitives.js";
 import { PRODUCT_NAME, VERSION, AUTHOR_HANDLE } from "../meta.js";
 import { useTheme } from "./theme/context.js";
 
@@ -12,7 +12,7 @@ export interface StatusBarProps {
   position?: string;
 }
 
-export function StatusBar(props: StatusBarProps): React.ReactElement {
+export function StatusBar(props: StatusBarProps): React.ReactNode {
   const theme = useTheme();
   return (
     <Box justifyContent="space-between" borderStyle="round" paddingX={1}>

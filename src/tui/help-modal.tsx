@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Box, Text, useInput } from "ink";
+import { Box, Text, useInput } from "./opentui-primitives.js";
 import { padRight } from "../utils/formatting.js";
 import { useTheme } from "./theme/context.js";
 import type { ResolvedBinding } from "../keybindings/load.js";
@@ -172,7 +172,7 @@ export function buildHelpSections(bindings: ResolvedBinding[], query: string): H
   return [...(nav ? [nav] : []), ...buildContextSections(bindings, byId, matches)];
 }
 
-export function HelpModal(props: HelpModalProps): React.ReactElement {
+export function HelpModal(props: HelpModalProps): React.ReactNode {
   const theme = useTheme();
   const [query, setQuery] = useState("");
   const sections = useMemo(() => buildHelpSections(props.bindings, query), [props.bindings, query]);

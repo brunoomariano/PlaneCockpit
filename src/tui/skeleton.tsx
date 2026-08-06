@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Box, Text } from "ink";
+import { Box, Text } from "./opentui-primitives.js";
 
 export interface SkeletonRowsProps {
   rows: number;
@@ -34,7 +34,7 @@ function shimmerLine(width: number, frame: number, offset: number): string {
   return out;
 }
 
-export function SkeletonRows(props: SkeletonRowsProps): React.ReactElement {
+export function SkeletonRows(props: SkeletonRowsProps): React.ReactNode {
   const widths = props.columnWidths ?? DEFAULT_WIDTHS;
   const frame = useShimmerFrame();
   const rows = Math.max(0, props.rows);

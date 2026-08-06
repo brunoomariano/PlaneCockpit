@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import React from "react";
-import { render } from "ink-testing-library";
+import { render } from "./opentui-test-utils.js";
 import { CommentEditor } from "./comment-editor.js";
 import { emptyBuffer } from "./text-buffer.js";
 

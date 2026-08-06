@@ -4,7 +4,7 @@ import type { Project } from "../types/project.js";
 import type { ViewDefinition } from "../types/views.js";
 import type { AppContext } from "../app.js";
 import type { FileLogger } from "../utils/file-logger.js";
-import type { InkKey } from "../keybindings/key-spec.js";
+import type { TuiKey } from "../keybindings/key-spec.js";
 import { neighbourState } from "../plane/state-order.js";
 import { patchTouchesViewFilter } from "./view-filter-reconcile.js";
 
@@ -40,7 +40,7 @@ export interface UseQuickTransition {
   // confirmation; a no-op at the ends shows a hint instead of erroring.
   start: (direction: 1 | -1) => Promise<void>;
   // handleKey gates the pending move on y/enter (apply) or n/escape (cancel).
-  handleKey: (input: string, key: InkKey) => void;
+  handleKey: (input: string, key: TuiKey) => void;
 }
 
 function projectOf(issue: Issue): Project {
@@ -99,7 +99,7 @@ export function useQuickTransition(opts: UseQuickTransitionOptions): UseQuickTra
     }
   }, [pending, ctx, activeView, logger, setMessage, reconcile]);
 
-  const handleKey = (input: string, key: InkKey): void => {
+  const handleKey = (input: string, key: TuiKey): void => {
     if (pending?.saving) return;
     if (input === "y" || key.return) return void apply();
     if (input === "n" || key.escape) setPending(undefined);

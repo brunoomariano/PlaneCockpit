@@ -5,7 +5,7 @@
 
 import type { IssuePriority } from "../../types/issue.js";
 
-// A color is any string Ink/chalk accepts: hex (#rrggbb), a named color (red),
+// A color is any string the terminal color layer accepts: hex (#rrggbb), a named color (red),
 // or an ANSI-256 index as a string ("203"). Validation lives in the schema.
 type ThemeColor = string;
 

@@ -4,7 +4,7 @@
  * The acceptance criterion "no raw color literals left in TUI components" is
  * enforced mechanically: this guard scans the component sources and fails if any
  * still hardcode a color (named or hex) on a `color=`/`borderColor=` prop. The
- * Ink boolean flags `dimColor`/`inverse` are not colors and are allowed; the
+ * Boolean text flags `dimColor`/`inverse` are not colors and are allowed; the
  * theme module and tests are excluded.
  */
 

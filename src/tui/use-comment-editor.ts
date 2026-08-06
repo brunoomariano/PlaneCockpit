@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import type { Issue } from "../types/issue.js";
-import type { InkKey } from "../keybindings/key-spec.js";
+import type { TuiKey } from "../keybindings/key-spec.js";
 import { emptyBuffer, applyKey, isBlank, type TextBuffer } from "./text-buffer.js";
 
 export interface CommentEditorController {
@@ -11,7 +11,7 @@ export interface CommentEditorController {
   open: () => void;
   // handleKey owns every keystroke while the editor is open: escape cancels,
   // ctrl+s submits, everything else edits the buffer.
-  handleKey: (input: string, key: InkKey) => void;
+  handleKey: (input: string, key: TuiKey) => void;
 }
 
 export interface CommentEditorDeps {
@@ -57,7 +57,7 @@ export function useCommentEditor(deps: CommentEditorDeps): CommentEditorControll
   }, []);
 
   const handleKey = useCallback(
-    (input: string, key: InkKey): void => {
+    (input: string, key: TuiKey): void => {
       if (submitting) return;
       if (key.escape) return setActive(false);
       if (key.ctrl && input === "s") {

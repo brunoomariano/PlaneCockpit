@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Text } from "ink";
+import { Box, Text } from "./opentui-primitives.js";
 import type { TextBuffer } from "./text-buffer.js";
 
 export interface CommentEditorProps {
@@ -18,14 +18,19 @@ function renderWithCaret(text: string, caret: number): string {
 // CommentEditor is the multiline comment modal. It is a pure view over a
 // TextBuffer; all key handling lives in the dashboard (submit/cancel) and
 // text-buffer.applyKey (editing). enter=newline, ctrl+s=submit, esc=cancel.
-export function CommentEditor(props: CommentEditorProps): React.ReactElement {
+export function CommentEditor(props: CommentEditorProps): React.ReactNode {
   const shown = renderWithCaret(props.buffer.text, props.buffer.caret);
   return (
     <Box flexDirection="column" borderStyle="round" paddingX={1} width="100%">
       <Text bold>comment on {props.issueKey}</Text>
-      <Box marginTop={1}>
-        <Text>{shown || " "}</Text>
-      </Box>
+      <textarea
+        focused
+        initialValue={shown || " "}
+        height={6}
+        wrapMode="word"
+        textColor="#ffffff"
+        placeholder="Write a comment"
+      />
       <Box marginTop={1}>
         <Text dimColor>
           {props.submitting ? "sending… " : "enter: newline · ctrl+s: submit · esc: cancel"}

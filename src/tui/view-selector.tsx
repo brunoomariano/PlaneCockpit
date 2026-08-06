@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Text } from "ink";
+import { Box, Text } from "./opentui-primitives.js";
 import { useTheme } from "./theme/context.js";
 
 export interface ViewEntry {
@@ -33,7 +33,7 @@ function useSpinnerFrame(): string {
 
 // ViewCount renders the trailing badge for a view: a spinner while loading, the
 // item count once loaded, or nothing before the first load.
-function ViewCount(props: { entry: ViewEntry; spinner: string }): React.ReactElement | null {
+function ViewCount(props: { entry: ViewEntry; spinner: string }): React.ReactNode {
   const theme = useTheme();
   if (props.entry.loading) return <Text color={theme.accent}> {props.spinner}</Text>;
   if (props.entry.count === undefined) return null;
@@ -55,7 +55,7 @@ export interface ViewSelectorProps {
   horizontal?: boolean;
 }
 
-export function ViewSelector(props: ViewSelectorProps): React.ReactElement {
+export function ViewSelector(props: ViewSelectorProps): React.ReactNode {
   const theme = useTheme();
   const spinner = useSpinnerFrame();
   if (props.horizontal) return <HorizontalViewSelector {...props} />;
@@ -102,7 +102,7 @@ export function ViewSelector(props: ViewSelectorProps): React.ReactElement {
 // panel that sits on top of the list. It keeps the same info as the side panel
 // (projects summary + views with their markers) but folds it onto two truncating
 // lines so it costs minimal vertical space.
-function HorizontalViewSelector(props: ViewSelectorProps): React.ReactElement {
+function HorizontalViewSelector(props: ViewSelectorProps): React.ReactNode {
   const theme = useTheme();
   const spinner = useSpinnerFrame();
   return (

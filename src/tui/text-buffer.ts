@@ -1,7 +1,7 @@
-import type { InkKey } from "../keybindings/key-spec.js";
+import type { TuiKey } from "../keybindings/key-spec.js";
 
 // TextBuffer is the pure model behind the multiline comment editor: the text and
-// a caret offset into it. Keeping the editing logic free of Ink/React makes the
+// a caret offset into it. Keeping the editing logic free of OpenTUI/React makes the
 // key handling testable in isolation; the component just renders it and forwards
 // keystrokes via applyKey.
 export interface TextBuffer {
@@ -17,7 +17,7 @@ export function emptyBuffer(): TextBuffer {
 // key is not an edit (submit/cancel are handled by the component, not here).
 // Enter inserts a newline; only printable input and the basic motions/edits are
 // supported — this is a comment box, not a full editor.
-export function applyKey(buf: TextBuffer, input: string, key: InkKey): TextBuffer {
+export function applyKey(buf: TextBuffer, input: string, key: TuiKey): TextBuffer {
   if (key.leftArrow) return moveCaret(buf, -1);
   if (key.rightArrow) return moveCaret(buf, +1);
   if (key.backspace || key.delete) return deleteBack(buf);

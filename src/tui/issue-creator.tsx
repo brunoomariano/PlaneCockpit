@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Text } from "ink";
+import { Box, Text } from "./opentui-primitives.js";
 import type { CreateDraft } from "./use-issue-creator.js";
 import type { EditField } from "./use-issue-editor.js";
 import type { TextBuffer } from "./text-buffer.js";
@@ -24,7 +24,7 @@ function stateValue(draft: CreateDraft, names: Record<string, string>): string {
 // IssueCreator is the create modal's pure view: the chosen project in the header
 // and the same field rows as the edit modal, but for a brand-new draft. Key
 // handling lives in useIssueCreator.
-export function IssueCreator(props: IssueCreatorProps): React.ReactElement {
+export function IssueCreator(props: IssueCreatorProps): React.ReactNode {
   const theme = useTheme();
   const { draft, field, names } = props;
   if (props.textEdit) {

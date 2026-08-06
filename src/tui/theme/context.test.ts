@@ -7,14 +7,14 @@
  */
 
 import React from "react";
-import { render } from "ink-testing-library";
-import { Text } from "ink";
+import { render } from "../opentui-test-utils.js";
+import { Text } from "../opentui-primitives.js";
 import { describe, it, expect } from "vitest";
 import { ThemeProvider, useTheme, themeFromContext } from "./context.js";
 import { PRESETS } from "./presets.js";
 
 // Probe component that renders the accent token so the test can read it back.
-function AccentProbe(): React.ReactElement {
+function AccentProbe(): React.ReactNode {
   const theme = useTheme();
   return React.createElement(Text, null, theme.accent);
 }

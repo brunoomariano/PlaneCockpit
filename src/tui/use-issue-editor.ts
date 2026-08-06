@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Issue, IssueLabel, IssuePriority, IssueState, IssueUser } from "../types/issue.js";
-import type { InkKey } from "../keybindings/key-spec.js";
+import type { TuiKey } from "../keybindings/key-spec.js";
 import {
   editorOriginal,
   isDraftDirty,
@@ -57,7 +57,7 @@ export interface IssueEditorController {
   // It is seeded from the issue and grows as each picker loads its options.
   names: Record<string, string>;
   open: () => void;
-  handleKey: (input: string, key: InkKey) => void;
+  handleKey: (input: string, key: TuiKey) => void;
 }
 
 export interface IssueEditorDeps {
@@ -231,7 +231,7 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
   }, [issue, original, draft, close]);
 
   const handlePickerKey = useCallback(
-    (current: NonNullable<IssueEditorController["picker"]>, input: string, key: InkKey) => {
+    (current: NonNullable<IssueEditorController["picker"]>, input: string, key: TuiKey) => {
       const { state, outcome } = reduceSelectKey(
         current.state,
         current.options,
@@ -251,7 +251,7 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
   );
 
   const handleFormKey = useCallback(
-    (input: string, key: InkKey) => {
+    (input: string, key: TuiKey) => {
       if (key.ctrl && input === "s") return void runSave();
       if (key.escape) {
         if (dirty) return setConfirmingExit(true);
@@ -272,7 +272,7 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
   // ctrl+s (commit to the draft) and esc (discard the in-progress text). This is
   // a separate mode because j/k/enter are literal input here, not navigation.
   const handleTextEditKey = useCallback(
-    (current: NonNullable<IssueEditorController["textEdit"]>, input: string, key: InkKey) => {
+    (current: NonNullable<IssueEditorController["textEdit"]>, input: string, key: TuiKey) => {
       if (key.ctrl && input === "s") return commitTextEdit();
       if (key.escape) return setTextEdit(undefined);
       setTextEdit({ ...current, buffer: applyKey(current.buffer, input, key) });
@@ -281,7 +281,7 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
   );
 
   const handleConfirmKey = useCallback(
-    (input: string, key: InkKey) => {
+    (input: string, key: TuiKey) => {
       // y/enter discards and closes; n/esc returns to the form with the draft.
       if (input === "y" || key.return) return close();
       if (input === "n" || key.escape) return setConfirmingExit(false);
@@ -290,7 +290,7 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
   );
 
   const handleKey = useCallback(
-    (input: string, key: InkKey) => {
+    (input: string, key: TuiKey) => {
       if (saving) return;
       if (confirmingExit) return handleConfirmKey(input, key);
       if (textEdit) return handleTextEditKey(textEdit, input, key);

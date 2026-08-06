@@ -1,6 +1,6 @@
 import React from "react";
-import { Box, Text } from "ink";
-import type { InkKey } from "../keybindings/key-spec.js";
+import { Box, Text } from "./opentui-primitives.js";
+import type { TuiKey } from "../keybindings/key-spec.js";
 import { useTheme } from "./theme/context.js";
 
 // SelectOption is one row in the picker: a stable `value` returned to the caller
@@ -70,7 +70,7 @@ export function reduceSelectKey(
   options: SelectOption[],
   mode: SelectMode,
   input: string,
-  key: InkKey,
+  key: TuiKey,
 ): SelectReduction {
   if (key.escape) return { state, outcome: { type: "cancel" } };
   if (key.downArrow || input === "j") return { state: moveCursor(state, options.length, 1) };
@@ -104,24 +104,27 @@ function hintFor(multi: boolean): string {
 // SelectModal is the picker's pure view: a bordered list of options with the
 // cursor highlighted and, in multi mode, a checkbox per row. All key handling
 // lives in reduceSelectKey, driven by the dashboard while the picker is open.
-export function SelectModal(props: SelectModalProps): React.ReactElement {
+export function SelectModal(props: SelectModalProps): React.ReactNode {
   const theme = useTheme();
+  const options = props.options.map((option, idx) => {
+    const focused = idx === props.state.cursor;
+    const marked = props.multi && props.state.marked.has(option.value);
+    const prefix = props.multi ? (marked ? "[x] " : "[ ] ") : focused ? "› " : "  ";
+    return { name: `${prefix}${option.label}`, description: "", value: option.value };
+  });
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={theme.accent} paddingX={1}>
       <Text bold>{props.title}</Text>
-      <Box marginTop={1} flexDirection="column">
-        {props.options.map((option, idx) => {
-          const focused = idx === props.state.cursor;
-          const marked = props.multi && props.state.marked.has(option.value);
-          const prefix = props.multi ? (marked ? "[x] " : "[ ] ") : focused ? "› " : "  ";
-          return (
-            <Text key={option.value} color={focused ? theme.selection : undefined} wrap="truncate">
-              {prefix}
-              {option.label}
-            </Text>
-          );
-        })}
-      </Box>
+      <select
+        focused
+        options={options}
+        selectedIndex={props.state.cursor}
+        showDescription={false}
+        showScrollIndicator
+        selectedTextColor={theme.selection}
+        textColor="#ffffff"
+        height={Math.min(Math.max(props.options.length, 1), 12)}
+      />
       <Box marginTop={1}>
         <Text dimColor>{hintFor(props.multi)}</Text>
       </Box>
