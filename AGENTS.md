@@ -38,9 +38,10 @@ Respect the boundaries of existing modules. When a boundary does not yet exist, 
 
 ## Stack and architecture
 
-- The CLI and TUI must be built in TypeScript on Node.js.
+- The CLI and TUI must be built in TypeScript for Bun at runtime. Node.js 26+
+  remains part of the development toolchain because Vitest workers run under Node.
 - Plane API access goes through `PlaneApiClient` (`plane/client.ts`), a thin adapter over the native `fetch`. We do not depend on `@makeplane/plane-node-sdk`: it pulled a vulnerable `axios` transitively and was never used. If the SDK is adopted later, isolate it behind this same adapter layer and keep its transitive deps audited.
-- CLI framework: `commander` or `clipanion`. TUI: `ink`. YAML: `yaml`. Validation: `zod`. Build: `tsup`. Tests: `vitest`. Browser open: `open`. Logging: the in-house `FileLogger` (JSON Lines to the state dir; the TUI cannot write to stderr). Tables: `cli-table3`. Prompt/input: `inquirer`. Distribution: npm package with a `bin` field.
+- CLI framework: `commander` or `clipanion`. TUI: `@opentui/react` on Bun. YAML: `yaml`. Validation: `zod`. Build: `tsup`. Tests: `vitest` on Node 26+. Browser open: `open`. Logging: the in-house `FileLogger` (JSON Lines to the state dir; the TUI cannot write to stderr). Tables: `cli-table3`. Prompt/input: `inquirer`. Distribution: npm package with a `bin` field.
 - The product must support both Plane Cloud and Plane self-hosted, including reverse proxy, trailing slash normalization, configurable timeout, custom TLS, custom headers, multiple environments, and custom URLs.
 - Prefer an architecture with an isolated domain and adapters for input/output, such as HTTP, the Plane API client, cache backends, filesystem, and browser.
 - The Plane API client must stay isolated behind a thin adapter layer (e.g. `plane/work-items.ts`, `plane/issues.ts`, `plane/client.ts`). Commands must never depend directly on the HTTP transport.
@@ -81,7 +82,12 @@ Respect the boundaries of existing modules. When a boundary does not yet exist, 
 
 ## Tests
 
-- The default test framework is `vitest`.
+- The default test framework is `vitest`. It runs its workers under Node, so the
+  suite needs Node `>=26.4` with `--experimental-ffi` for the tests that build an
+  OpenTUI renderer; `make test` and `make ci` supply the flag already.
+- TUI components are rendered in tests through the helpers in
+  `src/tui/opentui-test-utils.ts` (OpenTUI's headless renderer), not
+  `ink-testing-library`. Keybinding tests need no renderer at all.
 - Prefer table-driven tests for domain rules.
 - Domain tests must cover state transitions, filter normalization, ID resolution (`ENG-123 -> UUID`), URL builders, and pagination helpers.
 - Tests should live close to the package under test, using `*.test.ts` files (or under `src/tests/` when integration scope is needed).

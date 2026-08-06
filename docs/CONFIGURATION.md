@@ -346,7 +346,7 @@ defaults:
 ```
 
 `state_order` drives both the `sort: state` row ordering and the in-TUI
-quick-transition navigation (`n` / `p` step through states in this same order).
+quick-transition navigation (`>` / `<` step through states in this same order).
 With no `state_order` set, both keep the workflow-group order as before.
 
 #### Column layout

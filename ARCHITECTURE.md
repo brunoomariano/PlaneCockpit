@@ -7,10 +7,16 @@ truth. This document explains structure and boundaries, not behavior.
 
 ## Shape
 
-Plane Cockpit is a TypeScript CLI + TUI on Node.js. One entry point (`cli.ts`)
-parses arguments with `commander` and dispatches to commands; `plc dash` mounts
-the `ink` TUI. Everything talks to Plane through a single thin HTTP adapter so
-the rest of the code never touches `fetch` directly.
+Plane Cockpit is a TypeScript CLI + TUI that runs on Bun. One entry point
+(`cli.ts`) parses arguments with `commander` and dispatches to commands;
+`plc dash` mounts the OpenTUI dashboard. Everything talks to Plane through a
+single thin HTTP adapter so the rest of the code never touches `fetch` directly.
+
+The runtime is Bun because OpenTUI renders through a native Zig core reached over
+FFI, which Bun exposes natively. Development also needs Node `>=26.4`: Vitest
+runs its workers under Node, so the renderer tests reach the same native core
+through Node's (still experimental) FFI instead — see
+[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
 
 The guiding rule is a one-way dependency arrow:
 
@@ -32,9 +38,9 @@ testable with local fakes.
 | `src/plane/`       | the Plane domain + the API adapter (`client.ts`) and per-resource services (`issues.ts`, `work-items.ts`, `projects.ts`, `states.ts`, `labels.ts`, …) |
 | `src/config/`      | YAML loading, the `zod` schema, profile/credential resolution                                                                                         |
 | `src/cache/`       | the `CacheStore` interface and its backends (`memory`, `sqlite`, `redis`, `noop`)                                                                     |
-| `src/tui/`         | `ink` components, hooks, and the theme system                                                                                                         |
+| `src/tui/`         | OpenTUI components, hooks, the rendering primitives (`opentui-primitives.tsx`), and the theme system                                                  |
 | `src/keybindings/` | key-spec parsing and the dispatcher that routes keystrokes                                                                                            |
-| `src/utils/`       | small cross-cutting helpers (logger, paths, html↔markdown, async, urls)                                                                               |
+| `src/utils/`       | small cross-cutting helpers (logger, paths, html→markdown, async, urls)                                                                               |
 | `src/types/`       | shared domain types                                                                                                                                   |
 | `src/tests/`       | integration / e2e tests (unit tests live next to their module as `*.test.ts`)                                                                         |
 
@@ -50,6 +56,10 @@ testable with local fakes.
 - **Configuration is YAML-first**, read from a single path
   (`~/.config/plane-cli/config.yaml`, overridable with `--config`). Credentials
   live separately in `hosts.yaml`. There are no environment-variable overrides.
+- **The renderer is isolated behind `tui/opentui-primitives.tsx`.** Components
+  render through `Box`/`Text` and the `useInput`/`useApp`/`useStdout` hooks
+  defined there, so OpenTUI's API does not leak into every component and the
+  renderer stays replaceable.
 - **The TUI cannot write to stderr**, so structured logs go to a file via the
   in-house `FileLogger` (JSON Lines, secrets redacted). Human-facing CLI output
   is plain text.
@@ -68,8 +78,12 @@ testable with local fakes.
 
 ## Build & distribution
 
-`tsup` bundles `src/cli.ts` into a single ESM `dist/cli.js` with a Node shebang,
-published to npm with a `bin` field (`plc`). `better-sqlite3` ships a prebuilt
-native binding, so end users need no compiler. See the `ci` script in
-`package.json` for the full quality pipeline and
-[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) for the workflow.
+`tsup` bundles `src/cli.ts` into a single ESM `dist/cli.js` with a Bun shebang,
+published to npm with a `bin` field (`plc`). End users need Bun and no compiler:
+the sqlite cache uses Bun's built-in `bun:sqlite`, and OpenTUI resolves its
+native library from per-platform optional dependencies.
+
+`@opentui/*` stays **external** to the bundle — the native library is picked per
+platform at install time and cannot be inlined, which also rules out a
+single-file/SEA build. See the `ci` script in `package.json` for the full quality
+pipeline and [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) for the workflow.

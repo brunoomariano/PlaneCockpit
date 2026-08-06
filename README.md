@@ -36,10 +36,11 @@ make bootstrap   # installs the dev toolchain (mise) + dependencies
 make install     # builds, installs `plc` globally, and seeds an example config
 ```
 
-End users installing from npm/npx do not need `mise` or a toolchain: the
-published artifact is a plain Node binary and `better-sqlite3` ships a prebuilt
-native binding. The `make install` path is for working from a checkout
-(dogfooding / development); `make uninstall` removes it. Requires Node `>=24`.
+End users installing from npm/npx need Bun `>=1.3.14`; the `plc` binary uses a
+Bun shebang and the sqlite cache uses Bun's built-in `bun:sqlite` driver. The
+`make install` path is for working from a checkout (dogfooding / development);
+`make uninstall` removes it. Development and CI still use Node `>=26.4` for
+Vitest workers.
 
 ## Quick start
 
@@ -162,7 +163,7 @@ server:
 The cache is optional and pluggable. Providers:
 
 - `memory` — in-process, the default.
-- `sqlite` — local persistent cache, file at `~/.cache/plane-cli/cache.sqlite` by default.
+- `sqlite` — local persistent cache via `bun:sqlite`, file at `~/.cache/plane-cli/cache.sqlite` by default.
 - `redis` — shared cache (declare `cache.redis.url`).
 - `noop` — disables caching entirely.
 
@@ -303,7 +304,7 @@ The status bar shows how many of the loaded rows match, so an empty result reads
 as "filtered", not "no data".
 
 Issue descriptions are stored as HTML on Plane and rendered inline as
-Markdown by a small custom renderer (headings, lists, code, links,
+Markdown by OpenTUI's native `<markdown>` renderer (headings, lists, code, links,
 blockquotes, strikethrough).
 
 ### Customizing keybindings
@@ -334,7 +335,7 @@ plc log clear       # remove the file
 plc --debug dash    # raise log level to debug for the next run
 ```
 
-CLI commands (everything other than `dash`) continue to log to stderr via `pino`.
+CLI commands (everything other than `dash`) continue to log to stderr directly.
 
 ## Output formats
 
@@ -346,7 +347,7 @@ verbose logging and full stack traces.
 The dev toolchain is managed by [`mise`](https://mise.jdx.dev):
 
 ```bash
-mise install        # node + pnpm versions pinned in mise.toml
+mise install        # bun + node + pnpm versions pinned in mise.toml
 make bootstrap      # install dev toolchain + project deps
 make ci             # full pipeline: fmt-check + lint + typecheck + test-cov + build
 ```

@@ -7,6 +7,33 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING: the TUI now runs on [Bun](https://bun.sh) (`>=1.3.14`) instead of
+  Node.js.** `plc dash` renders through [OpenTUI](https://opentui.com) in place of
+  Ink, and OpenTUI reaches its native rendering core over FFI — which Bun exposes
+  natively. Installing from npm/npx now requires Bun; the published `plc` binary
+  uses a Bun shebang. Development and CI additionally need Node `>=26.4`, because
+  Vitest runs its workers under Node.
+- **BREAKING: the sqlite cache driver is now Bun's built-in `bun:sqlite`** instead
+  of `better-sqlite3`. Existing cache files keep working. This removes a
+  native-addon build step from install, and with it a class of failure where a
+  binding compiled for one Node ABI refused to load under another.
+- Issue descriptions are rendered by OpenTUI's native `<markdown>` component; the
+  hand-written Markdown-to-ANSI renderer and its ANSI line-wrapping helper are gone.
+- Keybindings are matched against OpenTUI key events. A bare uppercase letter in
+  `keybindings.yaml` is normalized to `shift+<letter>`, so bindings that differ
+  only by case stay distinct (`G` vs `g`, `R` vs `r`). Existing configuration
+  files keep working unchanged.
+
+### Fixed
+
+- Documentation stated the in-TUI quick transition was bound to `n` / `p`; it is
+  `>` / `<` (`n` creates an issue). Corrected in `README.md` and
+  `docs/CONFIGURATION.md`.
+- `README.md` credited `pino` for CLI logging, which the project has never
+  depended on.
+
 ## [0.3.0] - 2026-06-18
 
 ### Added

@@ -58,7 +58,7 @@ Prefer behaviour-named actions over generic setters (per `AGENTS.md`):
 
 ### Reusable `SelectModal`
 
-A single Ink component drives all three pickers (title, options, `single` /
+A single TUI component drives all three pickers (title, options, `single` /
 `multi` mode, `onConfirm`, `onCancel`). Arrow / `j` / `k` move the cursor;
 `enter` confirms (single) or toggles (multi); `ctrl+s` confirms a multi set;
 `esc` cancels back to the caller. Key handling lives in a small controller hook
