@@ -8,13 +8,14 @@ const { version } = createRequire(import.meta.url)("./package.json") as { versio
 export default defineConfig({
   entry: ["src/cli.ts"],
   format: ["esm"],
-  target: "node24",
+  target: "es2023",
   platform: "node",
   outDir: "dist",
   clean: true,
   sourcemap: true,
   splitting: false,
   shims: false,
-  banner: { js: "#!/usr/bin/env node" },
+  banner: { js: "#!/usr/bin/env bun" },
+  external: [/^@opentui\//],
   define: { __VERSION__: JSON.stringify(version) },
 });

@@ -18,7 +18,7 @@
     "tui",
     "project-management",
     "issues",
-    "ink",
+    "opentui",
     "terminal"
   ],
   "type": "module",
@@ -33,7 +33,8 @@
     "examples"
   ],
   "engines": {
-    "node": ">=24.0.0"
+    "bun": ">=1.3.14",
+    "node": ">=26.4.0"
   },
   "packageManager": "pnpm@11.4.0",
   "scripts": {
@@ -45,9 +46,9 @@
     "fmt:check": "prettier --check .",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:cov": "vitest run --coverage",
+    "test": "node --experimental-ffi ./node_modules/vitest/vitest.mjs run",
+    "test:watch": "node --experimental-ffi ./node_modules/vitest/vitest.mjs",
+    "test:cov": "node --experimental-ffi ./node_modules/vitest/vitest.mjs run --coverage",
     "audit": "pnpm audit --prod --audit-level high",
     "deadcode": "knip --include files,dependencies",
     "deadcode:strict": "knip",
@@ -58,10 +59,11 @@
   },
   "dependencies": {
     "@inquirer/prompts": "^8.5.0",
-    "better-sqlite3": "^12.10.0",
+    "@opentui/core": "^0.5.1",
+    "@opentui/keymap": "^0.5.1",
+    "@opentui/react": "^0.5.1",
     "cli-table3": "^0.6.5",
     "commander": "^15.0.0",
-    "ink": "^7.0.4",
     "ioredis": "^5.11.0",
     "marked": "^18.0.4",
     "open": "^11.0.0",
@@ -71,15 +73,15 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.9.3",
     "@types/react": "^19.2.15",
+    "@types/react-test-renderer": "^19.1.0",
     "@types/turndown": "^5.0.6",
     "@vitest/coverage-v8": "^4.1.7",
     "eslint": "^10.4.0",
-    "ink-testing-library": "^4.0.0",
     "knip": "^6.14.2",
     "prettier": "^3.8.3",
+    "react-test-renderer": "^19.2.8",
     "tsup": "^8.5.1",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3",

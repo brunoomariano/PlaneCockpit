@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := help
 
 PNPM ?= pnpm
+BUN ?= bun
 NODE ?= node
 
 CONFIG_DIR ?= $(HOME)/.config/plane-cli
@@ -69,7 +70,7 @@ dev: ## run the cli in dev mode (forwards ARGS, e.g. `make dev ARGS="issue list"
 
 .PHONY: run
 run: build ## build and run the compiled cli (`make run ARGS="dash"`)
-	$(NODE) dist/cli.js $(ARGS)
+	$(BUN) dist/cli.js $(ARGS)
 
 # ----- ci -----
 
