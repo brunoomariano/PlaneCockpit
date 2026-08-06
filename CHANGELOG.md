@@ -7,6 +7,8 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-06
+
 ### Changed
 
 - **BREAKING: the TUI now runs on [Bun](https://bun.sh) (`>=1.3.14`) instead of
@@ -173,7 +175,9 @@ config option.
 - Project documentation: `ARCHITECTURE.md`, `SECURITY.md`, this `CHANGELOG.md`,
   issue / pull-request templates, Dependabot, `.editorconfig`, and `.nvmrc`.
 
-[unreleased]: https://github.com/brunoomariano/PlaneCockpit/compare/v0.2.0...HEAD
+[unreleased]: https://github.com/brunoomariano/PlaneCockpit/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/brunoomariano/PlaneCockpit/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/brunoomariano/PlaneCockpit/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/brunoomariano/PlaneCockpit/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/brunoomariano/PlaneCockpit/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/brunoomariano/PlaneCockpit/compare/v0.1.1...v0.1.2
