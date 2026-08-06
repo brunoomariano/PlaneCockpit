@@ -6,7 +6,7 @@ export interface BrowserOpener {
 
 // defaultBrowserOpener launches the system browser without letting the launcher
 // touch our terminal. While the TUI owns the screen, any byte the child writes to
-// stdout/stderr corrupts the Ink render (gh-dash #829/#861), so we force the
+// stdout/stderr corrupts the TUI render (gh-dash #829/#861), so we force the
 // child's stdio to be ignored and detach + unref it so it never blocks or draws.
 export const defaultBrowserOpener: BrowserOpener = {
   async open(url: string): Promise<void> {

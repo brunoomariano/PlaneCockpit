@@ -1,5 +1,5 @@
 // markdownToAnsi renders Markdown to ANSI-decorated text suitable for embedding
-// inside an Ink <Text> node. We implement a small custom renderer instead of
+// inside terminal UI text. We implement a small custom renderer instead of
 // pulling marked-terminal — its 7.3.0 release still uses the pre-marked-16
 // renderer API and crashes on any marked >=15 (`this.o.heading is not a function`).
 //

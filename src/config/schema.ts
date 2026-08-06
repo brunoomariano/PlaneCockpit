@@ -71,7 +71,7 @@ const layoutSchema = z
     message: "at most one column may set grow: true",
   });
 
-// A theme color: a hex (#rrggbb), a named color chalk/Ink accepts, or an
+// A theme color: a hex (#rrggbb), a named terminal color, or an
 // ANSI-256 index as a string ("0".."255") for limited terminals.
 const NAMED_COLORS = [
   "black",

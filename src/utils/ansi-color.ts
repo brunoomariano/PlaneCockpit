@@ -1,5 +1,5 @@
-// Minimal ANSI colorizer for non-Ink output (the CLI table). Ink colors the TUI
-// itself; the CLI table is plain text, so we wrap cell text in SGR escapes here.
+// Minimal ANSI colorizer for non-TUI output (the CLI table). OpenTUI colors the
+// dashboard itself; the CLI table is plain text, so we wrap cell text in SGR escapes here.
 // Supports the same color forms the theme schema accepts: hex (#rrggbb,
 // truecolor), an ANSI-256 index as a string (38;5;N), and named colors.
 
