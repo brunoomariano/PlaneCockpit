@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import React from "react";
-import { render } from "ink-testing-library";
+import { render } from "../tui/opentui-test-utils.js";
 import { Dashboard } from "../tui/dashboard.js";
 import type { AppContext } from "../app.js";
 import type { Issue, IssueState, IssueUser } from "../types/issue.js";
@@ -25,7 +25,7 @@ function renderDashboard(ctx: AppContext, logger: FileLogger): ReturnType<typeof
   );
 }
 
-// A delay lets Ink flush effects (and the async state/member loads the picker
+// A delay lets React flush effects (and the async state/member loads the picker
 // needs) between keystrokes so assertions see the settled frame.
 const tick = (ms = 120): Promise<void> => new Promise((r) => setTimeout(r, ms));
 

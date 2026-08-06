@@ -1,6 +1,9 @@
 import { Command } from "commander";
 import React from "react";
-import { render } from "ink";
+import { createCliRenderer } from "@opentui/core";
+import { createRoot } from "@opentui/react";
+import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui";
+import { KeymapProvider } from "@opentui/keymap/react";
 import { withContext } from "../shared.js";
 import { Dashboard } from "../../tui/dashboard.js";
 import { ErrorBoundary } from "../../tui/error-boundary.js";
@@ -25,34 +28,20 @@ export function registerDash(program: Command): void {
         const boundary = React.createElement(ErrorBoundary, { logger, children: dashboard });
         const tree = React.createElement(ThemeProvider, { theme: ctx.theme, children: boundary });
 
-        // Enter the terminal's alternate screen buffer so the TUI renders on a
-        // throwaway screen. On exit the terminal restores the previous contents
-        // and nothing the dashboard drew is left in the scrollback (like gh dash).
-        const enterAltScreen = "\x1b[?1049h";
-        const leaveAltScreen = "\x1b[?1049l";
-        const usesAltScreen = process.stdout.isTTY === true;
-
-        let restored = false;
-        const restoreScreen = (): void => {
-          if (restored || !usesAltScreen) return;
-          restored = true;
-          process.stdout.write(leaveAltScreen);
-        };
-
-        // Guard against the process being torn down (Ctrl+C / kill) before the
-        // finally block runs, which would otherwise leave the terminal stuck on
-        // the alternate screen.
-        if (usesAltScreen) {
-          process.stdout.write(enterAltScreen);
-          process.once("exit", restoreScreen);
-        }
-
-        const instance = render(tree);
-        try {
-          await instance.waitUntilExit();
-        } finally {
-          restoreScreen();
-        }
+        let resolveExit: () => void = () => undefined;
+        const exited = new Promise<void>((resolve) => {
+          resolveExit = resolve;
+        });
+        const renderer = await createCliRenderer({
+          exitOnCtrlC: false,
+          screenMode: "alternate-screen",
+          onDestroy: resolveExit,
+        });
+        const keymap = createDefaultOpenTuiKeymap(renderer);
+        createRoot(renderer).render(
+          React.createElement(KeymapProvider, { keymap, children: tree }),
+        );
+        await exited;
       });
     });
 }

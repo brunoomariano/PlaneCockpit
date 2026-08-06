@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import React from "react";
-import { render } from "ink-testing-library";
+import { render } from "../tui/opentui-test-utils.js";
 import { Dashboard } from "../tui/dashboard.js";
 import type { AppContext } from "../app.js";
 import type { Issue } from "../types/issue.js";
