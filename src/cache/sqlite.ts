@@ -25,10 +25,14 @@ export interface SqliteCacheOptions {
 }
 
 async function defaultDriver(path: string): Promise<SqliteDb> {
-  // Dynamic import keeps better-sqlite3 optional at runtime.
-  const mod = await import("better-sqlite3");
-  const Database = mod.default;
-  return new Database(path) as SqliteDb;
+  try {
+    const mod = await import("bun:sqlite");
+    return new mod.Database(path) as SqliteDb;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ERR_MODULE_NOT_FOUND") throw err;
+    const mod = await import("node:sqlite");
+    return new mod.DatabaseSync(path) as SqliteDb;
+  }
 }
 
 export class SqliteCacheStore implements CacheStore {
