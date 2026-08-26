@@ -107,17 +107,30 @@ describe("reduceSelectKey (multi-select)", () => {
   });
 
   // PLC-1 regression: j/k used to be shielded only by the translation blanking every
-  // chord. Now that ctrl+s carries its letter, ctrl+j must not move the cursor -- and
-  // note j/k are tested before ctrl+s in the reducer, so ordering alone cannot save it.
-  it("should not move the cursor on ctrl+j or ctrl+k", () => {
+  // chord. Now that ctrl+s carries its letter, a chord over j/k must not move the
+  // cursor -- and note j/k are tested before ctrl+s in the reducer, so ordering alone
+  // cannot save it. Both ctrl and meta are covered: the blanking hit alt chords too.
+  it.each([
+    ["ctrl", { ctrl: true }],
+    ["meta", { meta: true }],
+  ] as const)("should not move the cursor on a %s chord over j or k", (_label, mod) => {
     const state: SelectState = { cursor: 1, marked: new Set() };
 
-    expect(
-      reduceSelectKey(state, OPTIONS, { multi: true }, "j", press("j", { ctrl: true })).state,
-    ).toEqual(state);
-    expect(
-      reduceSelectKey(state, OPTIONS, { multi: true }, "k", press("k", { ctrl: true })).state,
-    ).toEqual(state);
+    expect(reduceSelectKey(state, OPTIONS, { multi: true }, "j", press("j", mod)).state).toEqual(
+      state,
+    );
+    expect(reduceSelectKey(state, OPTIONS, { multi: true }, "k", press("k", mod)).state).toEqual(
+      state,
+    );
+  });
+
+  // The other half of the same guard: un-masking chords must not cost the bare
+  // characters their navigation.
+  it("should still move the cursor on a bare j or k", () => {
+    const state: SelectState = { cursor: 1, marked: new Set() };
+
+    expect(reduceSelectKey(state, OPTIONS, { multi: true }, "j", press("j")).state.cursor).toBe(2);
+    expect(reduceSelectKey(state, OPTIONS, { multi: true }, "k", press("k")).state.cursor).toBe(0);
   });
 
   it("should confirm an empty set on ctrl+s when nothing is marked", () => {

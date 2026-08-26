@@ -142,16 +142,16 @@ function keyFromEvent(event: ParsedKey): TuiKey {
   };
 }
 
+// translateKeyEvent converts a terminal key event into the (input, key) pair every
+// InputHandler receives. It is the single place that decides what `input` holds,
+// so handlers, matchesKey and user-configured bindings all see the same shape --
+// and so tests can drive the very translation production uses.
+//
 // The tty does not eat ctrl+s: OpenTUI's renderer calls stdin.setRawMode(true) on
 // startup, and raw mode clears IXON, so byte 0x13 arrives as a keypress instead of
 // being consumed as XOFF flow control (verified on a pty: `stty -a` reports `ixon`
 // before `stty raw` and `-ixon` after). XOFF was the other PLC-1 candidate; it is
 // ruled out, and no terminal mode is set anywhere in this codebase.
-//
-// translateKeyEvent converts a terminal key event into the (input, key) pair every
-// InputHandler receives. It is the single place that decides what `input` holds,
-// so handlers, matchesKey and user-configured bindings all see the same shape --
-// and so tests can drive the very translation production uses.
 export function translateKeyEvent(event: ParsedKey): [string, TuiKey] {
   return [inputFromEvent(event), keyFromEvent(event)];
 }
