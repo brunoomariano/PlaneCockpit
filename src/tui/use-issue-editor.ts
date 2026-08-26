@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Issue, IssueLabel, IssuePriority, IssueState, IssueUser } from "../types/issue.js";
-import type { TuiKey } from "../keybindings/key-spec.js";
+import { isPlainChar, type TuiKey } from "../keybindings/key-spec.js";
 import {
   editorOriginal,
   isDraftDirty,
@@ -257,11 +257,11 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
         if (dirty) return setConfirmingExit(true);
         return close();
       }
-      if (key.downArrow || input === "j")
+      if (key.downArrow || (isPlainChar(input, key) && input === "j"))
         return setField(
           (f) => EDIT_FIELDS[Math.min(EDIT_FIELDS.length - 1, EDIT_FIELDS.indexOf(f) + 1)]!,
         );
-      if (key.upArrow || input === "k")
+      if (key.upArrow || (isPlainChar(input, key) && input === "k"))
         return setField((f) => EDIT_FIELDS[Math.max(0, EDIT_FIELDS.indexOf(f) - 1)]!);
       if (key.return) openField();
     },
@@ -283,8 +283,8 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
   const handleConfirmKey = useCallback(
     (input: string, key: TuiKey) => {
       // y/enter discards and closes; n/esc returns to the form with the draft.
-      if (input === "y" || key.return) return close();
-      if (input === "n" || key.escape) return setConfirmingExit(false);
+      if ((isPlainChar(input, key) && input === "y") || key.return) return close();
+      if ((isPlainChar(input, key) && input === "n") || key.escape) return setConfirmingExit(false);
     },
     [close],
   );

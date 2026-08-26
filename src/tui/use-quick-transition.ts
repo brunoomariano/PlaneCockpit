@@ -4,7 +4,7 @@ import type { Project } from "../types/project.js";
 import type { ViewDefinition } from "../types/views.js";
 import type { AppContext } from "../app.js";
 import type { FileLogger } from "../utils/file-logger.js";
-import type { TuiKey } from "../keybindings/key-spec.js";
+import { isPlainChar, type TuiKey } from "../keybindings/key-spec.js";
 import { neighbourState } from "../plane/state-order.js";
 import { patchTouchesViewFilter } from "./view-filter-reconcile.js";
 
@@ -101,8 +101,8 @@ export function useQuickTransition(opts: UseQuickTransitionOptions): UseQuickTra
 
   const handleKey = (input: string, key: TuiKey): void => {
     if (pending?.saving) return;
-    if (input === "y" || key.return) return void apply();
-    if (input === "n" || key.escape) setPending(undefined);
+    if ((isPlainChar(input, key) && input === "y") || key.return) return void apply();
+    if ((isPlainChar(input, key) && input === "n") || key.escape) setPending(undefined);
   };
 
   return { pending, active: pending !== undefined, start, handleKey };

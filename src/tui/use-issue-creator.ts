@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import type { IssueLabel, IssuePriority, IssueState, IssueUser } from "../types/issue.js";
-import type { TuiKey } from "../keybindings/key-spec.js";
+import { isPlainChar, type TuiKey } from "../keybindings/key-spec.js";
 import { applyKey, type TextBuffer } from "./text-buffer.js";
 import {
   initialSelectState,
@@ -258,11 +258,11 @@ export function useIssueCreator(deps: IssueCreatorDeps): IssueCreatorController 
     (input: string, key: TuiKey) => {
       if (key.ctrl && input === "s") return void runCreate();
       if (key.escape) return close();
-      if (key.downArrow || input === "j")
+      if (key.downArrow || (isPlainChar(input, key) && input === "j"))
         return setField(
           (f) => EDIT_FIELDS[Math.min(EDIT_FIELDS.length - 1, EDIT_FIELDS.indexOf(f) + 1)]!,
         );
-      if (key.upArrow || input === "k")
+      if (key.upArrow || (isPlainChar(input, key) && input === "k"))
         return setField((f) => EDIT_FIELDS[Math.max(0, EDIT_FIELDS.indexOf(f) - 1)]!);
       if (key.return) void openField();
     },

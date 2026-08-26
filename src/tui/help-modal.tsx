@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Box, Text, useInput } from "./opentui-primitives.js";
 import { padRight } from "../utils/formatting.js";
 import { useTheme } from "./theme/context.js";
+import { isPlainChar } from "../keybindings/key-spec.js";
 import type { ResolvedBinding } from "../keybindings/load.js";
 import type { ActionId, ActionContext } from "../keybindings/registry.js";
 
@@ -178,7 +179,7 @@ export function HelpModal(props: HelpModalProps): React.ReactNode {
   const sections = useMemo(() => buildHelpSections(props.bindings, query), [props.bindings, query]);
 
   useInput((input, key) => {
-    if (key.escape || input === "q") {
+    if (key.escape || (isPlainChar(input, key) && input === "q")) {
       props.onClose();
       return;
     }

@@ -5,7 +5,12 @@ import {
   type ReactTestRenderer,
   type ReactTestRendererJSON,
 } from "react-test-renderer";
-import { OpenTuiRuntimeProvider, type InputHandler } from "./opentui-primitives.js";
+import { parseKeypress } from "@opentui/core";
+import {
+  OpenTuiRuntimeProvider,
+  translateKeyEvent,
+  type InputHandler,
+} from "./opentui-primitives.js";
 import type { TuiKey } from "../keybindings/key-spec.js";
 
 interface RenderResult {
@@ -33,13 +38,16 @@ function readJson(node: ReactTestRendererJSON | ReactTestRendererJSON[] | string
   return ownText + readJson(node.children as ReactTestRendererJSON[] | string | null);
 }
 
+// keypressFromChar drives the same byte -> key event -> (input, key) path the real
+// terminal drives: OpenTUI's parser turns the byte into a key event and the
+// production translation turns that into the pair handlers receive. It holds no
+// mapping of its own on purpose -- PLC-1 shipped a dead ctrl+s under a green suite
+// precisely because this helper used to hard-code ["s", { ctrl: true }] for 0x13,
+// asserting a pair production never produced.
 function keypressFromChar(char: string): [string, TuiKey] {
-  if (char === "\r") return ["", { return: true }];
-  if (char === "\x1b") return ["", { escape: true }];
-  if (char === "\x7f") return ["", { backspace: true }];
-  if (char === "\x13") return ["s", { ctrl: true }];
-  if (char === " ") return [" ", {}];
-  return [char, { shift: char >= "A" && char <= "Z" }];
+  const parsed = parseKeypress(char);
+  if (!parsed) throw new Error(`keypressFromChar: unparsable input byte: ${JSON.stringify(char)}`);
+  return translateKeyEvent(parsed);
 }
 
 export function render(node: React.ReactNode): RenderResult {

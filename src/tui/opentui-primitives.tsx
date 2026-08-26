@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo } from "react";
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react";
-import { createTextAttributes, type KeyEvent } from "@opentui/core";
+import { createTextAttributes, type ParsedKey } from "@opentui/core";
 import type { BoxProps as OpenTuiBoxProps, TextProps as OpenTuiTextProps } from "@opentui/react";
 import type { TuiKey } from "../keybindings/key-spec.js";
 
@@ -106,16 +106,23 @@ export function Text({
   );
 }
 
-function isPrintable(event: KeyEvent): boolean {
-  return event.name.length === 1 && !event.ctrl && !event.meta;
-}
-
-function inputFromEvent(event: KeyEvent): string {
+// A key event carries two different things and PLC-1 came from conflating them:
+// `name` is the key's identity (ctrl+s has name "s") while `sequence` is the
+// literal character it would type. Routing wants the identity, so a chord keeps
+// its letter in `input`; text entry wants the character, so a shifted letter
+// keeps its case. Suppressing the chord from the buffer is not this function's
+// job -- applyKey (tui/text-buffer.ts) re-checks key.ctrl/key.meta and refuses
+// to insert. Blanking the letter here is what left every ctrl+s handler dead.
+function inputFromEvent(event: ParsedKey): string {
   if (event.name === "space") return " ";
-  return isPrintable(event) ? event.name : "";
+  if (event.name.length !== 1) return "";
+  // parseKeypress lowercases a shifted letter in `name` and keeps the typed
+  // character in `sequence`, so uppercase survives only by reading `sequence`.
+  if (event.shift && event.sequence.length === 1) return event.sequence;
+  return event.name;
 }
 
-function keyFromEvent(event: KeyEvent): TuiKey {
+function keyFromEvent(event: ParsedKey): TuiKey {
   const name = event.name.toLowerCase();
   return {
     ctrl: event.ctrl,
@@ -135,6 +142,20 @@ function keyFromEvent(event: KeyEvent): TuiKey {
   };
 }
 
+// The tty does not eat ctrl+s: OpenTUI's renderer calls stdin.setRawMode(true) on
+// startup, and raw mode clears IXON, so byte 0x13 arrives as a keypress instead of
+// being consumed as XOFF flow control (verified on a pty: `stty -a` reports `ixon`
+// before `stty raw` and `-ixon` after). XOFF was the other PLC-1 candidate; it is
+// ruled out, and no terminal mode is set anywhere in this codebase.
+//
+// translateKeyEvent converts a terminal key event into the (input, key) pair every
+// InputHandler receives. It is the single place that decides what `input` holds,
+// so handlers, matchesKey and user-configured bindings all see the same shape --
+// and so tests can drive the very translation production uses.
+export function translateKeyEvent(event: ParsedKey): [string, TuiKey] {
+  return [inputFromEvent(event), keyFromEvent(event)];
+}
+
 export function useInput(handler: InputHandler): void {
   const runtime = useContext(RuntimeContext);
   useEffect(() => {
@@ -144,7 +165,8 @@ export function useInput(handler: InputHandler): void {
   if (runtime) return;
 
   useKeyboard((event) => {
-    handler(inputFromEvent(event), keyFromEvent(event));
+    const [input, key] = translateKeyEvent(event);
+    handler(input, key);
   });
 }
 

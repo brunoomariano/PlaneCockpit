@@ -122,6 +122,9 @@ function harness(updateImpl?: () => Promise<Issue>): Harness {
 describe("dashboard edit flow (e2e)", () => {
   // Scenario 15 + 12: `e` opens the editor; picking a new state and saving with
   // ctrl+s sends one update() PATCH carrying only the changed field.
+  // Since PLC-1 this drives the production key translation end to end (the helper no
+  // longer fabricates the 0x13 pair), so it is a real proof that ctrl+s saves from
+  // the issue editor form rather than a restatement of the helper's own mapping.
   it("opens with e, changes the state, and saves one PATCH on ctrl+s", async () => {
     const { ctx, logger, update } = harness();
     const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
