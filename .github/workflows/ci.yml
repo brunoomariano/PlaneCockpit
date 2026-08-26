@@ -33,9 +33,12 @@ jobs:
 
       - uses: pnpm/action-setup@v4
 
+      # Node comes from .nvmrc, which tracks the version mise pins in mise.toml.
+      # The suite runs vitest under node with --experimental-ffi, so anything
+      # below the engines floor (>=26.4) fails with "bad option".
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: pnpm
 
       - name: Install dependencies
