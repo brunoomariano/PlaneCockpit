@@ -1,6 +1,6 @@
 import React from "react";
 import { Box, Text } from "./opentui-primitives.js";
-import { isPlainChar, type TuiKey } from "../keybindings/key-spec.js";
+import { isCtrlKey, isPlainKey, type TuiKey } from "../keybindings/key-spec.js";
 import { useTheme } from "./theme/context.js";
 
 // SelectOption is one row in the picker: a stable `value` returned to the caller
@@ -63,9 +63,8 @@ function toggleMarked(marked: Set<string>, value: string): Set<string> {
 // j/k count only as a bare character -- a ctrl/meta chord must not move the
 // cursor, which before PLC-1 held only because chords arrived with an empty input.
 function navigationStep(input: string, key: TuiKey): number {
-  const plain = isPlainChar(input, key);
-  if (key.downArrow || (plain && input === "j")) return 1;
-  if (key.upArrow || (plain && input === "k")) return -1;
+  if (key.downArrow || isPlainKey(input, key, "j")) return 1;
+  if (key.upArrow || isPlainKey(input, key, "k")) return -1;
   return 0;
 }
 
@@ -85,7 +84,7 @@ export function reduceSelectKey(
   if (key.escape) return { state, outcome: { type: "cancel" } };
   const step = navigationStep(input, key);
   if (step !== 0) return { state: moveCursor(state, options.length, step) };
-  if (key.ctrl && input === "s" && mode.multi) {
+  if (isCtrlKey(input, key, "s") && mode.multi) {
     const values = options.map((o) => o.value).filter((v) => state.marked.has(v));
     return { state, outcome: { type: "confirm-multi", values } };
   }

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Box, Text, useInput } from "./opentui-primitives.js";
 import { padRight } from "../utils/formatting.js";
 import { useTheme } from "./theme/context.js";
-import { isPlainChar } from "../keybindings/key-spec.js";
+import { isPlainChar, isPlainKey } from "../keybindings/key-spec.js";
 import type { ResolvedBinding } from "../keybindings/load.js";
 import type { ActionId, ActionContext } from "../keybindings/registry.js";
 
@@ -179,7 +179,7 @@ export function HelpModal(props: HelpModalProps): React.ReactNode {
   const sections = useMemo(() => buildHelpSections(props.bindings, query), [props.bindings, query]);
 
   useInput((input, key) => {
-    if (key.escape || (isPlainChar(input, key) && input === "q")) {
+    if (key.escape || isPlainKey(input, key, "q")) {
       props.onClose();
       return;
     }
@@ -188,7 +188,7 @@ export function HelpModal(props: HelpModalProps): React.ReactNode {
       return;
     }
     // typing inside the modal goes into the search box
-    if (input && !key.ctrl && !key.meta && input !== "?") {
+    if (isPlainChar(input, key) && input !== "?") {
       setQuery((q) => q + input);
     }
   });

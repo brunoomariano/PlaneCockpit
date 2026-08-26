@@ -118,6 +118,9 @@ function inputFromEvent(event: ParsedKey): string {
   if (event.name.length !== 1) return "";
   // parseKeypress lowercases a shifted letter in `name` and keeps the typed
   // character in `sequence`, so uppercase survives only by reading `sequence`.
+  // The length guard confines that read to a single character: alt+shift+g arrives
+  // with name "G" and sequence "\x1bG", and the escape prefix must not reach a
+  // text buffer.
   if (event.shift && event.sequence.length === 1) return event.sequence;
   return event.name;
 }

@@ -5,6 +5,10 @@
  * editor over the selected issue; arrows move focus; enter opens a field picker;
  * a single ctrl+s save sends one issues.update() PATCH; and escaping a dirty
  * draft asks for confirmation before discarding. Mirrors the comment e2e setup.
+ *
+ * The last block covers the single-key branches the dashboard writes by hand: each
+ * must fire on the letter however it is capitalised, and must not fire on a chord
+ * over that letter.
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -506,6 +510,121 @@ describe("dashboard quick state transition (e2e)", () => {
     expect(update).toHaveBeenCalledWith("ENG-1", { state_id: "s-doing" });
     // The save triggered a refresh rather than an in-place patch.
     expect(listResilient.mock.calls.length).toBeGreaterThan(callsAfterLoad);
+    unmount();
+  });
+});
+
+// PLC-1 follow-up. Restoring the letter of a chord made every hand-written branch
+// that compares a bare character load-bearing in two directions at once: a chord
+// over the letter must not fire it, and a capital must still fire it (the
+// translation now carries the character as typed). Only the picker's j/k were
+// pinned; these cover the branches the dashboard drives. Each writes real bytes, so
+// the assertion runs through the production translation rather than a fixture.
+describe("dashboard single-key branches (e2e)", () => {
+  // Editor form: uppercase J still navigates, and ctrl+k does not walk back up --
+  // if it did, enter would open the description editor instead of the state picker.
+  it("navigates the editor form on uppercase J and ignores a ctrl chord over k", async () => {
+    const { ctx, logger } = harness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write("e");
+    await tick();
+    stdin.write("J"); // title -> description
+    await tick();
+    stdin.write("J"); // description -> state
+    await tick();
+    stdin.write("\x0b"); // ctrl+k must not move the cursor
+    await tick();
+    stdin.write("\r");
+    await tick();
+
+    expect(lastFrame()).toContain("set state");
+    unmount();
+  });
+
+  // Confirm-exit prompt: with caps lock on, Y used to do nothing at all, leaving the
+  // editor open with no visible reason and no other way to discard but enter.
+  it("discards the draft on uppercase Y at the confirm prompt", async () => {
+    const { ctx, logger, update } = harness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write("e");
+    await tick();
+    stdin.write("j"); // title -> description
+    await tick();
+    stdin.write("j"); // description -> state
+    await tick();
+    stdin.write("\r"); // open the state picker
+    await tick();
+    stdin.write("j"); // move to a different state
+    await tick();
+    stdin.write("\r"); // confirm -> draft now dirty
+    await tick();
+    stdin.write("\x1b"); // esc prompts instead of closing
+    await tick();
+    expect(lastFrame()).toContain("discard changes?");
+
+    stdin.write("Y");
+    await tick();
+
+    expect(lastFrame()).toContain("TITLE"); // back on the list
+    expect(update).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  // The quick transition prompt is the same y/n shape, guarded separately.
+  it("applies a quick transition on uppercase Y", async () => {
+    const { ctx, logger, update } = harness();
+    const { stdin, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write(">"); // propose the next state
+    await tick();
+    stdin.write("Y");
+    await tick();
+
+    expect(update).toHaveBeenCalledWith("ENG-1", { state_id: "s-doing" });
+    unmount();
+  });
+
+  it("leaves the quick transition pending on a ctrl chord over n", async () => {
+    const { ctx, logger, update } = harness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write(">");
+    await tick();
+    expect(lastFrame()).toContain("apply? y / n");
+
+    stdin.write("\x0e"); // ctrl+n must not cancel
+    await tick();
+
+    expect(lastFrame()).toContain("apply? y / n");
+    expect(update).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  // Help modal: q closes it whatever its case, and a chord over q leaves it open
+  // rather than closing the modal out from under a keystroke meant for something else.
+  it("closes the help modal on uppercase Q but not on ctrl+q", async () => {
+    const { ctx, logger } = harness();
+    const { stdin, lastFrame, unmount } = renderDashboard(ctx, logger);
+    await tick();
+
+    stdin.write("?");
+    await tick();
+    expect(lastFrame()).toContain("esc/q to close");
+
+    stdin.write("\x11"); // ctrl+q
+    await tick();
+    expect(lastFrame()).toContain("esc/q to close");
+
+    stdin.write("Q");
+    await tick();
+
+    expect(lastFrame()).not.toContain("esc/q to close");
     unmount();
   });
 });

@@ -35,7 +35,7 @@ import { useRelations } from "./use-relations.js";
 import { useDetailStack, targetFromIssue } from "./use-detail-stack.js";
 import { patchTouchesViewFilter } from "./view-filter-reconcile.js";
 import type { ActionId } from "../keybindings/registry.js";
-import { isPlainChar, type TuiKey } from "../keybindings/key-spec.js";
+import { isPlainKey, type TuiKey } from "../keybindings/key-spec.js";
 
 export interface DashboardProps {
   ctx: AppContext;
@@ -751,7 +751,7 @@ export function Dashboard({ ctx, logger }: DashboardProps): React.ReactNode {
       input,
       key,
     );
-    if (!consumed && ((isPlainChar(input, key) && input === "q") || key.escape)) setHelpOpen(false);
+    if (!consumed && (isPlainKey(input, key, "q") || key.escape)) setHelpOpen(false);
   };
 
   // openFocusedRelation navigates into the relation under the cursor. It prefers

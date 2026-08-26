@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import type { Issue } from "../types/issue.js";
-import type { TuiKey } from "../keybindings/key-spec.js";
+import { isCtrlKey, type TuiKey } from "../keybindings/key-spec.js";
 import { emptyBuffer, applyKey, isBlank, type TextBuffer } from "./text-buffer.js";
 
 export interface CommentEditorController {
@@ -60,7 +60,7 @@ export function useCommentEditor(deps: CommentEditorDeps): CommentEditorControll
     (input: string, key: TuiKey): void => {
       if (submitting) return;
       if (key.escape) return setActive(false);
-      if (key.ctrl && input === "s") {
+      if (isCtrlKey(input, key, "s")) {
         void runSubmit();
         return;
       }
