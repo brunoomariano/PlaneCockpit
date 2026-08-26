@@ -133,6 +133,35 @@ describe("reduceSelectKey (multi-select)", () => {
     expect(reduceSelectKey(state, OPTIONS, { multi: true }, "k", press("k")).state.cursor).toBe(0);
   });
 
+  // Caps lock must not disable navigation: the translation carries the character as
+  // typed, so the reducer sees "J"/"K" rather than "j"/"k".
+  it("should move the cursor on an uppercase J or K", () => {
+    const state: SelectState = { cursor: 1, marked: new Set() };
+    const shift = { shift: true };
+
+    expect(
+      reduceSelectKey(state, OPTIONS, { multi: true }, "J", press("J", shift)).state.cursor,
+    ).toBe(2);
+    expect(
+      reduceSelectKey(state, OPTIONS, { multi: true }, "K", press("K", shift)).state.cursor,
+    ).toBe(0);
+  });
+
+  // A terminal in modifyOtherKeys mode reports ctrl+shift+s as "S"; the confirm must
+  // still fire rather than silently dropping the marked set.
+  it("should confirm the marked set on ctrl+shift+s", () => {
+    const state: SelectState = { cursor: 0, marked: new Set(["a"]) };
+    const out = reduceSelectKey(
+      state,
+      OPTIONS,
+      { multi: true },
+      "S",
+      press("S", { ctrl: true, shift: true }),
+    );
+
+    expect(out.outcome).toEqual({ type: "confirm-multi", values: ["a"] });
+  });
+
   it("should confirm an empty set on ctrl+s when nothing is marked", () => {
     const state = initialSelectState(OPTIONS, { multi: true });
     const out = reduceSelectKey(state, OPTIONS, { multi: true }, "s", press("s", { ctrl: true }));

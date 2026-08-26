@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Issue } from "../types/issue.js";
 import type { AppContext } from "../app.js";
 import type { FileLogger } from "../utils/file-logger.js";
-import type { TuiKey } from "../keybindings/key-spec.js";
+import { isPlainChar, type TuiKey } from "../keybindings/key-spec.js";
 import { parseQuery, matchesQuery } from "./issue-query.js";
 
 export interface UseIssueFilterOptions {
@@ -66,7 +66,7 @@ export function useIssueFilter(opts: UseIssueFilterOptions): UseIssueFilter {
       setFiltering(false);
     } else if (key.backspace || key.delete) {
       setFilter((f) => f.slice(0, -1));
-    } else if (input && !key.ctrl && !key.meta) {
+    } else if (isPlainChar(input, key)) {
       setFilter((f) => f + input);
     }
   };

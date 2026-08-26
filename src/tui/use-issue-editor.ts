@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Issue, IssueLabel, IssuePriority, IssueState, IssueUser } from "../types/issue.js";
-import { isPlainChar, type TuiKey } from "../keybindings/key-spec.js";
+import { isCtrlKey, isPlainKey, type TuiKey } from "../keybindings/key-spec.js";
 import {
   editorOriginal,
   isDraftDirty,
@@ -252,16 +252,16 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
 
   const handleFormKey = useCallback(
     (input: string, key: TuiKey) => {
-      if (key.ctrl && input === "s") return void runSave();
+      if (isCtrlKey(input, key, "s")) return void runSave();
       if (key.escape) {
         if (dirty) return setConfirmingExit(true);
         return close();
       }
-      if (key.downArrow || (isPlainChar(input, key) && input === "j"))
+      if (key.downArrow || isPlainKey(input, key, "j"))
         return setField(
           (f) => EDIT_FIELDS[Math.min(EDIT_FIELDS.length - 1, EDIT_FIELDS.indexOf(f) + 1)]!,
         );
-      if (key.upArrow || (isPlainChar(input, key) && input === "k"))
+      if (key.upArrow || isPlainKey(input, key, "k"))
         return setField((f) => EDIT_FIELDS[Math.max(0, EDIT_FIELDS.indexOf(f) - 1)]!);
       if (key.return) openField();
     },
@@ -273,7 +273,7 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
   // a separate mode because j/k/enter are literal input here, not navigation.
   const handleTextEditKey = useCallback(
     (current: NonNullable<IssueEditorController["textEdit"]>, input: string, key: TuiKey) => {
-      if (key.ctrl && input === "s") return commitTextEdit();
+      if (isCtrlKey(input, key, "s")) return commitTextEdit();
       if (key.escape) return setTextEdit(undefined);
       setTextEdit({ ...current, buffer: applyKey(current.buffer, input, key) });
     },
@@ -283,8 +283,8 @@ export function useIssueEditor(deps: IssueEditorDeps): IssueEditorController {
   const handleConfirmKey = useCallback(
     (input: string, key: TuiKey) => {
       // y/enter discards and closes; n/esc returns to the form with the draft.
-      if ((isPlainChar(input, key) && input === "y") || key.return) return close();
-      if ((isPlainChar(input, key) && input === "n") || key.escape) return setConfirmingExit(false);
+      if (isPlainKey(input, key, "y") || key.return) return close();
+      if (isPlainKey(input, key, "n") || key.escape) return setConfirmingExit(false);
     },
     [close],
   );

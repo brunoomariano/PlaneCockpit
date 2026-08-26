@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import type { IssueLabel, IssuePriority, IssueState, IssueUser } from "../types/issue.js";
-import { isPlainChar, type TuiKey } from "../keybindings/key-spec.js";
+import { isCtrlKey, isPlainKey, type TuiKey } from "../keybindings/key-spec.js";
 import { applyKey, type TextBuffer } from "./text-buffer.js";
 import {
   initialSelectState,
@@ -247,7 +247,7 @@ export function useIssueCreator(deps: IssueCreatorDeps): IssueCreatorController 
 
   const handleTextEditKey = useCallback(
     (current: NonNullable<IssueCreatorController["textEdit"]>, input: string, key: TuiKey) => {
-      if (key.ctrl && input === "s") return commitTextEdit();
+      if (isCtrlKey(input, key, "s")) return commitTextEdit();
       if (key.escape) return setTextEdit(undefined);
       setTextEdit({ ...current, buffer: applyKey(current.buffer, input, key) });
     },
@@ -256,13 +256,13 @@ export function useIssueCreator(deps: IssueCreatorDeps): IssueCreatorController 
 
   const handleFormKey = useCallback(
     (input: string, key: TuiKey) => {
-      if (key.ctrl && input === "s") return void runCreate();
+      if (isCtrlKey(input, key, "s")) return void runCreate();
       if (key.escape) return close();
-      if (key.downArrow || (isPlainChar(input, key) && input === "j"))
+      if (key.downArrow || isPlainKey(input, key, "j"))
         return setField(
           (f) => EDIT_FIELDS[Math.min(EDIT_FIELDS.length - 1, EDIT_FIELDS.indexOf(f) + 1)]!,
         );
-      if (key.upArrow || (isPlainChar(input, key) && input === "k"))
+      if (key.upArrow || isPlainKey(input, key, "k"))
         return setField((f) => EDIT_FIELDS[Math.max(0, EDIT_FIELDS.indexOf(f) - 1)]!);
       if (key.return) void openField();
     },

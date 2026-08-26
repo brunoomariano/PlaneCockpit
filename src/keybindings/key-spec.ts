@@ -84,12 +84,28 @@ export function parseKeySpec(raw: string): KeySpec {
 }
 
 // isPlainChar reports whether `input` is a bare character rather than part of a
-// ctrl/meta chord. Branches that bind an unmodified letter (j/k, y/n, q) must
-// gate on this: before PLC-1 they were shielded only by the translation blanking
-// every chord, so once ctrl+s carried its letter again, ctrl+j and ctrl+q would
-// have fired those branches too.
+// ctrl/meta chord. Text entry gates on it directly; a branch bound to one specific
+// letter wants isPlainKey below. Before PLC-1 those branches were shielded only by
+// the translation blanking every chord, so once ctrl+s carried its letter again,
+// ctrl+j and ctrl+q would have fired them too.
 export function isPlainChar(input: string, key: TuiKey): boolean {
   return input.length > 0 && !key.ctrl && !key.meta;
+}
+
+// isPlainKey reports whether the keystroke is `char` pressed on its own. The
+// comparison is case-insensitive because the translation carries the character as
+// typed: with caps lock on the confirm prompts receive "Y"/"N", and a literal
+// comparison against "y" would leave them inert. `char` must be lowercase.
+export function isPlainKey(input: string, key: TuiKey, char: string): boolean {
+  return isPlainChar(input, key) && input.toLowerCase() === char;
+}
+
+// isCtrlKey reports whether the keystroke is ctrl+`char`, case-insensitive for the
+// same reason as isPlainKey: a terminal in modifyOtherKeys mode reports ctrl+shift+s
+// as "S", which no save site would recognise. meta is deliberately not excluded --
+// ctrl+alt+s has always reached these handlers.
+export function isCtrlKey(input: string, key: TuiKey, char: string): boolean {
+  return Boolean(key.ctrl) && input.toLowerCase() === char;
 }
 
 // OpenTUI delivers either a printable character in `input` (with key.shift set)
