@@ -9,3 +9,6 @@ coverage/
 .mise.local.toml
 # npm pack output
 *.tgz
+
+# Luna stage-local artifacts (handed over, not committed)
+.luna/
