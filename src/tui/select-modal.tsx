@@ -1,6 +1,6 @@
 import React from "react";
 import { Box, Text } from "./opentui-primitives.js";
-import type { TuiKey } from "../keybindings/key-spec.js";
+import { isPlainChar, type TuiKey } from "../keybindings/key-spec.js";
 import { useTheme } from "./theme/context.js";
 
 // SelectOption is one row in the picker: a stable `value` returned to the caller
@@ -59,6 +59,16 @@ function toggleMarked(marked: Set<string>, value: string): Set<string> {
   return next;
 }
 
+// navigationStep reads a keystroke as a cursor movement: -1 up, +1 down, 0 none.
+// j/k count only as a bare character -- a ctrl/meta chord must not move the
+// cursor, which before PLC-1 held only because chords arrived with an empty input.
+function navigationStep(input: string, key: TuiKey): number {
+  const plain = isPlainChar(input, key);
+  if (key.downArrow || (plain && input === "j")) return 1;
+  if (key.upArrow || (plain && input === "k")) return -1;
+  return 0;
+}
+
 // reduceSelectKey is the picker's headless core: it maps a keystroke onto the
 // next cursor/marked state and an optional outcome. enter confirms (single) or
 // toggles (multi); ctrl+s confirms a multi set; esc cancels; j/k/arrows move.
@@ -73,8 +83,8 @@ export function reduceSelectKey(
   key: TuiKey,
 ): SelectReduction {
   if (key.escape) return { state, outcome: { type: "cancel" } };
-  if (key.downArrow || input === "j") return { state: moveCursor(state, options.length, 1) };
-  if (key.upArrow || input === "k") return { state: moveCursor(state, options.length, -1) };
+  const step = navigationStep(input, key);
+  if (step !== 0) return { state: moveCursor(state, options.length, step) };
   if (key.ctrl && input === "s" && mode.multi) {
     const values = options.map((o) => o.value).filter((v) => state.marked.has(v));
     return { state, outcome: { type: "confirm-multi", values } };

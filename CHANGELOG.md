@@ -7,6 +7,17 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `ctrl+s` saves again in the dash TUI. It had no effect in the issue editor form,
+  the inline text editor, the comment editor, the issue creator or the multi-select
+  picker, because the key translation dropped the letter of every modifier chord
+  before it reached a handler. The same defect disabled every `ctrl+<letter>` and
+  `alt+<letter>` binding configured in `keybindings.yaml`, including `edit.save`.
+- Typing an uppercase letter in the dash TUI inserts an uppercase letter. Text
+  entry previously lowercased it, so a title typed as `New bug` was stored as
+  `new bug`.
+
 ## [0.4.0] - 2026-08-06
 
 ### Changed

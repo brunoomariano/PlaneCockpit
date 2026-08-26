@@ -83,6 +83,15 @@ export function parseKeySpec(raw: string): KeySpec {
   return { key, ctrl, shift, meta, raw: normalizedRaw };
 }
 
+// isPlainChar reports whether `input` is a bare character rather than part of a
+// ctrl/meta chord. Branches that bind an unmodified letter (j/k, y/n, q) must
+// gate on this: before PLC-1 they were shielded only by the translation blanking
+// every chord, so once ctrl+s carried its letter again, ctrl+j and ctrl+q would
+// have fired those branches too.
+export function isPlainChar(input: string, key: TuiKey): boolean {
+  return input.length > 0 && !key.ctrl && !key.meta;
+}
+
 // OpenTUI delivers either a printable character in `input` (with key.shift set)
 // or a flag on the `key` object for special keys. matchesKey reconciles both
 // shapes against a KeySpec.

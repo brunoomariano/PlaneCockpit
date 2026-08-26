@@ -106,6 +106,20 @@ describe("reduceSelectKey (multi-select)", () => {
     expect(out.outcome).toEqual({ type: "confirm-multi", values: ["a", "c"] });
   });
 
+  // PLC-1 regression: j/k used to be shielded only by the translation blanking every
+  // chord. Now that ctrl+s carries its letter, ctrl+j must not move the cursor -- and
+  // note j/k are tested before ctrl+s in the reducer, so ordering alone cannot save it.
+  it("should not move the cursor on ctrl+j or ctrl+k", () => {
+    const state: SelectState = { cursor: 1, marked: new Set() };
+
+    expect(
+      reduceSelectKey(state, OPTIONS, { multi: true }, "j", press("j", { ctrl: true })).state,
+    ).toEqual(state);
+    expect(
+      reduceSelectKey(state, OPTIONS, { multi: true }, "k", press("k", { ctrl: true })).state,
+    ).toEqual(state);
+  });
+
   it("should confirm an empty set on ctrl+s when nothing is marked", () => {
     const state = initialSelectState(OPTIONS, { multi: true });
     const out = reduceSelectKey(state, OPTIONS, { multi: true }, "s", press("s", { ctrl: true }));
